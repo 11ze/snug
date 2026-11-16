@@ -59,9 +59,11 @@ enum LoginItemIssue: Equatable {
     case failed
 }
 
-/// 设置窗口、菜单栏能发起的意图。AppController 是唯一实现（渲染 PNG 时用一个什么都不做的替身）
+/// 设置窗口、菜单栏能发起的意图。AppController 是唯一实现（渲染 PNG 时用一个什么都不做的替身）。
+/// Sendable：实现都是 @MainActor 的类型，状态受主线程隔离保护，可以安全地交给视图——不标的话，
+/// 把 intents.setPhone 这种函数引用存进视图属性时，Swift 6.2 会当成非 Sendable 值跨隔离域传递而报错
 @MainActor
-protocol AppIntents: AnyObject {
+protocol AppIntents: AnyObject, Sendable {
     func setPhoneScreen(_ on: Bool)
     func setGestures(_ on: Bool)
     func setZoomSteps(_ steps: Int)
@@ -82,7 +84,7 @@ protocol AppIntents: AnyObject {
 
 /// 手机屏上的 App 资源库和小横条能发起的意图
 @MainActor
-protocol PhoneIntents: AnyObject {
+protocol PhoneIntents: AnyObject, Sendable {
     func pull(_ window: WindowInfo)
     /// 点一个 App：在跑且有窗口就放最近用过的那个，否则打开它、等新窗口出来再放（见 AppList.action）
     func open(_ app: AppInfo)
@@ -102,7 +104,7 @@ protocol PhoneIntents: AnyObject {
 
 /// 打开各个窗口
 @MainActor
-protocol Navigation: AnyObject {
+protocol Navigation: AnyObject, Sendable {
     func openSettings()
     func openWelcome()
     func openAbout()
