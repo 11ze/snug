@@ -75,7 +75,7 @@ UU Remote's mobile client carries over trackpad gesture conventions. On the phon
 Turn on Screenshot (「截图」) in Snug Settings and a camera button appears on the left of the bottom indicator bar. Tap it to capture the window filling the phone screen and copy it to the Mac's clipboard, ready to paste into any app. You get the window's native pixels, unaffected by remote image compression.
 
 - **Crop**: after a capture, a thumbnail appears in the bottom-left corner; tap it to crop. The whole image is selected by default — drag a corner or edge inward, then tap Done (「完成」) to replace the screenshot in the clipboard with the selection
-- **Permission**: requires the separate Screen & System Audio Recording permission (Screen Recording on macOS 14); click Authorize… (「授权…」) in Snug Settings to grant it. It is independent of the Accessibility permission
+- **Permission**: requires the separate Screen & System Audio Recording permission (Screen Recording on macOS 14); click Authorize… (「授权…」) in Snug Settings, then reopen Snug when macOS asks. It is independent of the Accessibility permission
 - **Off by default**: when it is off, the indicator bar shows no camera button and no recording permission is needed
 
 ## 📱 App Library
