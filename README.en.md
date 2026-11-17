@@ -64,11 +64,11 @@ UU Remote's mobile client carries over trackpad gesture conventions. On the phon
 
 ### Screenshots
 
-With a window filling the phone screen, tap the camera button on the left of the bottom indicator bar. The whole window is captured and copied to the Mac's clipboard — press ⌘V in the window to paste it. You get the window's native pixels, with no loss from remote compression.
+Turn on Screenshot in Settings and a camera button appears on the left of the bottom indicator bar. Tap it to capture the window filling the phone screen and copy it to the Mac's clipboard, ready to paste into the window. You get the window's native pixels, unaffected by remote image compression.
 
-- Only need part of it: a thumbnail appears at the bottom after the capture — tap it to crop. Everything is selected by default; drag a corner or edge inward, then tap Done and the selection replaces the whole image in the clipboard
-- First use requires granting Snug "Screen Recording" in System Settings; on macOS 14, restart Snug after granting
-- This is a separate permission from Accessibility; with only Accessibility granted, tapping the camera button asks you to allow it
+- **Crop**: after a capture, a thumbnail appears in the bottom-left corner; tap it to crop. The whole image is selected by default — drag a corner or edge inward, then tap Done to replace the screenshot in the clipboard with the selection
+- **Permission**: requires the separate Screen & System Audio Recording permission (Screen Recording on macOS 14); tap Authorize… in Settings to grant it. It is independent of the Accessibility permission
+- **Off by default**: when it is off, the indicator bar works as before and no recording permission is needed
 
 ### Works Like an iPhone
 
@@ -185,7 +185,7 @@ rm ~/Library/LaunchAgents/com.corndog.uudisplay.watchdog-agent.plist
 - **Record first, then change**: each window's original position and text size are recorded in advance, so they can be restored even if Snug quits unexpectedly
 - **Restored even when a window is closed directly**: if you close a window directly on your phone, the next time the app opens it at the phone-screen size, Snug moves it back and restores its text size
 - **Unresponsive apps are left as they are**: if an app stops responding, Snug does not force its window to move and explains why on screen
-- **No data collection**: apart from checking for updates, Snug connects to no servers and collects no data
+- **No data collection**: apart from checking for updates, Snug connects to no servers and collects no data; screenshots only go to the Mac's clipboard and are not kept
 
 ## 🚧 Known Limitations
 
@@ -216,7 +216,7 @@ scripts/snug install   # build, install, and launch
 1. Quit Snug from the menu bar (windows are restored first)
 2. Move Snug from Applications to the Trash
 3. Optional: remove its settings and logs with `rm -rf ~/Library/Application\ Support/Snug ~/Library/Logs/Snug.log*`
-4. Optional: remove Snug from Accessibility in System Settings
+4. Optional: remove Snug from Accessibility in System Settings, and from Screen & System Audio Recording if you turned on Screenshot
 
 ## 🙏 Acknowledgments
 
