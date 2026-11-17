@@ -33,6 +33,9 @@ final class ScreenProbe: NSObject, NSApplicationDelegate {
     }
 
     private func start() async {
+        // 一开始就盯着屏幕变化：后面每建一块屏，系统都可能把前面的屏挪个位置，校准图要跟着挪
+        watcher = DisplayWatcher { [weak self] in self?.displaysChanged() }
+        watcher?.start()
         say("开始前的屏幕：\(Self.allDisplays())")
         for screen in screens {
             guard let probe = ProbeDisplay(screen) else {
@@ -63,8 +66,8 @@ final class ScreenProbe: NSObject, NSApplicationDelegate {
             let err = await Self.offMain { DisplayArrangement.makeMain(id) }
             say("#\(id) 设成主屏：\(err == .success ? "成功" : "失败（CGError=\(err.rawValue)）")，屏幕：\(Self.allDisplays())")
         }
-        watcher = DisplayWatcher { [weak self] in self?.displaysChanged() }
-        watcher?.start()
+        try? await Task.sleep(for: .seconds(0.5))
+        placeAllPatterns()
         say("就绪，屏幕：\(Self.allDisplays())。按 Ctrl-C 撤掉实验屏")
     }
 
@@ -98,14 +101,27 @@ final class ScreenProbe: NSObject, NSApplicationDelegate {
                              point.x, point.y, target.x, target.y, point.x - target.x, point.y - target.y))
         })
         panels[probe.id] = panel
-        placePattern(probe.id)
         panel.orderFrontRegardless()
+        placePattern(probe.id)
     }
 
+    /// 摆到那块屏上，并核对窗口确实落在那块屏：落错了打印出来（先上屏再设位置，免得上屏时被系统挪回主屏）
     private func placePattern(_ id: DisplayID) {
-        guard let panel = panels[id], let screen = Screens.screen(for: id) else { return }
+        guard let panel = panels[id] else { return }
+        guard let screen = Screens.screen(for: id) else {
+            say("#\(id) 的校准图：界面还不认得这块屏，等屏幕变化后再摆")
+            return
+        }
         panel.setFrame(screen.frame, display: true)
         panel.contentView?.needsDisplay = true
+        let landed = (panel.screen?.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.uint32Value
+        if landed != id || panel.frame != screen.frame {
+            say("#\(id) 的校准图没摆对：想要 \(screen.frame)，实际 \(panel.frame)，落在 #\(landed.map(String.init) ?? "无")")
+        }
+    }
+
+    private func placeAllPatterns() {
+        for probe in probes { placePattern(probe.id) }
     }
 
     /// 屏幕一变（UU 改模式、加撤屏），系统会连着回调好几次：停 0.5 秒再打印一次此刻的样子
@@ -115,7 +131,7 @@ final class ScreenProbe: NSObject, NSApplicationDelegate {
         pendingReport = Task {
             try? await Task.sleep(for: .seconds(0.5))
             guard !Task.isCancelled else { return }
-            for probe in probes { placePattern(probe.id) }
+            placeAllPatterns()
             say("屏幕变了：\(Self.allDisplays())")
         }
     }
