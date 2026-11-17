@@ -5,7 +5,7 @@ import AppKit
 import SnugCore
 
 @MainActor
-public final class ScreenshotService: ScreenshotServices {
+public final class ScreenshotService: ScreenshotControl {
     public init() {}
 
     public var trusted: Bool { CGPreflightScreenCaptureAccess() }
@@ -18,6 +18,7 @@ public final class ScreenshotService: ScreenshotServices {
             content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: false)
         } catch {
             // 没权限时这里也会失败（SCStreamErrorDomain -3801），和别的原因分开报
+            Log.warn("截窗口 #\(window.id)：列不出可截的窗口：\(error)")
             throw trusted ? .unavailable : .noPermission
         }
         guard let target = content.windows.first(where: { $0.windowID == window.id }) else { throw .windowGone }
@@ -32,9 +33,13 @@ public final class ScreenshotService: ScreenshotServices {
         do {
             image = try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: configuration)
         } catch {
+            Log.warn("截窗口 #\(window.id) 失败：\(error)")
+            throw trusted ? .unavailable : .noPermission
+        }
+        guard let png = Self.png(image) else {
+            Log.warn("截窗口 #\(window.id)：\(image.width)×\(image.height) 编不成 PNG")
             throw .unavailable
         }
-        guard let png = Self.png(image) else { throw .unavailable }
         return CapturedImage(png: png, pixelWidth: image.width, pixelHeight: image.height)
     }
 

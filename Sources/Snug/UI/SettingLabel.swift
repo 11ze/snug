@@ -1,5 +1,6 @@
 // 设置页、「关于 Snug」、欢迎页共用的行标题：系统设置那样的彩色方块图标（SF Symbols）+ 标题 + 一行短说明；
-// 以及权限那几行的标题和状态
+// 以及权限那几行的标题、状态和「授权…」按钮
+import PermissionFlow
 import SwiftUI
 
 struct SettingLabel: View {
@@ -61,6 +62,22 @@ struct PermissionStatus: View {
             }
         } else {
             Text("未授权").foregroundStyle(.secondary)
+        }
+    }
+}
+
+/// 「授权…」：PermissionFlow 打开系统设置对应的隐私页，旁边浮出一个小窗口，把 Snug 拖进列表即可
+struct AuthorizeButton: View {
+    let pane: PermissionFlowPane
+
+    var body: some View {
+        let app = Bundle.main.bundleURL
+        PermissionFlowButton(
+            pane: pane,
+            suggestedAppURLs: [app],
+            configuration: .init(requiredAppURLs: [app], promptForAccessibilityTrust: false, localeIdentifier: "zh-Hans")
+        ) { _ in
+            Text("授权…")
         }
     }
 }

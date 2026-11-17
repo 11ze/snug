@@ -158,5 +158,5 @@ extension AppController: PhoneIntents {
 
     func openCrop() { screenshots.openCrop() }
     func cancelCrop() { screenshots.cancelCrop() }
-    func finishCrop(selection: CGRect, shown: CGRect) { screenshots.finishCrop(selection: selection, shown: shown) }
+    func finishCrop(_ selection: CGRect) { screenshots.finishCrop(selection) }
 }

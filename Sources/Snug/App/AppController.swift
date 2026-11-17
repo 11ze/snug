@@ -19,7 +19,7 @@ final class AppController: Sendable {
     /// 手机屏 App 资源库的统一数据源。界面碰得到的系统入口只有 desk 和它
     let catalog: AppCatalog
     /// 手机屏上的截图（小横条的相机键）
-    let screenshots = Screenshots(services: ScreenshotService())
+    let screenshots = Screenshots(system: ScreenshotService())
     /// 用户从菜单或设置里点「退出」（由 AppDelegate 接到退出流程上）
     var onQuitRequested: (() -> Void)?
 
@@ -101,7 +101,6 @@ final class AppController: Sendable {
         // 加进 .common：菜单展开、窗口拖动期间也照常走
         RunLoop.main.add(timer, forMode: .common)
         tickTimer = timer
-        refreshScreenRecording()
         tick()
         Log.info("开始监控（手机屏\(store.config.phoneScreen ? "已开" : "已关")，手势\(store.config.gestures ? "已开" : "已关")"
                  + "\(previewPhone ? "，预览模式：不等手机直接加手机屏" : "")）")
@@ -180,7 +179,7 @@ final class AppController: Sendable {
     }
 
     private func screenshotChanged(_ overlay: ScreenshotOverlay?) {
-        state.screenshot = overlay
+        state.screenshotOverlay = overlay
         syncGestures()
     }
 
@@ -189,7 +188,7 @@ final class AppController: Sendable {
     func syncGestures() {
         // 窗口露着时才拦它的关闭按钮：列表盖着时那个位置是列表
         let closeButton = state.phone.listVisible ? nil : state.phone.closeButton
-        let translating = store.config.gestures && state.screenshot?.isCropping != true
+        let translating = store.config.gestures && state.screenshotOverlay?.isCropping != true
         let region = translating
             ? state.phone.display.map { TouchRegion(phoneScreen: CGDisplayBounds($0), closeButton: closeButton) }
             : nil

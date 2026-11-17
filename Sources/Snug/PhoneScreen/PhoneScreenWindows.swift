@@ -39,7 +39,7 @@ final class PhoneScreenWindows {
         withObservationTracking {
             _ = state.phone
             _ = state.streamedDisplay
-            _ = state.screenshot
+            _ = state.screenshotOverlay
             _ = state.config.screenshot
             _ = pages.active
         } onChange: { [weak self] in
@@ -82,41 +82,35 @@ final class PhoneScreenWindows {
             catalog.stopRefreshing()
         }
         catalog.setPaused(phone.work != nil)
-        let cropping = state.screenshot?.isCropping == true
+        let cropping = state.screenshotOverlay?.isCropping == true
         if phone.placed != nil, !showList, !cropping { homeBar.orderFrontRegardless() } else { homeBar.orderOut(nil) }
         updateOverlay(on: screen, hidden: showList)
         updateCrop(on: screen)
     }
 
     /// 截图后的浮层：缩略图靠左、正在相机键上方（点它进裁剪），提示居中（不拦点击）。
-    /// 面板只有内容那么大，不挡窗口底部别的地方；回到 App 资源库、裁剪时不显示
+    /// 面板只有内容那么大，不挡窗口底部别的地方；回到 App 资源库、裁剪时不显示。
+    /// 不显示时连面板一起拆掉：缩略图拿着解码后的整张截图，不留着占内存
     private func updateOverlay(on screen: NSScreen, hidden: Bool) {
-        let scale = ScreenFit.scale(screenWidth: screen.frame.width)
-        switch hidden ? nil : state.screenshot {
-        case .preview(let image)?:
-            showOverlay(.preview(image), scale: scale, on: screen) {
-                FirstMouseHostingView(rootView: ScreenshotThumbnail(image: NSImage(data: image.png) ?? NSImage(), scale: scale) { [weak self] in
-                    self?.intents.openCrop()
-                })
-            }
-        case .notice(let notice)?:
-            showOverlay(.notice(notice), scale: scale, on: screen) {
-                NSHostingView(rootView: ScreenshotNoticeView(notice: notice, scale: scale))
-            }
-        case .cropping?, nil:
+        guard !hidden, let shot = state.screenshotOverlay, !shot.isCropping else {
             overlay?.orderOut(nil)
+            overlay = nil
+            overlayShown = nil
+            return
         }
-    }
-
-    /// 内容换了（另一张截图、另一句提示、换了档）才重建视图，位置每次都按小横条重摆
-    private func showOverlay(_ shot: ScreenshotOverlay, scale: CGFloat, on screen: NSScreen, content: () -> NSView) {
+        let scale = ScreenFit.scale(screenWidth: screen.frame.width)
         let panel = overlay ?? PhonePanel(content: NSView(), opaque: false)
         overlay = panel
-        let shown = OverlayShown(overlay: shot, scale: scale)
         let preview = if case .preview = shot { true } else { false }
+        let shown = OverlayShown(overlay: shot, scale: scale)
         if shown != overlayShown {
             overlayShown = shown
-            panel.contentView = content()
+            if case .preview(let image) = shot {
+                panel.contentView = FirstMouseHostingView(rootView: ScreenshotThumbnail(
+                    image: NSImage(data: image.png) ?? NSImage(), scale: scale) { [weak self] in self?.intents.openCrop() })
+            } else if case .notice(let notice) = shot {
+                panel.contentView = NSHostingView(rootView: ScreenshotNoticeView(notice: notice, scale: scale))
+            }
             panel.ignoresMouseEvents = !preview
         }
         let size = panel.contentView?.fittingSize ?? .zero
@@ -128,7 +122,7 @@ final class PhoneScreenWindows {
 
     /// 裁剪界面：盖满手机屏。进裁剪时建（图片只解码这一次），出裁剪就拆
     private func updateCrop(on screen: NSScreen) {
-        guard case .cropping(let image) = state.screenshot else {
+        guard case .cropping(let image) = state.screenshotOverlay else {
             cropPanel?.orderOut(nil)
             cropPanel = nil
             return
@@ -136,7 +130,7 @@ final class PhoneScreenWindows {
         let panel = cropPanel ?? PhonePanel(content: FirstMouseHostingView(rootView: CropView(
             image: NSImage(data: image.png) ?? NSImage(), pixelSize: image.size,
             onCancel: { [weak self] in self?.intents.cancelCrop() },
-            onDone: { [weak self] selection, shown in self?.intents.finishCrop(selection: selection, shown: shown) })))
+            onDone: { [weak self] selection in self?.intents.finishCrop(selection) })))
         cropPanel = panel
         panel.setFrame(screen.frame, display: true)
         panel.orderFrontRegardless()
@@ -222,8 +216,6 @@ final class FirstMouseHostingView<Content: View>: NSHostingView<Content> {
 final class HomeBarView: NSView {
     /// 基准宽度下往上滑过这么多点算数
     static let swipeDistance: CGFloat = 12
-    /// 基准宽度下相机键占左边多宽：图标只有二十几点，点的地方要给够
-    static let cameraWidth: CGFloat = 56
 
     var onActivate: (() -> Void)?
     var onCapture: (() -> Void)?
@@ -266,8 +258,8 @@ final class HomeBarView: NSView {
         needsLayout = true
     }
 
-    /// 相机键的点击范围：左边整条高。图标摆在它正中
-    private var cameraArea: NSRect { NSRect(x: 0, y: 0, width: Self.cameraWidth * scale, height: bounds.height) }
+    /// 相机键的点击范围：左边整条高、一个手指宽（图标只有二十几点）。图标摆在它正中
+    private var cameraArea: NSRect { NSRect(x: 0, y: 0, width: PhoneStyle.touchTarget * scale, height: bounds.height) }
 
     override func layout() {
         super.layout()

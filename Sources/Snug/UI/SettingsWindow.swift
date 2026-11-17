@@ -54,7 +54,7 @@ struct SettingsView: View {
                 } label: {
                     SettingLabel.accessibility
                 }
-                if state.config.screenshot {
+                if state.config.phoneScreen, state.config.screenshot {
                     LabeledContent {
                         PermissionStatus(granted: state.screenRecordingTrusted)
                     } label: {

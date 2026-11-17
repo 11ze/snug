@@ -289,7 +289,7 @@ enum RenderSamples {
         let base = fit.size(width: fit.baseWidth)
         let wide = fit.size(width: fit.widths[min(3, fit.widths.count - 1)])
         let crop = { (size: CGSize) in
-            AnyView(CropView(image: sampleShot, pixelSize: sampleShotSize, onCancel: {}, onDone: { _, _ in })
+            AnyView(CropView(image: sampleShot, pixelSize: sampleShotSize, onCancel: {}, onDone: { _ in })
                 .frame(width: size.width, height: size.height))
         }
         return [

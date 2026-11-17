@@ -82,7 +82,7 @@ final class RenderStub: AppIntents, PhoneIntents, Navigation {
     func takeScreenshot() {}
     func openCrop() {}
     func cancelCrop() {}
-    func finishCrop(selection: CGRect, shown: CGRect) {}
+    func finishCrop(_ selection: CGRect) {}
     func openSettings() {}
     func openWelcome() {}
     func openAbout() {}

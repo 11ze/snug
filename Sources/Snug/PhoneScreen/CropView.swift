@@ -1,6 +1,6 @@
 // 裁剪界面：盖满手机屏。图片等比摆在中间（四周留出边距，手指够得到边角上的把手），
 // 默认整张都选着，拖四角或四边往里收；顶部左边取消、右边完成。
-// 坐标左上原点，和 CropGeometry 一致；尺寸按这一档的倍率放大（倍率由界面宽度算，换档时跟着变）
+// 选区存成图片里的比例（见 CropGeometry），换档时跟着图片走；尺寸按这一档的倍率放大（倍率由界面宽度算）
 import SnugCore
 import SwiftUI
 
@@ -8,19 +8,19 @@ struct CropView: View {
     let image: NSImage
     let pixelSize: CGSize
     let onCancel: () -> Void
-    /// 完成：选区和图片的显示范围（同一坐标系）
-    let onDone: (CGRect, CGRect) -> Void
+    /// 完成：选区（图片里的比例）
+    let onDone: (CGRect) -> Void
 
-    /// 拖过之后的选区；没拖过是整张图
-    @State private var selection: CGRect?
-    /// 正在拖的把手，和按下时的选区
-    @State private var dragging: (handle: Handle, start: CGRect)?
+    /// 选区，图片里的比例；一开始是整张
+    @State private var selection = CGRect(x: 0, y: 0, width: 1, height: 1)
+    /// 正在拖的把手，和按下时的选区（界面坐标）
+    @State private var dragging: (handle: CropGeometry.Handle, start: CGRect)?
 
     var body: some View {
         GeometryReader { geo in
             let metrics = Metrics(width: geo.size.width)
             let shown = metrics.shown(pixelSize, in: geo.size)
-            let current = selection ?? shown
+            let current = CropGeometry.rect(selection, in: shown)
             ZStack(alignment: .topLeading) {
                 Color.black
                 Image(nsImage: image)
@@ -34,43 +34,14 @@ struct CropView: View {
                 }
                 .fill(.black.opacity(0.55), style: FillStyle(eoFill: true))
                 handles(current, metrics)
-                topBar(metrics) { onDone(current, shown) }
+                topBar(metrics) { onDone(selection) }
             }
             .contentShape(Rectangle())
-            .gesture(drag(shown: shown, metrics: metrics))
-            .onChange(of: geo.size) { old, new in
-                // 换了一档（比如窗口关了、手机屏换回基准宽度）：选区按比例跟着图片走
-                guard let selection else { return }
-                let from = Metrics(width: old.width).shown(pixelSize, in: old)
-                let to = Metrics(width: new.width).shown(pixelSize, in: new)
-                guard from.width > 0, from.height > 0 else { return }
-                self.selection = CGRect(x: to.minX + (selection.minX - from.minX) / from.width * to.width,
-                                        y: to.minY + (selection.minY - from.minY) / from.height * to.height,
-                                        width: selection.width / from.width * to.width,
-                                        height: selection.height / from.height * to.height)
-            }
+            .gesture(drag(current, shown: shown, metrics: metrics))
         }
     }
 
     // MARK: 把手
-
-    /// 八个把手：四角和四边中点
-    enum Handle: CaseIterable {
-        case topLeft, top, topRight, left, right, bottomLeft, bottom, bottomRight
-
-        func point(in rect: CGRect) -> CGPoint {
-            switch self {
-            case .topLeft: CGPoint(x: rect.minX, y: rect.minY)
-            case .top: CGPoint(x: rect.midX, y: rect.minY)
-            case .topRight: CGPoint(x: rect.maxX, y: rect.minY)
-            case .left: CGPoint(x: rect.minX, y: rect.midY)
-            case .right: CGPoint(x: rect.maxX, y: rect.midY)
-            case .bottomLeft: CGPoint(x: rect.minX, y: rect.maxY)
-            case .bottom: CGPoint(x: rect.midX, y: rect.maxY)
-            case .bottomRight: CGPoint(x: rect.maxX, y: rect.maxY)
-            }
-        }
-    }
 
     /// 四角 L 形 + 四边中点短线，和手机上的截图裁剪一样；外加一圈细边框。
     /// 把手画在选区外沿：选区贴着图片边时，白把手也落在黑底上，不会和浅色截图混在一起
@@ -102,36 +73,17 @@ struct CropView: View {
         }
     }
 
-    /// 按下的地方离哪个把手最近（够近才算抓住）；都不近就不动，免得误改
-    private func handle(at point: CGPoint, of sel: CGRect, within radius: CGFloat) -> Handle? {
-        Handle.allCases
-            .map { handle in (handle, hypot(handle.point(in: sel).x - point.x, handle.point(in: sel).y - point.y)) }
-            .filter { $0.1 <= radius }
-            .min { $0.1 < $1.1 }?.0
-    }
-
-    /// 拖动把手：只动对应的那条边或那个角，限制在图片范围内，宽高不小于 minSide
-    private func resized(_ start: CGRect, _ handle: Handle, to location: CGPoint, within shown: CGRect, minSide: CGFloat) -> CGRect {
-        var minX = start.minX, maxX = start.maxX, minY = start.minY, maxY = start.maxY
-        let x = min(max(location.x, shown.minX), shown.maxX)
-        let y = min(max(location.y, shown.minY), shown.maxY)
-        if [.topLeft, .left, .bottomLeft].contains(handle) { minX = min(x, maxX - minSide) }
-        if [.topRight, .right, .bottomRight].contains(handle) { maxX = max(x, minX + minSide) }
-        if [.topLeft, .top, .topRight].contains(handle) { minY = min(y, maxY - minSide) }
-        if [.bottomLeft, .bottom, .bottomRight].contains(handle) { maxY = max(y, minY + minSide) }
-        return CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
-    }
-
-    private func drag(shown: CGRect, metrics: Metrics) -> some Gesture {
+    /// 拖把手：按下时看抓住了哪个（都不近就不动，免得误改），之后按手指移动的距离挪那条边或那个角
+    private func drag(_ current: CGRect, shown: CGRect, metrics: Metrics) -> some Gesture {
         DragGesture(minimumDistance: 0)
             .onChanged { value in
                 if dragging == nil {
-                    let sel = selection ?? shown
-                    guard let handle = handle(at: value.startLocation, of: sel, within: metrics.grabRadius) else { return }
-                    dragging = (handle, sel)
+                    guard let handle = CropGeometry.handle(at: value.startLocation, of: current, radius: metrics.grabRadius) else { return }
+                    dragging = (handle, current)
                 }
                 guard let dragging else { return }
-                selection = resized(dragging.start, dragging.handle, to: value.location, within: shown, minSide: metrics.minSide)
+                let moved = CropGeometry.resized(dragging.start, dragging.handle, by: value.translation, within: shown, minSide: metrics.minSide)
+                selection = CropGeometry.unitRect(moved, in: shown)
             }
             .onEnded { _ in dragging = nil }
     }

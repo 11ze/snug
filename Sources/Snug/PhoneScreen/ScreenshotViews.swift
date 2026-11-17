@@ -21,7 +21,7 @@ struct ScreenshotThumbnail: View {
                 OverlayText(headline: "已复制截图", detail: "点按裁剪", scale: scale)
             }
             .padding(12 * scale)
-            .background(.black.opacity(0.82), in: RoundedRectangle(cornerRadius: 16 * scale, style: .continuous))
+            .overlayCard(scale: scale)
         }
         .buttonStyle(PressableStyle())
         .fixedSize()
@@ -44,8 +44,15 @@ struct ScreenshotNoticeView: View {
         }
         .padding(.horizontal, 16 * scale)
         .padding(.vertical, 12 * scale)
-        .background(.black.opacity(0.82), in: RoundedRectangle(cornerRadius: 16 * scale, style: .continuous))
+        .overlayCard(scale: scale)
         .fixedSize()
+    }
+}
+
+private extension View {
+    /// 两种浮层共用的深色圆角底
+    func overlayCard(scale: CGFloat) -> some View {
+        background(.black.opacity(0.82), in: RoundedRectangle(cornerRadius: 16 * scale, style: .continuous))
     }
 }
 

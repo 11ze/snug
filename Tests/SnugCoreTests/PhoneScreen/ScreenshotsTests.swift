@@ -13,7 +13,7 @@ struct ScreenshotsTests {
     let changes = Changes()
 
     init() {
-        shots = Screenshots(services: shooter, timeline: timeline)
+        shots = Screenshots(system: shooter, timeline: timeline)
         let changes = changes
         shots.onChange = { changes.list.append($0) }
     }
@@ -87,12 +87,12 @@ struct ScreenshotsTests {
         #expect(shooter.clipboard == FakeShooter.shot)
     }
 
-    @Test("完成裁剪：选区按显示比例换算成像素，裁好的那块替换剪贴板")
+    @Test("完成裁剪：选区按比例换算成原图像素，裁好的那块替换剪贴板")
     func finishCrop() async {
         await shots.take(ghostty)
         shots.openCrop()
-        // 1000×2000 的图显示成 500×1000：左上四分之一就是原图左上四分之一
-        shots.finishCrop(selection: CGRect(x: 0, y: 0, width: 250, height: 500), shown: CGRect(x: 0, y: 0, width: 500, height: 1000))
+        // 选区是图片里的比例：左上四分之一就是 1000×2000 原图的左上 500×1000
+        shots.finishCrop(CGRect(x: 0, y: 0, width: 0.5, height: 0.5))
         #expect(shooter.crops == [CGRect(x: 0, y: 0, width: 500, height: 1000)])
         #expect(shooter.clipboard?.pixelWidth == 500)
         #expect(shooter.clipboard?.pixelHeight == 1000)
@@ -104,7 +104,7 @@ struct ScreenshotsTests {
         shooter.cropWorks = false
         await shots.take(ghostty)
         shots.openCrop()
-        shots.finishCrop(selection: CGRect(x: 0, y: 0, width: 250, height: 500), shown: CGRect(x: 0, y: 0, width: 500, height: 1000))
+        shots.finishCrop(CGRect(x: 0, y: 0, width: 0.5, height: 0.5))
         #expect(shooter.clipboard == FakeShooter.shot)
         #expect(shots.overlay == .notice(.cropFailed))
     }
@@ -115,7 +115,7 @@ struct ScreenshotsTests {
         shots.openCrop()
         shots.dismiss()
         #expect(shots.overlay == nil)
-        shots.finishCrop(selection: CGRect(x: 0, y: 0, width: 250, height: 500), shown: CGRect(x: 0, y: 0, width: 500, height: 1000))
+        shots.finishCrop(CGRect(x: 0, y: 0, width: 0.5, height: 0.5))
         #expect(shooter.crops.isEmpty)
         #expect(shots.overlay == nil)
     }
@@ -175,7 +175,7 @@ final class Changes {
 
 /// 假的截图能力：截出来的图按 results 依次给（用完了给 shot），holding 时挂住直到 release
 @MainActor
-final class FakeShooter: ScreenshotServices {
+final class FakeShooter: ScreenshotControl {
     static let shot = CapturedImage(png: Data([1, 2, 3]), pixelWidth: 1000, pixelHeight: 2000)
 
     var trusted = true

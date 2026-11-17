@@ -40,7 +40,7 @@ final class AppState {
     /// 应用内更新：查到了什么、进行到哪（Updater 写）
     var update = UpdateState()
     /// 手机屏上浮着的截图界面：缩略图、裁剪或一句结果（Screenshots 写）
-    var screenshot: ScreenshotOverlay?
+    var screenshotOverlay: ScreenshotOverlay?
 
     init() {}
 
@@ -84,7 +84,7 @@ protocol AppIntents: AnyObject, Sendable {
     func openDownloadPage()
     /// 换手机型号：手机屏在就马上换成它的比例
     func setPhone(_ phone: PhoneChoice)
-    /// 小横条上的相机键（截图）
+    /// 指示条上的相机键（截图）
     func setScreenshot(_ on: Bool)
 }
 
@@ -110,8 +110,8 @@ protocol PhoneIntents: AnyObject, Sendable {
     func takeScreenshot()
     func openCrop()
     func cancelCrop()
-    /// selection 是裁剪界面里的选区，shown 是图片的显示范围
-    func finishCrop(selection: CGRect, shown: CGRect)
+    /// selection 是图片里的比例（0…1，见 CropGeometry）
+    func finishCrop(_ selection: CGRect)
 }
 
 /// 打开各个窗口
