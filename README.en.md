@@ -62,14 +62,6 @@ UU Remote's mobile client carries over trackpad gesture conventions. On the phon
 
 - Applies only within the phone screen; other displays and the Mac's own trackpad and mouse are unaffected
 
-### Screenshots
-
-Turn on Screenshot in Settings and a camera button appears on the left of the bottom indicator bar. Tap it to capture the window filling the phone screen and copy it to the Mac's clipboard, ready to paste into the window. You get the window's native pixels, unaffected by remote image compression.
-
-- **Crop**: after a capture, a thumbnail appears in the bottom-left corner; tap it to crop. The whole image is selected by default — drag a corner or edge inward, then tap Done to replace the screenshot in the clipboard with the selection
-- **Permission**: requires the separate Screen & System Audio Recording permission (Screen Recording on macOS 14); tap Authorize… in Settings to grant it. It is independent of the Accessibility permission
-- **Off by default**: when it is off, the indicator bar works as before and no recording permission is needed
-
 ### Works Like an iPhone
 
 | iPhone | Snug phone screen |
@@ -77,6 +69,14 @@ Turn on Screenshot in Settings and a camera button appears on the left of the bo
 | App Library | The [App Library](#-app-library): the home page, for finding, opening, and managing the apps on your Mac |
 | Home indicator | Bottom indicator bar, returning to the App Library |
 | "‹ Back" in the top-left corner | "‹ App name" in the top-left corner, returning to the current window |
+
+### Screenshots
+
+Turn on Screenshot (「截图」) in Snug Settings and a camera button appears on the left of the bottom indicator bar. Tap it to capture the window filling the phone screen and copy it to the Mac's clipboard, ready to paste into any app. You get the window's native pixels, unaffected by remote image compression.
+
+- **Crop**: after a capture, a thumbnail appears in the bottom-left corner; tap it to crop. The whole image is selected by default — drag a corner or edge inward, then tap Done (「完成」) to replace the screenshot in the clipboard with the selection
+- **Permission**: requires the separate Screen & System Audio Recording permission (Screen Recording on macOS 14); click Authorize… (「授权…」) in Snug Settings to grant it. It is independent of the Accessibility permission
+- **Off by default**: when it is off, the indicator bar shows no camera button and no recording permission is needed
 
 ## 📱 App Library
 
