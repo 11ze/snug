@@ -38,6 +38,8 @@
 
 两个渠道提供的是同一个安装包。
 
+> 使用 Windows？社区开发者移植了 Windows 版，见下文 [社区移植](#-社区移植)。
+
 ## ✨ 原生体验
 
 UU远程 将整块桌面等比压缩进手机屏幕，文字与控件随之缩小数倍。Snug 为手机增加一块专属竖屏，Mac 的窗口在其中以手机的尺度呈现，看起来、用起来都如同手机上的原生 App。
@@ -217,6 +219,14 @@ scripts/snug install   # 构建、安装并打开
 2. 将「应用程序」中的 Snug 移到废纸篓
 3. 可选：删除设置与日志 `rm -rf ~/Library/Application\ Support/Snug ~/Library/Logs/Snug.log*`
 4. 可选：在系统设置的「辅助功能」中移除 Snug；开启过截图的，在「录屏与系统录音」中一并移除
+
+## 🌐 社区移植
+
+| 平台 | 项目 | 维护者 | 说明 |
+| :--- | :--- | :--- | :--- |
+| Windows 10 / 11 | [snug-win](https://github.com/nicocart/snug-win) | [nicocart](https://github.com/nicocart) | 基于 Snug 2.5.0 移植，C# / .NET 8 / WPF |
+
+社区移植由各自的作者独立开发、发布和维护。本仓库只开发和测试 macOS 版，没有测试过这些移植版本；使用中遇到的问题，请到对应仓库反馈。
 
 ## 🙏 致谢
 

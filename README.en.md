@@ -38,6 +38,8 @@ Built for UU Remote<br>Native portrait display · Native gestures · App Library
 
 Both sources provide the identical package.
 
+> On Windows? A community port is available; see [Community Ports](#-community-ports) below.
+
 ## ✨ Native Experience
 
 UU Remote scales your entire desktop down to fit the phone, shrinking text and controls several times over. Snug adds a dedicated portrait display for the phone, where your Mac's windows appear at a phone-native scale, looking and behaving like native apps.
@@ -217,6 +219,14 @@ scripts/snug install   # build, install, and launch
 2. Move Snug from Applications to the Trash
 3. Optional: remove its settings and logs with `rm -rf ~/Library/Application\ Support/Snug ~/Library/Logs/Snug.log*`
 4. Optional: remove Snug from Accessibility in System Settings, and from Screen & System Audio Recording if you turned on Screenshot
+
+## 🌐 Community Ports
+
+| Platform | Project | Maintainer | Notes |
+| :--- | :--- | :--- | :--- |
+| Windows 10 / 11 | [snug-win](https://github.com/nicocart/snug-win) | [nicocart](https://github.com/nicocart) | Ported from Snug 2.5.0; C# / .NET 8 / WPF |
+
+Community ports are developed, released, and maintained independently by their authors. This repository develops and tests the macOS version only and has not tested these ports; please report any issues to the corresponding repository.
 
 ## 🙏 Acknowledgments
 
