@@ -18,6 +18,13 @@ case .render(let target, let output):
     exit(MainActor.assumeIsolated { Renderer.run(target, output: output) } ? 0 : 1)
 case .dumpUU:
     exit(MainActor.assumeIsolated { UUDump.run() })
+case .probeScreens(let screens):
+    // 实测用：不建 AppController、不起感知器，只管实验屏。虚拟屏要在跑着的 GUI 进程里才上线
+    let app = NSApplication.shared
+    let probe = MainActor.assumeIsolated { ScreenProbe(screens: screens) }
+    app.delegate = probe
+    app.setActivationPolicy(.accessory)
+    app.run()
 case .setMode(let display, let target):
     Log.setSink(FileLogSink(url: SnugPaths.standard.logFile, processTag: "帮手"))
     let outcome = DisplayMode.apply(target, to: display)

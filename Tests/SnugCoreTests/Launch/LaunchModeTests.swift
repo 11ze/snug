@@ -82,6 +82,39 @@ struct LaunchModeTests {
         }
     }
 
+    @Test("--probe-screens：一份规格一块实验屏；没写的用实验身份和按最大一档算的像素上限")
+    func probeScreensDefaults() throws {
+        #expect(try LaunchMode.parse(["--probe-screens", "modes=1180x820"]) == .probeScreens([
+            ProbeScreen(name: "Snug 实验屏", serial: 999_000_001, modes: [.init(1180, 820)], maxPixels: .init(2360, 1640), pattern: true),
+        ]))
+        // 像素上限取各档 2 倍后的最大宽、最大高；第二块起按序号排实验身份和名字
+        #expect(try LaunchMode.parse(["--probe-screens", "modes=540x950", "modes=1180x820+800x1200"]) == .probeScreens([
+            ProbeScreen(name: "Snug 实验屏", serial: 999_000_001, modes: [.init(540, 950)], maxPixels: .init(1080, 1900), pattern: true),
+            ProbeScreen(name: "Snug 实验屏 2", serial: 999_000_002, modes: [.init(1180, 820), .init(800, 1200)],
+                        maxPixels: .init(2360, 2400), pattern: true),
+        ]))
+    }
+
+    @Test("--probe-screens：名字、身份、像素上限、校准图都能指定")
+    func probeScreensExplicit() throws {
+        let parsed = try LaunchMode.parse(["--probe-screens", "name=Snug 横屏,serial=999000005,modes=1150x803,cap=4320x2160,pattern=off"])
+        #expect(parsed == .probeScreens([
+            ProbeScreen(name: "Snug 横屏", serial: 999_000_005, modes: [.init(1150, 803)], maxPixels: .init(4320, 2160), pattern: false),
+        ]))
+    }
+
+    @Test("--probe-screens 写错了：报错，指出是哪一份规格")
+    func probeScreensErrors() {
+        #expect(throws: LaunchModeError.missingValue("--probe-screens")) { try LaunchMode.parse(["--probe-screens"]) }
+        for bad in ["name=x", "modes=", "modes=1180*820", "modes=0x820", "modes=1180x820,size=1", "modes=1180x820,serial=abc",
+                    "modes=1180x820,cap=100x100", "modes=1180x820,pattern=maybe", "modes=1180x820,modes=540x950"] {
+            #expect(throws: LaunchModeError.invalidProbeScreen(bad)) { try LaunchMode.parse(["--probe-screens", bad]) }
+        }
+        #expect(throws: LaunchModeError.invalidProbeScreen("serial=999000001,modes=540x950")) {
+            try LaunchMode.parse(["--probe-screens", "modes=1180x820", "serial=999000001,modes=540x950"])
+        }
+    }
+
     @Test("已删掉的旧参数和未知的双横线参数：报错")
     func removedFlags() {
         for flag in ["--watchdog", "--simulate", "--stress", "--render-tour", "--render-permissions", "--tour"] {

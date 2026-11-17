@@ -35,6 +35,13 @@ public enum DisplayMode {
         current(id).map { "\($0)" } ?? "无模式"
     }
 
+    /// 系统列出的全部模式（含同尺寸的 1 倍、2 倍），以及每一档能不能当桌面用。实测新尺寸的屏时看（--probe-screens）
+    public static func listed(_ id: DisplayID) -> [(mode: ScreenMode, usable: Bool)] {
+        let options = [kCGDisplayShowDuplicateLowResolutionModes: true] as CFDictionary
+        let modes = (CGDisplayCopyAllDisplayModes(id, options) as? [CGDisplayMode]) ?? []
+        return modes.map { (ScreenMode($0), $0.isUsableForDesktopGUI()) }
+    }
+
     /// 系统列出了 width×height 的 2 倍模式没有（换了模式表要等一会儿才列出来）
     public static func hasHiDPI(_ id: DisplayID, width: Int, height: Int) -> Bool {
         find(.hiDPI(width: width, height: height), on: id) != nil
