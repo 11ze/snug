@@ -10,7 +10,8 @@
 - [国内源与 README](project-domestic-mirror.md) — dl.zephyrxiang.com/snug/ 放安装包与 README 媒体；看下载量；README 结构、截图规格、待换的演示动图；证书 2027-01-12 到期
 - [演示录制（进行中）](project-demo-recording.md) — 三块屏原画并排，正式素材和粗剪已就绪；全在 footage/（绝不进 git），主人说交接时才交给 kineto
 - [无显示器的 Mac（issue #8，已关）](project-headless-mac.md) — 手机屏会顶掉默认屏；退出入口已发布，替身主屏方案已定、缺实机验证
-- [多屏（定稿待实测）](project-multi-screen.md) — issue #7、#10、#16：屏幕列表、每块屏一个开关和型号、不识别控制端；全文在 docs/multi-screen.md
+- [多屏（实测完、方案已修订）](project-multi-screen.md) — issue #7、#10、#16、#20：屏幕列表、每块屏一个开关和型号、UU 一次只让一台控制；全文在 docs/multi-screen.md
+- [UI 重组（多屏开工前先做）](project-ui-redesign.md) — 内容分层、HTML 原型、对齐苹果规范的设计令牌 JSON，参照 learn-ui 项目
 - [产品思维](feedback-product-thinking.md) — 用户无感、可选不强制、隔离干净；验证用的步骤不进产品
 - [界面规范](feedback-ui-style.md) — 图标只用 SF Symbols；文字短词、书面、克制；每个状态讲清楚
 - [对外文案](feedback-doc-writing.md) — 书面语、提炼不照抄；分点、图文对应；打码只糊必要的一小块
