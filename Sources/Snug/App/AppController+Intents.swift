@@ -42,6 +42,9 @@ extension AppController: AppIntents {
 
     func openLoginItemsSettings() { SMAppService.openSystemSettingsLoginItems() }
 
+    /// 设置页里的「去授权」：请系统弹一次屏幕录制授权，弹不出来就打开系统设置
+    func openScreenRecordingSettings() { _ = screenshots.requestPermission() }
+
     func refreshLaunchAtLogin() {
         let enabled = SMAppService.mainApp.status == .enabled
         state.update(\.launchAtLogin, enabled)

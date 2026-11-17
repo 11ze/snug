@@ -49,6 +49,15 @@ struct SettingsView: View {
                 } label: {
                     SettingLabel.accessibility
                 }
+                LabeledContent {
+                    if state.screenRecordingTrusted {
+                        PermissionStatus(granted: true)
+                    } else {
+                        Button("去授权") { intents.openScreenRecordingSettings() }
+                    }
+                } label: {
+                    SettingLabel("截图", detail: "截当前窗口到剪贴板", symbol: "camera.viewfinder", tint: .pink)
+                }
             } footer: {
                 HStack {
                     Spacer()

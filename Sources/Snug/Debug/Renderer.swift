@@ -66,6 +66,7 @@ final class RenderStub: AppIntents, PhoneIntents, Navigation {
     func setUpdateSource(_ source: UpdateSource) {}
     func openDownloadPage() {}
     func setPhone(_ phone: PhoneChoice) {}
+    func openScreenRecordingSettings() {}
     func pull(_ window: WindowInfo) {}
     func open(_ app: AppInfo) {}
     func newWindow(_ app: RunningApp) {}
@@ -78,6 +79,7 @@ final class RenderStub: AppIntents, PhoneIntents, Navigation {
     func putBack() {}
     func zoom(by delta: Int) {}
     func dismissScreen() {}
+    func syncGestures() {}
     func openSettings() {}
     func openWelcome() {}
     func openAbout() {}

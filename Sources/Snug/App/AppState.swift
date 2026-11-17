@@ -1,5 +1,6 @@
 // 发布给界面的状态。界面只读它，改动一律走意图协议（由 AppController 实现）。
 // 菜单栏、设置窗口、手机屏上的列表读的是同一份状态：任何入口改了，所有界面一起变
+import Foundation
 import Observation
 import SnugCore
 
@@ -25,6 +26,8 @@ final class AppState {
     /// 手势翻译要开却没开起来（建事件监听失败）
     var gesturesFailed = false
     var accessibilityTrusted = false
+    /// 屏幕录制权限：手机屏上的截图要它，和辅助功能分开授权
+    var screenRecordingTrusted = false
     var launchAtLogin = false
     /// 上一次打开开机启动没成
     var loginItemIssue: LoginItemIssue?
@@ -36,6 +39,10 @@ final class AppState {
     var quitting = false
     /// 应用内更新：查到了什么、进行到哪（Updater 写）
     var update = UpdateState()
+    /// 手机屏上截图之后的文字提示，3 秒后收起（见 PhoneScreenshot）
+    var captureToast: CaptureToast?
+    /// 截图之后的预览：底部浮缩略图，点开进裁剪，几秒后自己收起（见 PhoneScreenshot）
+    var capturePreview: CapturePreview?
 
     init() {}
 
@@ -48,6 +55,28 @@ final class AppState {
     /// 只在值真的变了时才写，免得每拍都让界面重算
     func update<T: Equatable>(_ keyPath: ReferenceWritableKeyPath<AppState, T>, _ value: T) {
         if self[keyPath: keyPath] != value { self[keyPath: keyPath] = value }
+    }
+}
+
+extension AppState {
+    /// 手机屏底部浮出来的文字提示：只报结果，不拦操作
+    struct CaptureToast: Equatable {
+        /// 每换一条换一个号，界面靠它重新计时
+        let id: Int
+        let symbol: String
+        let text: String
+    }
+
+    /// 截图之后的预览：底部浮一条带缩略图的提示，点开可以裁掉不要的部分。
+    /// 不进裁剪的话几秒后自己收起，剪贴板里已经是整张图了
+    struct CapturePreview: Equatable {
+        /// 每换一张换一个号，界面靠它重新计时
+        let id: Int
+        let png: Data
+        let pixelWidth: Int
+        let pixelHeight: Int
+        /// 正在裁剪：盖满手机屏，手势翻译要停掉
+        var cropping = false
     }
 }
 
@@ -80,6 +109,8 @@ protocol AppIntents: AnyObject, Sendable {
     func openDownloadPage()
     /// 换手机型号：手机屏在就马上换成它的比例
     func setPhone(_ phone: PhoneChoice)
+    /// 手机屏上的截图要屏幕录制权限：请系统弹一次授权，再把系统设置打开
+    func openScreenRecordingSettings()
 }
 
 /// 手机屏上的 App 资源库和小横条能发起的意图
@@ -100,6 +131,8 @@ protocol PhoneIntents: AnyObject, Sendable {
     func setPhone(_ phone: PhoneChoice)
     /// 退出手机屏：这次远程不再显示（见 PhoneDesk.dismissScreen）
     func dismissScreen()
+    /// 按当前状态重算手势翻译：裁剪界面开着时停掉，不然手指拖动画框会被翻译成滚动
+    func syncGestures()
 }
 
 /// 打开各个窗口

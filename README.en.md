@@ -62,6 +62,14 @@ UU Remote's mobile client carries over trackpad gesture conventions. On the phon
 
 - Applies only within the phone screen; other displays and the Mac's own trackpad and mouse are unaffected
 
+### Screenshots
+
+With a window filling the phone screen, tap the camera button on the left of the bottom indicator bar. The whole window is captured and copied to the Mac's clipboard — press ⌘V in the window to paste it. You get the window's native pixels, with no loss from remote compression.
+
+- Only need part of it: a thumbnail appears at the bottom after the capture — tap it to crop. Everything is selected by default; drag a corner or edge inward, then tap Done and the selection replaces the whole image in the clipboard
+- First use requires granting Snug "Screen Recording" in System Settings; on macOS 14, restart Snug after granting
+- This is a separate permission from Accessibility; with only Accessibility granted, tapping the camera button asks you to allow it
+
 ### Works Like an iPhone
 
 | iPhone | Snug phone screen |

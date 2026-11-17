@@ -13,16 +13,26 @@ final class PhoneScreenWindows {
     private let catalog: AppCatalog
     private let pages = PhonePages()
     private let intents: any PhoneIntents
+    private let screenshot: PhoneScreenshot
     private var display: DisplayID?
     private var list: PhonePanel?
     private var homeBar: PhonePanel?
     private var homeBarView: HomeBarView?
+    /// 底部浮的那一条：截图缩略图（可点）或一句文字提示（穿透）
+    private var bottomPanel: NSPanel?
+    /// 此刻浮着的是哪一条（"preview-3" / "toast-4"）：换了才重建视图、换点击穿透
+    private var bottomShowing: String?
+    /// 裁剪界面：盖满手机屏，拖出选区
+    private var cropPanel: PhonePanel?
+    /// 上一拍是不是在裁剪：手势翻译要跟着开关
+    private var cropping = false
     private var screenObserver: (any NSObjectProtocol)?
 
-    init(state: AppState, catalog: AppCatalog, intents: any PhoneIntents) {
+    init(state: AppState, catalog: AppCatalog, intents: any PhoneIntents, screenshot: PhoneScreenshot) {
         self.state = state
         self.catalog = catalog
         self.intents = intents
+        self.screenshot = screenshot
         screenObserver = NotificationCenter.default.addObserver(
             forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.update() }
@@ -34,6 +44,8 @@ final class PhoneScreenWindows {
         withObservationTracking {
             _ = state.phone
             _ = state.streamedDisplay
+            _ = state.captureToast
+            _ = state.capturePreview
             _ = pages.active
         } onChange: { [weak self] in
             DispatchQueue.main.async {
@@ -75,6 +87,92 @@ final class PhoneScreenWindows {
         }
         catalog.setPaused(phone.work != nil)
         if phone.placed != nil, !showList { homeBar.orderFrontRegardless() } else { homeBar.orderOut(nil) }
+        updateBottom(on: screen)
+        updateCrop(on: screen)
+    }
+
+    /// 底部浮条：截图后的缩略图优先（要点得到），没有就显示文字提示（只看不点），都没有就收起。
+    /// 高度跟着档位放大，胶囊不至于贴到窗口上
+    private func updateBottom(on screen: NSScreen) {
+        let key: String
+        let height: CGFloat
+        let interactive: Bool
+        if let preview = state.capturePreview, !preview.cropping {
+            key = "preview-\(preview.id)"
+            height = 96
+            interactive = true
+        } else if let toast = state.captureToast {
+            key = "toast-\(toast.id)"
+            height = 72
+            interactive = false
+        } else {
+            bottomPanel?.orderOut(nil)
+            bottomShowing = nil
+            return
+        }
+        let panel = bottomPanel ?? {
+            let panel = NSPanel(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+            panel.level = NSWindow.Level(rawValue: NSWindow.Level.statusBar.rawValue + 1)
+            panel.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle, .fullScreenAuxiliary]
+            panel.hidesOnDeactivate = false
+            panel.isReleasedWhenClosed = false
+            panel.hasShadow = false
+            panel.isOpaque = false
+            panel.backgroundColor = .clear
+            bottomPanel = panel
+            return panel
+        }()
+        let scale = ScreenFit.scale(screenWidth: screen.frame.width)
+        let frame = NSRect(x: screen.frame.minX,
+                           y: screen.frame.minY + ScreenFit.homeBarHeight(screenWidth: screen.frame.width) + 8,
+                           width: screen.frame.width, height: height * scale)
+        panel.setFrame(frame, display: true)
+        if bottomShowing != key {
+            // 缩略图要点得到；文字提示放行，手指落在它上面时照样操作下面的窗口
+            panel.ignoresMouseEvents = !interactive
+            if let preview = state.capturePreview, !preview.cropping {
+                panel.contentView = FirstMouseHostingView(rootView: CapturePreviewView(preview: preview, scale: scale) { [weak self] in
+                    self?.screenshot.openCrop()
+                })
+            } else if let toast = state.captureToast {
+                panel.contentView = NSHostingView(rootView: CaptureToastView(toast: toast, scale: scale))
+            }
+            bottomShowing = key
+        }
+        panel.orderFrontRegardless()
+    }
+
+    /// 裁剪界面：盖满手机屏，用和 App 资源库同一种面板（SwiftUI 才画得出来）。
+    /// 开着时手势翻译停掉，不然手指拖动画框会被翻译成滚动
+    private func updateCrop(on screen: NSScreen) {
+        let croppingNow = state.capturePreview?.cropping == true
+        if croppingNow != cropping {
+            cropping = croppingNow
+            intents.syncGestures()
+        }
+        guard croppingNow, let preview = state.capturePreview else {
+            if cropPanel != nil {
+                cropPanel?.orderOut(nil)
+                cropPanel = nil
+                homeBar?.orderFrontRegardless()
+            }
+            return
+        }
+        if cropPanel == nil {
+            let scale = ScreenFit.scale(screenWidth: screen.frame.width)
+            let host = FirstMouseHostingView(rootView: CropView(
+                preview: preview, scale: scale,
+                onCancel: { [weak self] in self?.screenshot.cancelCrop() },
+                onDone: { [weak self] selection, area in
+                    self?.screenshot.finishCrop(selection: selection, area: area)
+                }))
+            let panel = PhonePanel(content: host)
+            panel.setFrame(screen.frame, display: true)
+            cropPanel = panel
+        }
+        cropPanel?.setFrame(screen.frame, display: true)
+        cropPanel?.orderFrontRegardless()
+        homeBar?.orderOut(nil)
     }
 
     private func build(on id: DisplayID) {
@@ -82,6 +180,7 @@ final class PhoneScreenWindows {
         list = PhonePanel(content: FirstMouseHostingView(rootView: PhoneHomeView(state: state, catalog: catalog, pages: pages, intents: intents)))
         let bar = HomeBarView()
         bar.onActivate = { [weak self] in self?.intents.showList() }
+        bar.onCapture = { [weak self] in self?.screenshot.take() }
         homeBar = PhonePanel(content: bar)
         homeBarView = bar
     }
@@ -91,12 +190,17 @@ final class PhoneScreenWindows {
         pages.close()
         list?.orderOut(nil)
         homeBar?.orderOut(nil)
+        bottomPanel?.orderOut(nil)
+        bottomPanel = nil
+        bottomShowing = nil
+        cropPanel?.orderOut(nil)
+        cropPanel = nil
+        cropping = false
         list = nil
         homeBar = nil
         homeBarView = nil
         display = nil
     }
-
     /// 可见区底部那一条：放上来的窗口正好让出这一条（高度跟着档位缩放，见 ScreenFit.homeBarHeight）
     private func homeBarFrame(on screen: NSScreen) -> NSRect {
         let visible = screen.visibleFrame
@@ -140,25 +244,29 @@ final class FirstMouseHostingView<Content: View>: NSHostingView<Content> {
 }
 
 /// 底部小横条：点一下，或者往上滑，回到 App 资源库。中间是 SF Symbols 的 chevron.compact.up。
+/// 左边是截屏键：截下铺满这块屏的窗口、直接进电脑剪贴板。
 /// 手机屏换到更宽的一档时跟着放大（scale），在手机上看着、点着、滑着都和基准宽度一样
 final class HomeBarView: NSView {
     /// 基准宽度下往上滑过这么多点算数
     static let swipeDistance: CGFloat = 12
+    /// 基准宽度下截屏键的点击宽度：图标只有二十几点，点的地方要给够
+    static let captureWidth: CGFloat = 56
 
     var onActivate: (() -> Void)?
+    var onCapture: (() -> Void)?
     /// 这一档比基准宽度宽几倍（ScreenFit.scale）
     var scale: CGFloat = 1 {
-        didSet { if scale != oldValue { updateGrabber() } }
+        didSet { if scale != oldValue { updateIcons() } }
     }
     private let grabber = NSImageView()
     private var swipe: CGFloat = 0
 
     override init(frame: NSRect) {
         super.init(frame: frame)
-        updateGrabber()
+        updateIcons()
         grabber.contentTintColor = .secondaryLabelColor
-        grabber.translatesAutoresizingMaskIntoConstraints = false
         addSubview(grabber)
+        grabber.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
             grabber.centerXAnchor.constraint(equalTo: centerXAnchor),
             grabber.centerYAnchor.constraint(equalTo: centerYAnchor),
@@ -168,9 +276,22 @@ final class HomeBarView: NSView {
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("不从 nib 加载") }
 
-    private func updateGrabber() {
+    private func updateIcons() {
         grabber.image = NSImage(systemSymbolName: "chevron.compact.up", accessibilityDescription: "App 资源库")?
             .withSymbolConfiguration(.init(pointSize: 22 * scale, weight: .semibold))
+        needsDisplay = true
+    }
+
+    /// 相机键的点击区域：整条高、左边这么宽。视觉上只有一个相机图标，点哪儿都算
+    private var captureHit: NSRect {
+        NSRect(x: 0, y: 0, width: Self.captureWidth * scale, height: bounds.height)
+    }
+
+    /// 相机图标直接画在横条上，不放子视图：横条不是键盘焦点，子视图收不到第一次点击
+    private var captureIcon: NSImage? {
+        let color = NSImage.SymbolConfiguration(paletteColors: [.secondaryLabelColor])
+        return NSImage(systemSymbolName: "camera.viewfinder", accessibilityDescription: "截图")?
+            .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 17 * scale, weight: .semibold).applying(color))
     }
 
     override var isOpaque: Bool { true }
@@ -179,13 +300,18 @@ final class HomeBarView: NSView {
     override func draw(_ dirtyRect: NSRect) {
         PhoneStyle.backgroundNSColor.setFill()
         bounds.fill()
+        guard let icon = captureIcon else { return }
+        let side = 22 * scale
+        icon.draw(in: NSRect(x: captureHit.midX - side / 2, y: (bounds.height - side) / 2, width: side, height: side))
     }
 
     /// 接住按下，抬起才会送到这里
     override func mouseDown(with event: NSEvent) {}
 
     override func mouseUp(with event: NSEvent) {
-        if bounds.contains(convert(event.locationInWindow, from: nil)) { onActivate?() }
+        let point = convert(event.locationInWindow, from: nil)
+        guard bounds.contains(point) else { return }
+        if captureHit.contains(point) { onCapture?() } else { onActivate?() }
     }
 
     /// 手势翻译把单指上滑变成滚动：手指往上走，滚动量是负的

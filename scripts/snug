@@ -73,8 +73,13 @@ read_version() {
 
 IDENTITY=""        # 证书 SHA-1 或名字；空 = ad-hoc
 DEVELOPER_ID=0     # 1 = Developer ID Application：带 hardened runtime 和时间戳（公证要求）
+DEVELOPMENT=0      # 1 = Apple Development：本机开发自测用
 
-# 用哪张证书：MAC_SIGNING_IDENTITY（"-" 表示 ad-hoc）；没设就用钥匙串里唯一那张 Developer ID Application；都没有就 ad-hoc。
+# 用哪张证书：MAC_SIGNING_IDENTITY（"-" 表示 ad-hoc）；没设就先用钥匙串里唯一那张 Developer ID Application，
+# 没有再退到唯一那张 Apple Development；都没有就 ad-hoc。
+# 为什么退到 Apple Development：ad-hoc 每次重新打包 cdhash 都变，辅助功能、屏幕录制这些授权全部失效，
+# 本地自测每次都要重新授权。Apple Development 的签名身份是稳定的，授权一次长期有效。
+# dist / ship 仍然只认 Developer ID（公证与分发要求），退到 Apple Development 的地方会直接拒绝。
 # 日志里只打 SHA-1 前 8 位：证书名里带着人名和团队号
 resolve_identity() {
   local all; all="$(security find-identity -v -p codesigning 2>/dev/null || true)"
@@ -89,16 +94,26 @@ resolve_identity() {
     local found=("${(@f)$(print -r -- "$all" | awk '/"Developer ID Application: /{print $2}')}")
     found=(${found:#})
     case ${#found} in
-      0) IDENTITY="" ;;
       1) IDENTITY="${found[1]}" ;;
+      0)
+        # 没有 Developer ID：本机自测退到 Apple Development，签名身份稳定，权限不会每次失效
+        local dev=("${(@f)$(print -r -- "$all" | awk '/"Apple Development: /{print $2}')}")
+        dev=(${dev:#})
+        case ${#dev} in
+          0) IDENTITY="" ;;
+          1) IDENTITY="${dev[1]}" ;;
+          *) die "钥匙串里有 ${#dev} 张 Apple Development 证书，请在 .machine.env 里用 MAC_SIGNING_IDENTITY 指定一张" ;;
+        esac ;;
       *) die "钥匙串里有 ${#found} 张 Developer ID Application 证书，请在 .machine.env 里用 MAC_SIGNING_IDENTITY 指定一张" ;;
     esac
   fi
   DEVELOPER_ID=0
+  DEVELOPMENT=0
   if [[ -n $IDENTITY ]]; then
     local line
     for line in "${(@f)all}"; do
       if [[ $line == *"$IDENTITY"* && $line == *'"Developer ID Application: '* ]]; then DEVELOPER_ID=1; fi
+      if [[ $line == *"$IDENTITY"* && $line == *'"Apple Development: '* ]]; then DEVELOPMENT=1; fi
     done
   fi
   return 0
@@ -107,6 +122,7 @@ resolve_identity() {
 describe_identity() {
   if [[ -z $IDENTITY ]]; then print -- "ad-hoc"
   elif (( DEVELOPER_ID )); then print -- "Developer ID（${IDENTITY[1,8]}…）"
+  elif (( DEVELOPMENT )); then print -- "Apple Development（${IDENTITY[1,8]}…，本机自测）"
   else print -- "${IDENTITY[1,8]}…"; fi
 }
 
@@ -114,8 +130,8 @@ describe_identity() {
 sign() {
   local target=$1
   local flags=(--force --sign "${IDENTITY:--}")
-  (( DEVELOPER_ID )) && flags+=(--timestamp)
-  [[ -d $target ]] && { flags+=(--identifier "$BUNDLE_ID"); (( DEVELOPER_ID )) && flags+=(--options runtime); }
+  (( DEVELOPER_ID || DEVELOPMENT )) && flags+=(--timestamp)
+  [[ -d $target ]] && { flags+=(--identifier "$BUNDLE_ID"); (( DEVELOPER_ID || DEVELOPMENT )) && flags+=(--options runtime); }
   local err; err="$(mktemp)"
   local attempt
   for attempt in 1 2 3; do
@@ -222,7 +238,13 @@ build_app() {
   step "签名：$(describe_identity)"
   sign "$APP"
   codesign --verify --strict --deep "$APP" || die "签名校验没过：$APP"
-  (( DEVELOPER_ID )) || warn "ad-hoc 签名：每次重新打包后辅助功能授权都会失效，也不能发给别人"
+  if (( ! DEVELOPER_ID )); then
+    if (( DEVELOPMENT )); then
+      warn "Apple Development 签名：只能本机自测，不能分发（发版要 Developer ID 证书）"
+    else
+      warn "ad-hoc 签名：每次重新打包后辅助功能授权都会失效，也不能发给别人"
+    fi
+  fi
 }
 
 # App 装进 dmg：打开后左边是 Snug，右边是「应用程序」的替身，拖过去就装好
