@@ -20,32 +20,32 @@ struct SettingsView: View {
                 }
             }
             Section {
-                Toggle(isOn: binding(state.config.phoneScreen, intents.setPhoneScreen)) {
+                Toggle(isOn: binding(\.config.phoneScreen, intents.setPhoneScreen)) {
                     SettingLabel("手机屏", detail: "UU远程 中增加竖屏", symbol: "iphone", tint: .blue)
                 }
                 LabeledContent {
-                    PhoneMenu(current: state.config.phone, phones: state.phones, choose: intents.setPhone)
+                    PhoneMenu(state: state, choose: intents.setPhone)
                 } label: {
                     SettingLabel("手机型号", detail: "手机屏按它调整比例", symbol: "iphone.gen3", tint: .indigo)
                 }
                 .disabled(!state.config.phoneScreen)
-                Toggle(isOn: binding(state.config.gestures, intents.setGestures)) {
+                Toggle(isOn: binding(\.config.gestures, intents.setGestures)) {
                     SettingLabel("触控手势", detail: "单指滚动 · 长按选择 · 长按松开右键", symbol: "hand.draw.fill", tint: .orange)
                 }
                 .disabled(!state.config.phoneScreen)
-                Toggle(isOn: binding(state.config.screenshot, intents.setScreenshot)) {
+                Toggle(isOn: binding(\.config.screenshot, intents.setScreenshot)) {
                     SettingLabel("截图", detail: "指示条左侧的相机键 · 截当前窗口到剪贴板", symbol: "camera.viewfinder", tint: .pink)
                 }
                 .disabled(!state.config.phoneScreen)
                 LabeledContent {
-                    ZoomSlider(steps: binding(state.config.zoomSteps, intents.setZoomSteps))
+                    ZoomSlider(steps: binding(\.config.zoomSteps, intents.setZoomSteps))
                 } label: {
                     SettingLabel("字号放大", detail: "终端、编辑器", symbol: "textformat.size", tint: .green)
                 }
                 .disabled(!state.config.phoneScreen)
             }
             Section {
-                Toggle(isOn: binding(state.launchAtLogin, intents.setLaunchAtLogin)) {
+                Toggle(isOn: binding(\.launchAtLogin, intents.setLaunchAtLogin)) {
                     SettingLabel("开机启动", symbol: "power", tint: .gray)
                 }
                 // 没授权时「授权…」在顶部状态（辅助功能）或问题行（录屏）里，这里只写状态
@@ -97,8 +97,11 @@ struct SettingsView: View {
         return list
     }
 
-    private func binding<T>(_ value: T, _ set: @escaping @MainActor (T) -> Void) -> Binding<T> {
-        Binding(get: { value }, set: { set($0) })
+    /// 控件的绑定：取值时现读 AppState，不在刷新时存一份副本。副本在点下去之后、界面刷新之前还是旧值，
+    /// 控件会先弹回旧值再变过去，一次操作成了两次变化；这次操作若让行增减（如「截图」），
+    /// 窗口按两次变化各改一回尺寸，叠出多余的高度或塌成 0，整页空白
+    private func binding<T>(_ keyPath: KeyPath<AppState, T>, _ set: @escaping @MainActor (T) -> Void) -> Binding<T> {
+        Binding(get: { state[keyPath: keyPath] }, set: { set($0) })
     }
 }
 
@@ -177,14 +180,16 @@ private struct IssueRow: View {
 
 /// 手机型号：按品牌分组的菜单，选中的打勾；最后一项自己填分辨率（弹出小窗）。和手机屏上的「手机型号」页是同一份配置
 private struct PhoneMenu: View {
-    let current: PhoneChoice
-    let phones: PhoneCatalog
+    let state: AppState
     let choose: @MainActor (PhoneChoice) -> Void
     @State private var customizing = false
 
+    /// 菜单项的勾也现读 AppState（理由同 SettingsView.binding）
+    private var current: PhoneChoice { state.config.phone }
+
     var body: some View {
         Menu(current.customScreen.map { "\(current.title) \($0.sizeText)" } ?? current.title) {
-            ForEach(phones.brands) { brand in
+            ForEach(state.phones.brands) { brand in
                 Menu(brand.name) {
                     ForEach(brand.models) { model in
                         Toggle(model.name, isOn: Binding(get: { model.id == current.model },
@@ -192,7 +197,7 @@ private struct PhoneMenu: View {
                     }
                 }
             }
-            if !phones.brands.isEmpty { Divider() }
+            if !state.phones.brands.isEmpty { Divider() }
             Toggle("自定义分辨率…", isOn: Binding(get: { current.model == nil }, set: { _ in customizing = true }))
         }
         .fixedSize()
