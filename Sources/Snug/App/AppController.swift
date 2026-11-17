@@ -18,8 +18,8 @@ final class AppController: Sendable {
     let desk: PhoneDesk
     /// 手机屏 App 资源库的统一数据源。界面碰得到的系统入口只有 desk 和它
     let catalog: AppCatalog
-    /// 手机屏上的截图：截当前窗口到剪贴板（设置页看权限、手机屏上点键都用它）
-    let screenshots: PhoneScreenshot
+    /// 手机屏上的截图（小横条的相机键）
+    let screenshots = Screenshots(services: ScreenshotService())
     /// 用户从菜单或设置里点「退出」（由 AppDelegate 接到退出流程上）
     var onQuitRequested: (() -> Void)?
 
@@ -48,7 +48,6 @@ final class AppController: Sendable {
         desk = PhoneDesk(displays: PhoneDisplayService(helper: helper), windows: windows, apps: apps, paths: paths,
                          defaultZoom: store.config.zoomSteps, fit: ScreenFit(phone: phone.screen))
         catalog = AppCatalog(apps: apps, windows: windows)
-        screenshots = PhoneScreenshot(state: state)
         state.config = store.config
         state.phones = phones
         state.accessibilityTrusted = AX.isTrusted
@@ -83,6 +82,7 @@ final class AppController: Sendable {
         desk.onChange = { [weak self] phone in self?.phoneChanged(phone) }
         desk.onGone = { [weak self] gone in self?.catalog.forget(gone) }
         touch.onCloseWindow = { [weak self] window in self?.desk.closePlaced(window: window) }
+        screenshots.onChange = { [weak self] overlay in self?.screenshotChanged(overlay) }
         desk.onTopologyChange = { [weak self] in
             guard let self else { return }
             session.noteSelfInducedChange(at: now)
@@ -101,7 +101,7 @@ final class AppController: Sendable {
         // 加进 .common：菜单展开、窗口拖动期间也照常走
         RunLoop.main.add(timer, forMode: .common)
         tickTimer = timer
-        state.update(\.screenRecordingTrusted, screenshots.trusted)
+        refreshScreenRecording()
         tick()
         Log.info("开始监控（手机屏\(store.config.phoneScreen ? "已开" : "已关")，手势\(store.config.gestures ? "已开" : "已关")"
                  + "\(previewPhone ? "，预览模式：不等手机直接加手机屏" : "")）")
@@ -124,6 +124,7 @@ final class AppController: Sendable {
         }
         lastTickAt = now
         refreshTrust()
+        screenshots.expire()
         let sample = sensor.sample(now: Date())
         let transitions = session.update(sample.signals, now: now)
         for t in transitions { Log.info("会话：\(Self.describe(t))") }
@@ -137,8 +138,7 @@ final class AppController: Sendable {
             desk.verifyPlacement()
             desk.checkReturns()
             desk.settleDisplays()
-            // 屏幕录制是用户随时会在系统设置里改的：每两秒对一次，不跟着每拍去读 TCC
-            state.update(\.screenRecordingTrusted, screenshots.trusted)
+            refreshScreenRecording()
         }
         state.update(\.connection, session.isConnected ? .connected : (session.inEpisode ? .reconnecting : .idle))
         state.update(\.controllers, session.controllers)
@@ -161,20 +161,36 @@ final class AppController: Sendable {
         if trusted { desk.recover() }
     }
 
+    /// 录屏权限也是用户在系统设置里给的：开着截图键时每两秒对一次（不跟着每拍去读 TCC），变了记一笔
+    func refreshScreenRecording() {
+        guard store.config.screenshot else { return }
+        let trusted = screenshots.trusted
+        guard trusted != state.screenRecordingTrusted else { return }
+        state.screenRecordingTrusted = trusted
+        Log.info("录屏权限：\(trusted ? "已授权" : "未授权")")
+    }
+
     // MARK: 手机屏
 
     private func phoneChanged(_ phone: PhoneDesk.State) {
         state.phone = phone
+        // 手机屏没了：浮着的截图、裁剪中的一并收掉，不然下次连上还盖着旧截图
+        if phone.display == nil { screenshots.dismiss() }
         syncGestures()
     }
 
-    /// 手势翻译只在手机屏在、并且开着手势时运行；范围跟着手机屏（换档、屏幕重排时 DisplayWatcher 也会调到这里）
+    private func screenshotChanged(_ overlay: ScreenshotOverlay?) {
+        state.screenshot = overlay
+        syncGestures()
+    }
+
+    /// 手势翻译只在手机屏在、开着手势、并且没在裁剪截图时运行（裁剪时的拖动是在画选区，不能翻译成滚动）；
+    /// 范围跟着手机屏（换档、屏幕重排时 DisplayWatcher 也会调到这里）
     func syncGestures() {
         // 窗口露着时才拦它的关闭按钮：列表盖着时那个位置是列表
         let closeButton = state.phone.listVisible ? nil : state.phone.closeButton
-        // 裁剪界面开着时不翻译：那里的拖动是在画选区，不能被翻译成滚动
-        let cropping = state.capturePreview?.cropping == true
-        let region = (store.config.gestures && !cropping)
+        let translating = store.config.gestures && state.screenshot?.isCropping != true
+        let region = translating
             ? state.phone.display.map { TouchRegion(phoneScreen: CGDisplayBounds($0), closeButton: closeButton) }
             : nil
         state.update(\.gesturesFailed, !touch.setRegion(region))

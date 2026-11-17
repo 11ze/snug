@@ -1,205 +1,182 @@
 // 裁剪界面：盖满手机屏。图片等比摆在中间（四周留出边距，手指够得到边角上的把手），
-// 默认整张图都选着，拖四角或四边往里缩；要哪块就从整张往里收。
-// 顶部左边取消、右边完成。视图坐标（左上原点）和 CropGeometry 一致，换算成像素由调用方做
+// 默认整张都选着，拖四角或四边往里收；顶部左边取消、右边完成。
+// 坐标左上原点，和 CropGeometry 一致；尺寸按这一档的倍率放大（倍率由界面宽度算，换档时跟着变）
 import SnugCore
 import SwiftUI
 
 struct CropView: View {
-    let preview: AppState.CapturePreview
-    /// 这一档比基准宽度宽几倍
-    let scale: CGFloat
+    let image: NSImage
+    let pixelSize: CGSize
     let onCancel: () -> Void
-    /// 完成：选区、图片所在的区域（都是视图坐标）一起交回去
+    /// 完成：选区和图片的显示范围（同一坐标系）
     let onDone: (CGRect, CGRect) -> Void
 
-    /// 当前选区，坐标是这块视图
+    /// 拖过之后的选区；没拖过是整张图
     @State private var selection: CGRect?
-    /// 正在拖哪个把手，以及按下时的选区
-    @State private var dragging: (edge: Edge, start: CGRect)?
-    /// 图片在视图里的位置（等比居中），进入时定下来
-    @State private var fitted = CGRect.zero
-
-    /// 八个把手。角上四个，边中点四个
-    enum Edge: CaseIterable {
-        case topLeft, top, topRight, left, right, bottomLeft, bottom, bottomRight
-    }
-
-    /// 顶部留给「取消 / 完成」，底部和两侧留出抓把手的空间
-    private var topBarHeight: CGFloat { 64 * scale }
-    private var margin: CGFloat { 22 * scale }
-    /// 把手离得这么近就算抓住了
-    private var grabRadius: CGFloat { 34 * scale }
-    /// 选区最小边长：再小就没法继续拖了
-    private var minSide: CGFloat { 44 * scale }
-    /// 角上 L 形的边长
-    private var cornerLength: CGFloat { 20 * scale }
-
-    private var image: NSImage {
-        NSImage(data: preview.png) ?? NSImage(size: NSSize(width: 1, height: 1))
-    }
-
-    private var pixelSize: CGSize {
-        CGSize(width: preview.pixelWidth, height: preview.pixelHeight)
-    }
+    /// 正在拖的把手，和按下时的选区
+    @State private var dragging: (handle: Handle, start: CGRect)?
 
     var body: some View {
         GeometryReader { geo in
-            let area = imageArea(geo.size)
-            let fit = CropGeometry.fittedRect(image: pixelSize, in: area)
-            let current = selection ?? fit
+            let metrics = Metrics(width: geo.size.width)
+            let shown = metrics.shown(pixelSize, in: geo.size)
+            let current = selection ?? shown
             ZStack(alignment: .topLeading) {
                 Color.black
                 Image(nsImage: image)
                     .resizable()
-                    .scaledToFit()
-                    .frame(width: fit.width, height: fit.height)
-                    .position(x: fit.midX, y: fit.midY)
+                    .frame(width: shown.width, height: shown.height)
+                    .position(x: shown.midX, y: shown.midY)
                 // 选区外压暗：整块挖掉选区
                 Path { path in
                     path.addRect(CGRect(origin: .zero, size: geo.size))
                     path.addRect(current)
                 }
                 .fill(.black.opacity(0.55), style: FillStyle(eoFill: true))
-                handles(current)
-                topBar
+                handles(current, metrics)
+                topBar(metrics) { onDone(current, shown) }
             }
             .contentShape(Rectangle())
-            .gesture(draw(fit: fit))
-            .onAppear {
-                fitted = fit
-                if selection == nil { selection = fit }
-            }
-            .onChange(of: geo.size) { _, _ in
-                // 屏幕换了尺寸（换档、旋转）：按新位置重新铺，选区保持比例
-                guard fitted.width > 0 else { return }
-                let ratio = CGRect(x: (current.minX - fitted.minX) / fitted.width,
-                                   y: (current.minY - fitted.minY) / fitted.height,
-                                   width: current.width / fitted.width,
-                                   height: current.height / fitted.height)
-                fitted = fit
-                selection = CGRect(x: fit.minX + ratio.minX * fit.width, y: fit.minY + ratio.minY * fit.height,
-                                   width: ratio.width * fit.width, height: ratio.height * fit.height)
+            .gesture(drag(shown: shown, metrics: metrics))
+            .onChange(of: geo.size) { old, new in
+                // 换了一档（比如窗口关了、手机屏换回基准宽度）：选区按比例跟着图片走
+                guard let selection else { return }
+                let from = Metrics(width: old.width).shown(pixelSize, in: old)
+                let to = Metrics(width: new.width).shown(pixelSize, in: new)
+                guard from.width > 0, from.height > 0 else { return }
+                self.selection = CGRect(x: to.minX + (selection.minX - from.minX) / from.width * to.width,
+                                        y: to.minY + (selection.minY - from.minY) / from.height * to.height,
+                                        width: selection.width / from.width * to.width,
+                                        height: selection.height / from.height * to.height)
             }
         }
-    }
-
-    /// 图片能放的区域：顶部让出按钮，四周留边距
-    private func imageArea(_ size: CGSize) -> CGRect {
-        CGRect(x: margin, y: topBarHeight,
-               width: max(1, size.width - margin * 2),
-               height: max(1, size.height - topBarHeight - margin))
     }
 
     // MARK: 把手
 
-    /// 四角 L 形 + 四边中点短线，和手机截图裁剪一样
-    private func handles(_ sel: CGRect) -> some View {
-        let corner = min(cornerLength, sel.width / 3, sel.height / 3)
-        let tick = min(cornerLength, sel.width / 4) / 2
-        return Path { path in
-            // 左上
-            path.move(to: CGPoint(x: sel.minX, y: sel.minY + corner))
-            path.addLine(to: CGPoint(x: sel.minX, y: sel.minY))
-            path.addLine(to: CGPoint(x: sel.minX + corner, y: sel.minY))
-            // 右上
-            path.move(to: CGPoint(x: sel.maxX - corner, y: sel.minY))
-            path.addLine(to: CGPoint(x: sel.maxX, y: sel.minY))
-            path.addLine(to: CGPoint(x: sel.maxX, y: sel.minY + corner))
-            // 左下
-            path.move(to: CGPoint(x: sel.minX, y: sel.maxY - corner))
-            path.addLine(to: CGPoint(x: sel.minX, y: sel.maxY))
-            path.addLine(to: CGPoint(x: sel.minX + corner, y: sel.maxY))
-            // 右下
-            path.move(to: CGPoint(x: sel.maxX - corner, y: sel.maxY))
-            path.addLine(to: CGPoint(x: sel.maxX, y: sel.maxY))
-            path.addLine(to: CGPoint(x: sel.maxX, y: sel.maxY - corner))
-            // 四边中点
-            path.move(to: CGPoint(x: sel.midX - tick, y: sel.minY))
-            path.addLine(to: CGPoint(x: sel.midX + tick, y: sel.minY))
-            path.move(to: CGPoint(x: sel.midX - tick, y: sel.maxY))
-            path.addLine(to: CGPoint(x: sel.midX + tick, y: sel.maxY))
-            path.move(to: CGPoint(x: sel.minX, y: sel.midY - tick))
-            path.addLine(to: CGPoint(x: sel.minX, y: sel.midY + tick))
-            path.move(to: CGPoint(x: sel.maxX, y: sel.midY - tick))
-            path.addLine(to: CGPoint(x: sel.maxX, y: sel.midY + tick))
+    /// 八个把手：四角和四边中点
+    enum Handle: CaseIterable {
+        case topLeft, top, topRight, left, right, bottomLeft, bottom, bottomRight
+
+        func point(in rect: CGRect) -> CGPoint {
+            switch self {
+            case .topLeft: CGPoint(x: rect.minX, y: rect.minY)
+            case .top: CGPoint(x: rect.midX, y: rect.minY)
+            case .topRight: CGPoint(x: rect.maxX, y: rect.minY)
+            case .left: CGPoint(x: rect.minX, y: rect.midY)
+            case .right: CGPoint(x: rect.maxX, y: rect.midY)
+            case .bottomLeft: CGPoint(x: rect.minX, y: rect.maxY)
+            case .bottom: CGPoint(x: rect.midX, y: rect.maxY)
+            case .bottomRight: CGPoint(x: rect.maxX, y: rect.maxY)
+            }
         }
-        .stroke(.white, style: StrokeStyle(lineWidth: 3 * scale, lineCap: .round))
     }
 
-    /// 每个把手的位置
-    private func point(_ edge: Edge, of sel: CGRect) -> CGPoint {
-        switch edge {
-        case .topLeft: CGPoint(x: sel.minX, y: sel.minY)
-        case .top: CGPoint(x: sel.midX, y: sel.minY)
-        case .topRight: CGPoint(x: sel.maxX, y: sel.minY)
-        case .left: CGPoint(x: sel.minX, y: sel.midY)
-        case .right: CGPoint(x: sel.maxX, y: sel.midY)
-        case .bottomLeft: CGPoint(x: sel.minX, y: sel.maxY)
-        case .bottom: CGPoint(x: sel.midX, y: sel.maxY)
-        case .bottomRight: CGPoint(x: sel.maxX, y: sel.maxY)
+    /// 四角 L 形 + 四边中点短线，和手机上的截图裁剪一样；外加一圈细边框。
+    /// 把手画在选区外沿：选区贴着图片边时，白把手也落在黑底上，不会和浅色截图混在一起
+    private func handles(_ sel: CGRect, _ metrics: Metrics) -> some View {
+        let line = 4 * metrics.scale
+        let outer = sel.insetBy(dx: -line / 2, dy: -line / 2)
+        let corner = min(metrics.corner, sel.width / 3, sel.height / 3)
+        let tick = min(metrics.corner, sel.width / 4) / 2
+        let marks = Path { path in
+            for (x, dx) in [(outer.minX, corner), (outer.maxX, -corner)] {
+                for (y, dy) in [(outer.minY, corner), (outer.maxY, -corner)] {
+                    path.move(to: CGPoint(x: x, y: y + dy))
+                    path.addLine(to: CGPoint(x: x, y: y))
+                    path.addLine(to: CGPoint(x: x + dx, y: y))
+                }
+            }
+            for y in [outer.minY, outer.maxY] {
+                path.move(to: CGPoint(x: outer.midX - tick, y: y))
+                path.addLine(to: CGPoint(x: outer.midX + tick, y: y))
+            }
+            for x in [outer.minX, outer.maxX] {
+                path.move(to: CGPoint(x: x, y: outer.midY - tick))
+                path.addLine(to: CGPoint(x: x, y: outer.midY + tick))
+            }
+        }
+        return ZStack {
+            Path(sel).stroke(.white.opacity(0.8), lineWidth: metrics.scale)
+            marks.stroke(.white, style: StrokeStyle(lineWidth: line, lineCap: .round, lineJoin: .round))
         }
     }
 
     /// 按下的地方离哪个把手最近（够近才算抓住）；都不近就不动，免得误改
-    private func grabbedEdge(at point: CGPoint, in sel: CGRect) -> Edge? {
-        var best: (edge: Edge, distance: CGFloat)?
-        for edge in Edge.allCases {
-            let p = self.point(edge, of: sel)
-            let d = hypot(p.x - point.x, p.y - point.y)
-            if d <= grabRadius, best == nil || d < best!.distance { best = (edge, d) }
-        }
-        return best?.edge
+    private func handle(at point: CGPoint, of sel: CGRect, within radius: CGFloat) -> Handle? {
+        Handle.allCases
+            .map { handle in (handle, hypot(handle.point(in: sel).x - point.x, handle.point(in: sel).y - point.y)) }
+            .filter { $0.1 <= radius }
+            .min { $0.1 < $1.1 }?.0
     }
 
     /// 拖动把手：只动对应的那条边或那个角，限制在图片范围内，宽高不小于 minSide
-    private func resized(_ start: CGRect, edge: Edge, to location: CGPoint, within fit: CGRect) -> CGRect {
+    private func resized(_ start: CGRect, _ handle: Handle, to location: CGPoint, within shown: CGRect, minSide: CGFloat) -> CGRect {
         var minX = start.minX, maxX = start.maxX, minY = start.minY, maxY = start.maxY
-        let x = min(max(location.x, fit.minX), fit.maxX)
-        let y = min(max(location.y, fit.minY), fit.maxY)
-        switch edge {
-        case .topLeft: minX = min(x, maxX - minSide); minY = min(y, maxY - minSide)
-        case .top: minY = min(y, maxY - minSide)
-        case .topRight: maxX = max(x, minX + minSide); minY = min(y, maxY - minSide)
-        case .left: minX = min(x, maxX - minSide)
-        case .right: maxX = max(x, minX + minSide)
-        case .bottomLeft: minX = min(x, maxX - minSide); maxY = max(y, minY + minSide)
-        case .bottom: maxY = max(y, minY + minSide)
-        case .bottomRight: maxX = max(x, minX + minSide); maxY = max(y, minY + minSide)
-        }
+        let x = min(max(location.x, shown.minX), shown.maxX)
+        let y = min(max(location.y, shown.minY), shown.maxY)
+        if [.topLeft, .left, .bottomLeft].contains(handle) { minX = min(x, maxX - minSide) }
+        if [.topRight, .right, .bottomRight].contains(handle) { maxX = max(x, minX + minSide) }
+        if [.topLeft, .top, .topRight].contains(handle) { minY = min(y, maxY - minSide) }
+        if [.bottomLeft, .bottom, .bottomRight].contains(handle) { maxY = max(y, minY + minSide) }
         return CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
     }
 
-    private func draw(fit: CGRect) -> some Gesture {
+    private func drag(shown: CGRect, metrics: Metrics) -> some Gesture {
         DragGesture(minimumDistance: 0)
             .onChanged { value in
-                let sel = selection ?? fit
                 if dragging == nil {
-                    guard let edge = grabbedEdge(at: value.startLocation, in: sel) else { return }
-                    dragging = (edge, sel)
+                    let sel = selection ?? shown
+                    guard let handle = handle(at: value.startLocation, of: sel, within: metrics.grabRadius) else { return }
+                    dragging = (handle, sel)
                 }
-                guard let d = dragging else { return }
-                selection = resized(d.start, edge: d.edge, to: value.location, within: fit)
+                guard let dragging else { return }
+                selection = resized(dragging.start, dragging.handle, to: value.location, within: shown, minSide: metrics.minSide)
             }
             .onEnded { _ in dragging = nil }
     }
 
     // MARK: 按钮
 
-    private var topBar: some View {
-        HStack {
-            Button("取消", action: onCancel)
+    private func topBar(_ metrics: Metrics, done: @escaping () -> Void) -> some View {
+        // 点按区域至少一个手指大（PressableStyle 按 label 的范围接点击）
+        let side = PhoneStyle.touchTarget * metrics.scale
+        return HStack {
+            Button(action: onCancel) { Text("取消").frame(minWidth: side, minHeight: side) }
             Spacer()
-            Button("完成") {
-                guard let sel = selection else { return onCancel() }
-                onDone(sel, fitted)
-            }
+            Button(action: done) { Text("完成").frame(minWidth: side, minHeight: side) }
         }
-        .font(PhoneStyle.body.weight(.semibold))
+        .font(.system(size: 18 * metrics.scale, weight: .semibold))
         .foregroundStyle(.white)
-        .buttonStyle(.plain)
-        .padding(.horizontal, margin + 4 * scale)
+        .buttonStyle(PressableStyle())
+        .padding(.horizontal, metrics.margin)
+        .frame(height: metrics.topBar)
         .frame(maxWidth: .infinity)
-        .frame(height: topBarHeight)
         .background(LinearGradient(colors: [.black.opacity(0.7), .clear], startPoint: .top, endPoint: .bottom))
     }
+
+    /// 跟着倍率走的尺寸
+    private struct Metrics {
+        let scale: CGFloat
+
+        init(width: CGFloat) { scale = ScreenFit.scale(screenWidth: width) }
+
+        /// 顶部留给「取消 / 完成」
+        var topBar: CGFloat { 64 * scale }
+        /// 四周留出抓把手的空间
+        var margin: CGFloat { 22 * scale }
+        /// 离把手这么近就算抓住了
+        var grabRadius: CGFloat { 34 * scale }
+        /// 选区最小边长：再小就没法继续拖了
+        var minSide: CGFloat { 44 * scale }
+        /// 角上 L 形的边长
+        var corner: CGFloat { 20 * scale }
+
+        /// 图片的显示范围：顶部让出按钮，四周留边距，等比居中
+        func shown(_ image: CGSize, in size: CGSize) -> CGRect {
+            let area = CGRect(x: margin, y: topBar, width: max(1, size.width - margin * 2), height: max(1, size.height - topBar - margin))
+            return CropGeometry.fittedRect(image: image, in: area)
+        }
+    }
 }
+

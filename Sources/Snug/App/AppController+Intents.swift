@@ -11,6 +11,12 @@ extension AppController: AppIntents {
         syncGestures()
     }
 
+    /// 关掉时把浮着的截图一并收掉
+    func setScreenshot(_ on: Bool) {
+        guard changeConfig("截图键 → \(on ? "开" : "关")", { $0.screenshot = on }) else { return }
+        if on { refreshScreenRecording() } else { screenshots.dismiss() }
+    }
+
     func setZoomSteps(_ steps: Int) {
         let steps = steps.clamped(to: AppConfig.zoomStepsRange)
         guard changeConfig("放大字号 → \(steps) 级", { $0.zoomSteps = steps }) else { return }
@@ -41,9 +47,6 @@ extension AppController: AppIntents {
     }
 
     func openLoginItemsSettings() { SMAppService.openSystemSettingsLoginItems() }
-
-    /// 设置页里的「去授权」：请系统弹一次屏幕录制授权，弹不出来就打开系统设置
-    func openScreenRecordingSettings() { _ = screenshots.requestPermission() }
 
     func refreshLaunchAtLogin() {
         let enabled = SMAppService.mainApp.status == .enabled
@@ -147,4 +150,13 @@ extension AppController: PhoneIntents {
     func putBack() { desk.putBack() }
     func zoom(by delta: Int) { desk.zoom(by: delta) }
     func dismissScreen() { desk.dismissScreen() }
+
+    func takeScreenshot() {
+        guard let window = state.phone.placed?.window else { return }
+        Task { await screenshots.take(window) }
+    }
+
+    func openCrop() { screenshots.openCrop() }
+    func cancelCrop() { screenshots.cancelCrop() }
+    func finishCrop(selection: CGRect, shown: CGRect) { screenshots.finishCrop(selection: selection, shown: shown) }
 }

@@ -1,5 +1,5 @@
 // 设置页、「关于 Snug」、欢迎页共用的行标题：系统设置那样的彩色方块图标（SF Symbols）+ 标题 + 一行短说明；
-// 以及辅助功能权限那一行的标题和状态
+// 以及权限那几行的标题和状态
 import SwiftUI
 
 struct SettingLabel: View {
@@ -41,6 +41,11 @@ extension SettingLabel {
     /// 辅助功能权限那一行（欢迎页、设置页）
     static var accessibility: SettingLabel {
         SettingLabel(PermissionName.accessibility, detail: "用于移动窗口与转换手势", symbol: "hand.raised.fill", tint: .indigo)
+    }
+
+    /// 录屏权限那一行（设置页，开了截图键才有）
+    static var screenRecording: SettingLabel {
+        SettingLabel(PermissionName.screenRecording, detail: "用于截图", symbol: "rectangle.dashed.badge.record", tint: .red)
     }
 }
 

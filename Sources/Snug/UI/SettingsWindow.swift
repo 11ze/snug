@@ -1,7 +1,8 @@
 // 设置窗口：macOS App 设置窗口的标准做法，顶部工具栏标签页「通用 / 关于」（关于页见 AboutView）。
-// 通用页：顶部是此刻的状态，需要处理的问题每个一行、各带解决它的按钮；下面是总开关、手机型号和两项微调，再下面是开机启动和权限。
+// 通用页：顶部是此刻的状态，需要处理的问题每个一行、各带解决它的按钮；下面是总开关、手机型号和几项微调，再下面是开机启动和权限。
 // 每行配 SF Symbols 图标，说明只用短词。只读 AppState，意图走 AppIntents
 import AppKit
+import PermissionFlow
 import SwiftUI
 import SnugCore
 
@@ -32,6 +33,10 @@ struct SettingsView: View {
                     SettingLabel("触控手势", detail: "单指滚动 · 长按选择 · 长按松开右键", symbol: "hand.draw.fill", tint: .orange)
                 }
                 .disabled(!state.config.phoneScreen)
+                Toggle(isOn: binding(state.config.screenshot, intents.setScreenshot)) {
+                    SettingLabel("截图", detail: "指示条左侧的相机键 · 截当前窗口到剪贴板", symbol: "camera.viewfinder", tint: .pink)
+                }
+                .disabled(!state.config.phoneScreen)
                 LabeledContent {
                     ZoomSlider(steps: binding(state.config.zoomSteps, intents.setZoomSteps))
                 } label: {
@@ -43,20 +48,18 @@ struct SettingsView: View {
                 Toggle(isOn: binding(state.launchAtLogin, intents.setLaunchAtLogin)) {
                     SettingLabel("开机启动", symbol: "power", tint: .gray)
                 }
-                // 没授权时「授权…」在顶部状态里，这里只写状态
+                // 没授权时「授权…」在顶部状态（辅助功能）或问题行（录屏）里，这里只写状态
                 LabeledContent {
                     PermissionStatus(granted: state.accessibilityTrusted)
                 } label: {
                     SettingLabel.accessibility
                 }
-                LabeledContent {
-                    if state.screenRecordingTrusted {
-                        PermissionStatus(granted: true)
-                    } else {
-                        Button("去授权") { intents.openScreenRecordingSettings() }
+                if state.config.screenshot {
+                    LabeledContent {
+                        PermissionStatus(granted: state.screenRecordingTrusted)
+                    } label: {
+                        SettingLabel.screenRecording
                     }
-                } label: {
-                    SettingLabel("截图", detail: "截当前窗口到剪贴板", symbol: "camera.viewfinder", tint: .pink)
                 }
             } footer: {
                 HStack {
@@ -77,11 +80,16 @@ struct SettingsView: View {
         var list: [Issue] = []
         if state.legacyAppRunning {
             list.append(Issue(id: "legacy", text: StatusText(headline: "旧版「UU远程伴侣」运行中", detail: "与 Snug 同时运行将相互干扰"),
-                              action: ("退出旧版", intents.quitLegacyApp)))
+                              action: .run("退出旧版", intents.quitLegacyApp)))
         }
         if let issue = state.loginItemIssue {
             list.append(Issue(id: "login", text: issue.text,
-                              action: issue == .needsApproval ? ("前往允许", intents.openLoginItemsSettings) : nil))
+                              action: issue == .needsApproval ? .run("前往允许", intents.openLoginItemsSettings) : nil))
+        }
+        if state.config.phoneScreen, state.config.screenshot, !state.screenRecordingTrusted {
+            list.append(Issue(id: "screen-recording",
+                              text: StatusText(headline: "截图需要\(PermissionName.screenRecording)权限", detail: "系统设置 › 隐私与安全性"),
+                              action: .authorize(.screenRecording)))
         }
         if state.configSaveFailed {
             list.append(Issue(id: "config", text: StatusText(headline: "设置未保存", detail: "修改未生效，请重试"), action: nil))
@@ -131,9 +139,15 @@ private struct StatusHeader: View {
 }
 
 private struct Issue: Identifiable {
+    enum Action {
+        case run(String, @MainActor () -> Void)
+        /// 缺权限：「授权…」打开系统设置对应的隐私页（见 AuthorizeButton）
+        case authorize(PermissionFlowPane)
+    }
+
     let id: String
     let text: StatusText
-    let action: (title: String, run: @MainActor () -> Void)?
+    let action: Action?
 }
 
 /// 一个问题一行：警示图标、出了什么事、去哪里处理，右边是解决它的按钮
@@ -142,7 +156,11 @@ private struct IssueRow: View {
 
     var body: some View {
         LabeledContent {
-            if let action = issue.action { Button(action.title, action: action.run) }
+            switch issue.action {
+            case .run(let title, let run): Button(title, action: run)
+            case .authorize(let pane): AuthorizeButton(pane: pane)
+            case nil: EmptyView()
+            }
         } label: {
             HStack(spacing: 12) {
                 Image(systemName: "exclamationmark.triangle.fill")

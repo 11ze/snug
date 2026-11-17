@@ -30,8 +30,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Log.info("启动 Snug \(Updater.current?.description ?? "开发版")（\(launchedAtLogin ? "开机自启" : "手动打开")），"
             + "辅助功能权限：\(controller.state.accessibilityTrusted ? "已授权" : "未授权")")
         statusBar = StatusBarController(state: controller.state, intents: controller, navigation: router)
-        phoneScreen = PhoneScreenWindows(state: controller.state, catalog: controller.catalog, intents: controller,
-                                          screenshot: controller.screenshots)
+        phoneScreen = PhoneScreenWindows(state: controller.state, catalog: controller.catalog, intents: controller)
         handleSIGTERM()
         controller.updater.onNewVersion = { [weak self] userInitiated in self?.router.showUpdate(activating: userInitiated) }
         controller.updater.onInstalled = { [weak self] in self?.quitFlow.userQuit() }
