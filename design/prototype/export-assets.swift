@@ -16,7 +16,7 @@ let symbols = [
     "iphone.radiowaves.left.and.right", "iphone.slash", "exclamationmark.triangle.fill", "checkmark.circle.fill",
     "rectangle.on.rectangle", "hand.point.up.left", "gearshape", "gearshape.fill", "info.circle", "plus", "minus",
     "chevron.up.chevron.down", "chevron.down", "chevron.right", "square.grid.2x2", "magnifyingglass", "xmark.circle",
-    "rectangle.portrait", "rectangle", "display", "checkmark",
+    "rectangle.portrait", "rectangle", "display", "checkmark", "info.circle.fill",
     // Snug 屏上
     "rectangle.portrait.and.arrow.right", "chevron.left", "macwindow.badge.plus", "xmark.square", "xmark.circle.fill",
     "arrow.uturn.backward", "macwindow", "camera", "square.grid.3x3.fill", "list.bullet",
@@ -67,6 +67,14 @@ for (key, path) in apps {
     guard FileManager.default.fileExists(atPath: path) else { missing.append(path); continue }
     save(NSWorkspace.shared.icon(forFile: path), size: NSSize(width: 128, height: 128), to: appsDir.appendingPathComponent("\(key).png"))
 }
+
+// 符号再内嵌成 data URI 写进 symbols.css：Safari 直接打开本地文件时，CSS 遮罩读不了本地图片，内嵌的才显示
+var css = "/* 由 export-assets.swift 生成：<i class=\"sym\" data-s=\"符号名\"> */\n"
+for name in symbols where !missing.contains(name) {
+    guard let data = try? Data(contentsOf: symbolsDir.appendingPathComponent("\(name).png")) else { continue }
+    css += ".sym[data-s=\"\(name)\"] { --s: url(\"data:image/png;base64,\(data.base64EncodedString())\"); }\n"
+}
+try? css.write(to: root.appendingPathComponent("symbols.css"), atomically: true, encoding: .utf8)
 
 print("导出 \(symbols.count - missing.filter { !$0.hasPrefix("/") }.count) 个符号、\(apps.count - missing.filter { $0.hasPrefix("/") }.count) 个 App 图标到 \(root.path)")
 if !missing.isEmpty { print("没找到：\(missing.joined(separator: "、"))") }

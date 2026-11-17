@@ -21,7 +21,7 @@ body {
   display: flex; align-items: center; gap: var(--mac-space-l);
   padding: var(--mac-space-m) var(--mac-space-xxl);
   background: color-mix(in srgb, var(--board) 88%, transparent);
-  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
   border-bottom: 1px solid color-mix(in srgb, var(--board-ink) 10%, transparent);
 }
 .board-head h1 { font: var(--mac-font-title3); font-weight: 600; margin: 0; color: var(--board-ink); }
@@ -102,7 +102,7 @@ figure.frame figcaption b { display: block; color: var(--board-ink); font: var(-
 .row .value { color: var(--mac-secondary-label); display: flex; align-items: center; gap: var(--mac-space-xs); }
 .row.clickable { cursor: default; }
 .row.clickable:hover { background: none; }
-.row .chev { color: var(--mac-tertiary-label); font-size: 12px; }
+.row .info { color: var(--mac-secondary-label); font-size: 16px; cursor: pointer; }
 .tile {
   width: var(--mac-size-icon-tile); height: var(--mac-size-icon-tile); border-radius: var(--mac-radius-icon-tile);
   display: grid; place-items: center; color: #fff; flex: none;
@@ -146,7 +146,9 @@ figure.frame figcaption b { display: block; color: var(--board-ink); font: var(-
 .slider .track { position: relative; width: 160px; height: 4px; border-radius: 2px; background: var(--mac-fill); }
 .slider .track i { position: absolute; top: -3px; width: 2px; height: 10px; background: var(--mac-tertiary-label); }
 .slider .knob { position: absolute; top: -8px; width: 12px; height: 20px; border-radius: 6px; background: #fff; box-shadow: 0 0 0 0.5px rgba(0,0,0,.25), 0 1px 3px rgba(0,0,0,.25); }
-.list-actions { display: flex; gap: var(--mac-space-s); margin-top: calc(var(--mac-space-m) * -1); }
+.list-foot { display: flex; align-items: flex-start; gap: var(--mac-space-l); margin-top: calc(var(--mac-space-m) * -1); }
+.list-foot .group-note { margin: var(--mac-space-xs) 0 0 var(--mac-space-xs); flex: 1; }
+.list-foot .button { flex: none; }
 .footer { display: flex; justify-content: flex-end; }
 .segmented { display: inline-flex; background: var(--mac-fill); border-radius: var(--mac-radius-control); padding: 2px; gap: 2px; }
 .segmented span { padding: 3px var(--mac-space-m); border-radius: 5px; display: inline-flex; align-items: center; gap: var(--mac-space-xs); color: var(--mac-label); }
@@ -159,12 +161,14 @@ figure.frame figcaption b { display: block; color: var(--board-ink); font: var(-
 .sheet-host .window { filter: saturate(.9); }
 .sheet-host .dim { position: absolute; inset: 28px 0 0; background: rgba(0,0,0,.12); border-radius: 0 0 var(--mac-radius-window) var(--mac-radius-window); }
 .sheet {
-  position: absolute; left: 50%; top: 28px; transform: translateX(-50%); width: 400px;
+  position: absolute; left: 50%; top: 28px; transform: translateX(-50%); width: 440px;
   background: var(--mac-window-background); border-radius: 0 0 var(--mac-radius-sheet) var(--mac-radius-sheet);
   box-shadow: 0 0 0 0.5px rgba(0,0,0,.25), 0 16px 40px rgba(0,0,0,.25);
   padding: var(--mac-space-xl); display: flex; flex-direction: column; gap: var(--mac-space-l);
 }
-.sheet h3 { font: var(--mac-font-title3); font-weight: 600; margin: 0; }
+.sheet h3, .sheet .sheet-name { font: var(--mac-font-title3); font-weight: 600; margin: 0; }
+.sheet .group-note { margin-top: calc(var(--mac-space-s) * -1); }
+.sheet .row .value { color: var(--mac-secondary-label); }
 .form-grid { display: grid; grid-template-columns: auto 1fr; gap: var(--mac-space-m) var(--mac-space-m); align-items: center; }
 .form-grid > label { text-align: right; color: var(--mac-label); }
 .form-grid .hint { grid-column: 2; font: var(--mac-font-callout); color: var(--mac-secondary-label); margin-top: calc(var(--mac-space-s) * -1); }
@@ -175,12 +179,12 @@ figure.frame figcaption b { display: block; color: var(--board-ink); font: var(-
 .desktop { width: 560px; height: 300px; border-radius: var(--mac-radius-group); overflow: hidden; position: relative;
   background: linear-gradient(160deg, #6E8BAE, #3D4E6B 60%, #273246); }
 .menubar { height: 24px; display: flex; align-items: center; justify-content: flex-end; gap: var(--mac-space-l); padding: 0 var(--mac-space-m);
-  background: rgba(255,255,255,.28); backdrop-filter: blur(20px); color: #fff; font: var(--mac-font-body); }
+  background: rgba(255,255,255,.28); -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); color: #fff; font: var(--mac-font-body); }
 .menubar .sym { font-size: 15px; }
 .menubar .on { background: rgba(255,255,255,.3); border-radius: 4px; padding: 1px 6px; }
 .menu {
   position: absolute; top: 28px; right: 120px; width: var(--mac-size-menu-width);
-  background: var(--mac-menu-background); backdrop-filter: blur(30px);
+  background: var(--mac-menu-background); -webkit-backdrop-filter: blur(30px); backdrop-filter: blur(30px);
   border-radius: var(--mac-radius-menu); padding: 5px;
   box-shadow: 0 0 0 0.5px rgba(0,0,0,.2), 0 10px 30px rgba(0,0,0,.3);
 }

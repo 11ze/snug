@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Snug 界面原型</title>
 <link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="assets/symbols.css">
 <link rel="stylesheet" href="prototype.css">
 </head>
 <body>
@@ -35,22 +36,22 @@
     <figure class="frame">
       <div class="desktop">
         <div class="menubar">
-          <span class="on"><i class="sym" style="--s:url(assets/symbols/iphone.radiowaves.left.and.right.png)"></i></span>
-          <i class="sym" style="--s:url(assets/symbols/magnifyingglass.png)"></i>
+          <span class="on"><i class="sym" data-s="iphone.radiowaves.left.and.right"></i></span>
+          <i class="sym" data-s="magnifyingglass"></i>
           <span>11月17日 周二 21:05</span>
         </div>
         <div class="menu">
           <div class="head">
-            <span class="tile" style="--c: var(--mac-status-remote)"><i class="sym" style="--s:url(assets/symbols/iphone.radiowaves.left.and.right.png)"></i></span>
+            <span class="tile" style="--c: var(--mac-status-remote)"><i class="sym" data-s="iphone.radiowaves.left.and.right"></i></span>
             <div>远程中 · iPhone 17 Pro Max<small>正在看「Snug 手机屏」</small></div>
           </div>
           <hr>
-          <div class="mi hi"><i class="sym" style="--s:url(assets/symbols/square.grid.2x2.png)"></i>App 资源库</div>
+          <div class="mi hi"><i class="sym" data-s="square.grid.2x2"></i>App 资源库</div>
           <hr>
-          <div class="mi"><i class="sym" style="--s:url(assets/symbols/gearshape.png)"></i>设置…<kbd>⌘,</kbd></div>
-          <div class="mi"><i class="sym" style="--s:url(assets/symbols/info.circle.png)"></i>关于 Snug</div>
+          <div class="mi"><i class="sym" data-s="gearshape"></i>设置…<kbd>⌘,</kbd></div>
+          <div class="mi"><i class="sym" data-s="info.circle"></i>关于 Snug</div>
           <hr>
-          <div class="mi"><i class="sym" style="--s:url(assets/symbols/power.png)"></i>退出 Snug<kbd>⌘Q</kbd></div>
+          <div class="mi"><i class="sym" data-s="power"></i>退出 Snug<kbd>⌘Q</kbd></div>
         </div>
       </div>
       <figcaption><b>菜单栏菜单</b>顶上一行说清此刻的状态。「App 资源库」给电脑屏用：在哪块屏的菜单栏点，就在哪块屏打开。</figcaption>
@@ -61,54 +62,55 @@
       <div class="window">
         <div class="titlebar"><div class="lights"><i></i><i></i><i></i></div><span class="title">屏幕</span></div>
         <div class="tabs" role="tablist">
-          <button class="tab" role="tab" aria-selected="true"><i class="sym" style="--s:url(assets/symbols/rectangle.on.rectangle.png)"></i>屏幕</button>
-          <button class="tab" role="tab"><i class="sym" style="--s:url(assets/symbols/hand.point.up.left.png)"></i>触控</button>
-          <button class="tab" role="tab"><i class="sym" style="--s:url(assets/symbols/gearshape.png)"></i>通用</button>
+          <button class="tab" role="tab" aria-selected="true"><i class="sym" data-s="rectangle.on.rectangle"></i>屏幕</button>
+          <button class="tab" role="tab"><i class="sym" data-s="hand.point.up.left"></i>触控</button>
+          <button class="tab" role="tab"><i class="sym" data-s="gearshape"></i>通用</button>
         </div>
         <div class="pane">
           <div class="group">
             <div class="row status-row">
-              <span class="tile status-tile" style="--c: var(--mac-status-remote)"><i class="sym" style="--s:url(assets/symbols/iphone.radiowaves.left.and.right.png)"></i></span>
+              <span class="tile status-tile" style="--c: var(--mac-status-remote)"><i class="sym" data-s="iphone.radiowaves.left.and.right"></i></span>
               <div class="text"><b>iPhone 17 Pro Max · 远程中</b><span class="detail">正在看「Snug 手机屏」</span></div>
             </div>
           </div>
 
           <div class="group-title">屏幕</div>
           <div class="group">
-            <div class="row clickable">
-              <span class="tile" style="--c: var(--mac-tile-screen-phone)"><i class="sym" style="--s:url(assets/symbols/iphone.png)"></i></span>
+            <div class="row">
+              <span class="tile" style="--c: var(--mac-tile-screen-phone)"><i class="sym" data-s="iphone"></i></span>
               <div class="text">Snug 手机屏<span class="detail">竖 · iPhone 17 Pro Max</span></div>
               <span class="badge"><span class="dot"></span>在看</span>
               <span class="toggle" role="switch" aria-checked="true"></span>
-              <i class="sym chev" style="--s:url(assets/symbols/chevron.right.png)"></i>
+              <i class="sym info" data-s="info.circle" title="详情"></i>
             </div>
-            <div class="row clickable">
-              <span class="tile" style="--c: var(--mac-tile-screen-tablet)"><i class="sym" style="--s:url(assets/symbols/ipad.landscape.png)"></i></span>
+            <div class="row">
+              <span class="tile" style="--c: var(--mac-tile-screen-tablet)"><i class="sym" data-s="ipad.landscape"></i></span>
               <div class="text">Snug iPad<span class="detail">横 · iPad（第 10 代）</span></div>
               <span class="toggle" role="switch" aria-checked="true"></span>
-              <i class="sym chev" style="--s:url(assets/symbols/chevron.right.png)"></i>
+              <i class="sym info" data-s="info.circle" title="详情"></i>
             </div>
-            <div class="row clickable">
-              <span class="tile" style="--c: var(--mac-tile-screen-computer)"><i class="sym" style="--s:url(assets/symbols/laptopcomputer.png)"></i></span>
+            <div class="row">
+              <span class="tile" style="--c: var(--mac-tile-screen-computer)"><i class="sym" data-s="laptopcomputer"></i></span>
               <div class="text">Snug MacBook Air<span class="detail">横 · MacBook Air 13（M4）</span></div>
               <span class="toggle" role="switch" aria-checked="false"></span>
-              <i class="sym chev" style="--s:url(assets/symbols/chevron.right.png)"></i>
+              <i class="sym info" data-s="info.circle" title="详情"></i>
             </div>
           </div>
-          <div class="list-actions">
-            <span class="button"><i class="sym" style="--s:url(assets/symbols/plus.png)"></i>添加屏幕…</span>
+          <div class="list-foot">
+            <p class="group-note">UU远程 一次只让一台设备控制，同一时间只用到一块屏。多开的屏留给横竖切换和换设备接管，用不到的可以关掉。</p>
+            <span class="button"><i class="sym" data-s="plus"></i>添加屏幕…</span>
           </div>
 
           <div class="group">
             <div class="row">
-              <span class="tile" style="--c: var(--mac-tile-main-screen)"><i class="sym" style="--s:url(assets/symbols/menubar.rectangle.png)"></i></span>
+              <span class="tile" style="--c: var(--mac-tile-main-screen)"><i class="sym" data-s="menubar.rectangle"></i></span>
               <div class="text">设为主屏<span class="detail">远程时用这块屏当主屏，结束后还原</span></div>
-              <span class="popup">不改<i class="sym" style="--s:url(assets/symbols/chevron.up.chevron.down.png)"></i></span>
+              <span class="popup">不改<i class="sym" data-s="chevron.up.chevron.down"></i></span>
             </div>
           </div>
         </div>
       </div>
-      <figcaption><b>设置 · 屏幕</b>原来一页到底的内容拆开。这一页只管「有哪几块屏、开不开、用哪块当主屏」；点一行进那块屏的详情。正在看的屏标「在看」。</figcaption>
+      <figcaption><b>设置 · 屏幕</b>原来一页到底的内容拆开。这一页只管「有哪几块屏、开不开、用哪块当主屏」；点 ⓘ 进那块屏的详情。正在看的屏标「在看」。列表下面说明为什么同一时间只用到一块、多开留给什么。</figcaption>
     </figure>
 
     <!-- 添加屏幕 -->
@@ -116,35 +118,42 @@
       <div class="sheet-host">
         <div class="window">
           <div class="titlebar"><div class="lights"><i></i><i></i><i></i></div><span class="title">屏幕</span></div>
-          <div class="tabs"><button class="tab" aria-selected="true"><i class="sym" style="--s:url(assets/symbols/rectangle.on.rectangle.png)"></i>屏幕</button><button class="tab"><i class="sym" style="--s:url(assets/symbols/hand.point.up.left.png)"></i>触控</button><button class="tab"><i class="sym" style="--s:url(assets/symbols/gearshape.png)"></i>通用</button></div>
+          <div class="tabs"><button class="tab" aria-selected="true"><i class="sym" data-s="rectangle.on.rectangle"></i>屏幕</button><button class="tab"><i class="sym" data-s="hand.point.up.left"></i>触控</button><button class="tab"><i class="sym" data-s="gearshape"></i>通用</button></div>
           <div class="pane" style="height: 360px"></div>
         </div>
         <div class="dim"></div>
         <div class="sheet">
           <h3>添加屏幕</h3>
-          <div class="form-grid">
-            <label>设备</label>
-            <span class="segmented">
-              <span><i class="sym" style="--s:url(assets/symbols/iphone.png)"></i>手机</span>
-              <span aria-selected="true"><i class="sym" style="--s:url(assets/symbols/ipad.png)"></i>平板</span>
-              <span><i class="sym" style="--s:url(assets/symbols/laptopcomputer.png)"></i>电脑</span>
-            </span>
-            <label>方向</label>
-            <span class="segmented">
-              <span><i class="sym" style="--s:url(assets/symbols/rectangle.portrait.png)"></i>竖</span>
-              <span aria-selected="true"><i class="sym" style="--s:url(assets/symbols/rectangle.png)"></i>横</span>
-            </span>
-            <span class="hint">添加后不能改，要换方向就再加一块</span>
-            <label>型号</label>
-            <span class="popup">iPad（第 10 代）· 1640 × 2360<i class="sym" style="--s:url(assets/symbols/chevron.up.chevron.down.png)"></i></span>
-            <label>名字</label>
-            <span class="field">Snug iPad</span>
-            <span class="hint">UU远程 的屏幕列表里显示这个名字</span>
+          <div class="group">
+            <div class="row plain">
+              <div class="text">设备</div>
+              <span class="segmented">
+                <span><i class="sym" data-s="iphone"></i>手机</span>
+                <span aria-selected="true"><i class="sym" data-s="ipad"></i>平板</span>
+                <span><i class="sym" data-s="laptopcomputer"></i>电脑</span>
+              </span>
+            </div>
+            <div class="row plain">
+              <div class="text">方向</div>
+              <span class="segmented">
+                <span><i class="sym" data-s="rectangle.portrait"></i>竖</span>
+                <span aria-selected="true"><i class="sym" data-s="rectangle"></i>横</span>
+              </span>
+            </div>
+            <div class="row plain">
+              <div class="text">型号</div>
+              <span class="popup">iPad（第 10 代）<i class="sym" data-s="chevron.up.chevron.down"></i></span>
+            </div>
+            <div class="row plain">
+              <div class="text">名字</div>
+              <span class="field">Snug iPad</span>
+            </div>
           </div>
+          <p class="group-note">方向添加后不能改。名字会显示在 UU远程 的屏幕列表里。</p>
           <div class="actions"><span class="button">取消</span><span class="button prominent">添加</span></div>
         </div>
       </div>
-      <figcaption><b>添加屏幕</b>先选设备，再选方向，型号列表只列这一类的。选电脑时方向固定为横。名字按型号自动起，可以改。</figcaption>
+      <figcaption><b>添加屏幕</b>和设置窗口同一种分组样式：标签在左、控件在右。先选设备，再选方向，型号列表只列这一类的；选电脑时方向固定为横。名字按型号自动起，可以改。</figcaption>
     </figure>
 
     <!-- 屏幕详情 -->
@@ -152,24 +161,30 @@
       <div class="sheet-host">
         <div class="window">
           <div class="titlebar"><div class="lights"><i></i><i></i><i></i></div><span class="title">屏幕</span></div>
-          <div class="tabs"><button class="tab" aria-selected="true"><i class="sym" style="--s:url(assets/symbols/rectangle.on.rectangle.png)"></i>屏幕</button><button class="tab"><i class="sym" style="--s:url(assets/symbols/hand.point.up.left.png)"></i>触控</button><button class="tab"><i class="sym" style="--s:url(assets/symbols/gearshape.png)"></i>通用</button></div>
+          <div class="tabs"><button class="tab" aria-selected="true"><i class="sym" data-s="rectangle.on.rectangle"></i>屏幕</button><button class="tab"><i class="sym" data-s="hand.point.up.left"></i>触控</button><button class="tab"><i class="sym" data-s="gearshape"></i>通用</button></div>
           <div class="pane" style="height: 360px"></div>
         </div>
         <div class="dim"></div>
         <div class="sheet">
           <div class="row" style="padding:0">
-            <span class="tile status-tile" style="--c: var(--mac-tile-screen-tablet)"><i class="sym" style="--s:url(assets/symbols/ipad.landscape.png)"></i></span>
-            <div class="text"><b style="font: var(--mac-font-title3); font-weight:600">Snug iPad</b><span class="detail">平板 · 横 · 950 × 660 点</span></div>
+            <span class="tile status-tile" style="--c: var(--mac-tile-screen-tablet)"><i class="sym" data-s="ipad.landscape"></i></span>
+            <div class="text"><b class="sheet-name">Snug iPad</b><span class="detail">平板 · 950 × 660 点</span></div>
           </div>
-          <div class="form-grid">
-            <label>名字</label>
-            <span class="field">Snug iPad</span>
-            <label>型号</label>
-            <span class="popup">iPad（第 10 代）· 1640 × 2360<i class="sym" style="--s:url(assets/symbols/chevron.up.chevron.down.png)"></i></span>
-            <span class="hint">改型号当场换比例，不用重连</span>
-            <label>方向</label>
-            <span class="value" style="color: var(--mac-secondary-label)">横（添加时定，不能改）</span>
+          <div class="group">
+            <div class="row plain">
+              <div class="text">名字</div>
+              <span class="field">Snug iPad</span>
+            </div>
+            <div class="row plain">
+              <div class="text">型号</div>
+              <span class="popup">iPad（第 10 代）<i class="sym" data-s="chevron.up.chevron.down"></i></span>
+            </div>
+            <div class="row plain">
+              <div class="text">方向</div>
+              <span class="value">横</span>
+            </div>
           </div>
+          <p class="group-note">改型号当场换比例，不用重连。方向添加后不能改。</p>
           <div class="actions"><span class="button borderless danger">删除这块屏…</span><span class="spacer"></span><span class="button prominent">完成</span></div>
         </div>
       </div>
@@ -180,21 +195,21 @@
     <figure class="frame">
       <div class="window">
         <div class="titlebar"><div class="lights"><i></i><i></i><i></i></div><span class="title">触控</span></div>
-        <div class="tabs"><button class="tab"><i class="sym" style="--s:url(assets/symbols/rectangle.on.rectangle.png)"></i>屏幕</button><button class="tab" aria-selected="true"><i class="sym" style="--s:url(assets/symbols/hand.point.up.left.png)"></i>触控</button><button class="tab"><i class="sym" style="--s:url(assets/symbols/gearshape.png)"></i>通用</button></div>
+        <div class="tabs"><button class="tab"><i class="sym" data-s="rectangle.on.rectangle"></i>屏幕</button><button class="tab" aria-selected="true"><i class="sym" data-s="hand.point.up.left"></i>触控</button><button class="tab"><i class="sym" data-s="gearshape"></i>通用</button></div>
         <div class="pane">
           <div class="group">
             <div class="row">
-              <span class="tile" style="--c: var(--mac-tile-gestures)"><i class="sym" style="--s:url(assets/symbols/hand.tap.fill.png)"></i></span>
+              <span class="tile" style="--c: var(--mac-tile-gestures)"><i class="sym" data-s="hand.tap.fill"></i></span>
               <div class="text">触控手势<span class="detail">单指滚动 · 长按选择 · 长按松开右键</span></div>
               <span class="toggle" role="switch" aria-checked="true"></span>
             </div>
             <div class="row">
-              <span class="tile" style="--c: var(--mac-tile-zoom)"><i class="sym" style="--s:url(assets/symbols/textformat.size.png)"></i></span>
+              <span class="tile" style="--c: var(--mac-tile-zoom)"><i class="sym" data-s="textformat.size"></i></span>
               <div class="text">字号放大<span class="detail">窗口放上来时默认放大的级数</span></div>
               <span class="slider">A<span class="track"><i style="left:0"></i><i style="left:39px"></i><i style="left:79px"></i><i style="left:119px"></i><i style="left:158px"></i><span class="knob" style="left:74px"></span></span><span style="font-size:17px">A</span></span>
             </div>
             <div class="row">
-              <span class="tile" style="--c: var(--mac-tile-screenshot)"><i class="sym" style="--s:url(assets/symbols/camera.viewfinder.png)"></i></span>
+              <span class="tile" style="--c: var(--mac-tile-screenshot)"><i class="sym" data-s="camera.viewfinder"></i></span>
               <div class="text">截图<span class="detail">小横条左侧的相机键 · 截当前窗口到剪贴板</span></div>
               <span class="toggle" role="switch" aria-checked="false"></span>
             </div>
@@ -209,11 +224,11 @@
     <figure class="frame">
       <div class="window">
         <div class="titlebar"><div class="lights"><i></i><i></i><i></i></div><span class="title">通用</span></div>
-        <div class="tabs"><button class="tab"><i class="sym" style="--s:url(assets/symbols/rectangle.on.rectangle.png)"></i>屏幕</button><button class="tab"><i class="sym" style="--s:url(assets/symbols/hand.point.up.left.png)"></i>触控</button><button class="tab" aria-selected="true"><i class="sym" style="--s:url(assets/symbols/gearshape.png)"></i>通用</button></div>
+        <div class="tabs"><button class="tab"><i class="sym" data-s="rectangle.on.rectangle"></i>屏幕</button><button class="tab"><i class="sym" data-s="hand.point.up.left"></i>触控</button><button class="tab" aria-selected="true"><i class="sym" data-s="gearshape"></i>通用</button></div>
         <div class="pane">
           <div class="group">
             <div class="row">
-              <span class="tile" style="--c: var(--mac-tile-launch-at-login)"><i class="sym" style="--s:url(assets/symbols/power.png)"></i></span>
+              <span class="tile" style="--c: var(--mac-tile-launch-at-login)"><i class="sym" data-s="power"></i></span>
               <div class="text">开机启动</div>
               <span class="toggle" role="switch" aria-checked="true"></span>
             </div>
@@ -222,12 +237,12 @@
           <div class="group-title">权限</div>
           <div class="group">
             <div class="row">
-              <span class="tile" style="--c: var(--mac-tile-accessibility)"><i class="sym" style="--s:url(assets/symbols/hand.raised.fill.png)"></i></span>
+              <span class="tile" style="--c: var(--mac-tile-accessibility)"><i class="sym" data-s="hand.raised.fill"></i></span>
               <div class="text">设备控制和数据访问<span class="detail">用于移动窗口与转换手势</span></div>
-              <span class="value"><i class="sym" style="--s:url(assets/symbols/checkmark.circle.fill.png); color: var(--mac-positive)"></i>已授权</span>
+              <span class="value"><i class="sym" data-s="checkmark.circle.fill" style="color: var(--mac-positive)"></i>已授权</span>
             </div>
             <div class="row">
-              <span class="tile" style="--c: var(--mac-tile-screen-recording)"><i class="sym" style="--s:url(assets/symbols/record.circle.png)"></i></span>
+              <span class="tile" style="--c: var(--mac-tile-screen-recording)"><i class="sym" data-s="record.circle"></i></span>
               <div class="text">录屏与系统录音<span class="detail">只有截图要用</span></div>
               <span class="button">授权…</span>
             </div>
@@ -236,14 +251,14 @@
           <div class="group-title">更新</div>
           <div class="group">
             <div class="row">
-              <span class="tile" style="--c: var(--mac-tile-update)"><i class="sym" style="--s:url(assets/symbols/arrow.down.png)"></i></span>
+              <span class="tile" style="--c: var(--mac-tile-update)"><i class="sym" data-s="arrow.down"></i></span>
               <div class="text">软件更新<span class="detail">已是最新版本 2.5.0</span></div>
               <span class="button">检查更新</span>
             </div>
             <div class="row">
-              <span class="tile" style="--c: var(--mac-tile-update-source)"><i class="sym" style="--s:url(assets/symbols/server.rack.png)"></i></span>
+              <span class="tile" style="--c: var(--mac-tile-update-source)"><i class="sym" data-s="server.rack"></i></span>
               <div class="text">更新源</div>
-              <span class="popup">腾讯云<i class="sym" style="--s:url(assets/symbols/chevron.up.chevron.down.png)"></i></span>
+              <span class="popup">腾讯云<i class="sym" data-s="chevron.up.chevron.down"></i></span>
             </div>
           </div>
           <div class="footer"><span class="button">退出 Snug</span></div>
@@ -284,23 +299,23 @@
         <div class="titlebar"><div class="lights"><i></i><i></i><i></i></div></div>
         <div class="toolbar">
           <h4>App 资源库</h4><small>放到「Snug MacBook Air」</small>
-          <span class="field search"><i class="sym" style="--s:url(assets/symbols/magnifyingglass.png)"></i>搜索</span>
+          <span class="field search"><i class="sym" data-s="magnifyingglass"></i>搜索</span>
         </div>
         <div class="body">
           <div class="side">
-            <div class="src" aria-selected="true"><i class="sym" style="--s:url(assets/symbols/macwindow.png)"></i>运行中<span class="count">4</span></div>
-            <div class="src"><i class="sym" style="--s:url(assets/symbols/square.grid.2x2.png)"></i>全部 App<span class="count">68</span></div>
+            <div class="src" aria-selected="true"><i class="sym" data-s="macwindow"></i>运行中<span class="count">4</span></div>
+            <div class="src"><i class="sym" data-s="square.grid.2x2"></i>全部 App<span class="count">68</span></div>
           </div>
           <div class="content">
             <div class="app"><img src="assets/apps/ghostty.png" alt=""><div class="text"><b>Ghostty</b><div class="detail">2 个窗口</div></div></div>
-            <div class="win"><i class="sym" style="--s:url(assets/symbols/macwindow.png)"></i><span class="name">~/projects/snug — zsh</span><span class="where">在内建屏</span><span class="button">放到这块屏</span></div>
-            <div class="win"><i class="sym" style="--s:url(assets/symbols/macwindow.png)"></i><span class="name">~ — htop</span><span class="where">在这块屏</span></div>
+            <div class="win"><i class="sym" data-s="macwindow"></i><span class="name">~/projects/snug — zsh</span><span class="where">在内建屏</span><span class="button">放到这块屏</span></div>
+            <div class="win"><i class="sym" data-s="macwindow"></i><span class="name">~ — htop</span><span class="where">在这块屏</span></div>
             <div class="sep"></div>
             <div class="app"><img src="assets/apps/safari.png" alt=""><div class="text"><b>Safari</b><div class="detail">1 个窗口</div></div></div>
-            <div class="win"><i class="sym" style="--s:url(assets/symbols/macwindow.png)"></i><span class="name">Swift 文档 — Concurrency</span><span class="where">在内建屏</span><span class="button">放到这块屏</span></div>
+            <div class="win"><i class="sym" data-s="macwindow"></i><span class="name">Swift 文档 — Concurrency</span><span class="where">在内建屏</span><span class="button">放到这块屏</span></div>
             <div class="sep"></div>
             <div class="app"><img src="assets/apps/notes.png" alt=""><div class="text"><b>备忘录</b><div class="detail">1 个窗口 · 已最小化</div></div></div>
-            <div class="win"><i class="sym" style="--s:url(assets/symbols/macwindow.png)"></i><span class="name">周末计划</span><span class="where">已最小化</span><span class="button">放到这块屏</span></div>
+            <div class="win"><i class="sym" data-s="macwindow"></i><span class="name">周末计划</span><span class="where">已最小化</span><span class="button">放到这块屏</span></div>
           </div>
         </div>
       </div>
@@ -323,35 +338,35 @@
         <div class="touch phone-portrait">
           <div class="t-pad">
             <div class="t-topbar">
-              <span class="back"><i class="sym" style="--s:url(assets/symbols/chevron.left.png)"></i>Ghostty</span>
-              <i class="sym" style="--s:url(assets/symbols/rectangle.portrait.and.arrow.right.png)"></i>
-              <i class="sym" style="--s:url(assets/symbols/iphone.png)"></i>
+              <span class="back"><i class="sym" data-s="chevron.left"></i>Ghostty</span>
+              <i class="sym" data-s="rectangle.portrait.and.arrow.right"></i>
+              <i class="sym" data-s="iphone"></i>
             </div>
             <h1 class="t-title">App</h1>
-            <div class="t-search"><i class="sym" style="--s:url(assets/symbols/magnifyingglass.png)"></i>搜索 App</div>
+            <div class="t-search"><i class="sym" data-s="magnifyingglass"></i>搜索 App</div>
             <div class="t-seg"><span aria-selected="true">运行中</span><span>全部</span></div>
             <div class="t-cap">当前 App</div>
             <div class="t-card">
               <div class="t-app">
                 <img src="assets/apps/ghostty.png" alt="">
                 <div class="text"><b>Ghostty</b><small>2 个窗口</small></div>
-                <span class="t-circle"><i class="sym" style="--s:url(assets/symbols/macwindow.badge.plus.png)"></i></span>
-                <span class="t-circle"><i class="sym" style="--s:url(assets/symbols/xmark.square.png)"></i></span>
+                <span class="t-circle"><i class="sym" data-s="macwindow.badge.plus"></i></span>
+                <span class="t-circle"><i class="sym" data-s="xmark.square"></i></span>
               </div>
               <div class="t-win">
-                <i class="sym on-screen" style="--s:url(assets/symbols/iphone.png)"></i>
+                <i class="sym on-screen" data-s="iphone"></i>
                 <span class="name">~/projects/snug — zsh</span>
                 <span class="t-pill">在手机屏上</span>
-                <i class="sym t-x" style="--s:url(assets/symbols/xmark.circle.fill.png)"></i>
+                <i class="sym t-x" data-s="xmark.circle.fill"></i>
               </div>
               <div class="t-zoom">
                 <span class="t-circle">A</span><span class="lvl">字号 +2</span><span class="t-circle big">A</span>
-                <span class="restore"><i class="sym" style="--s:url(assets/symbols/arrow.uturn.backward.png)"></i>还原</span>
+                <span class="restore"><i class="sym" data-s="arrow.uturn.backward"></i>还原</span>
               </div>
               <div class="t-win">
-                <i class="sym" style="--s:url(assets/symbols/macwindow.png)"></i>
+                <i class="sym" data-s="macwindow"></i>
                 <span class="name">~ — htop</span>
-                <i class="sym t-x" style="--s:url(assets/symbols/xmark.circle.fill.png)"></i>
+                <i class="sym t-x" data-s="xmark.circle.fill"></i>
               </div>
             </div>
             <div class="t-cap">其他 App</div>
@@ -359,8 +374,8 @@
               <div class="t-app">
                 <img src="assets/apps/safari.png" alt="">
                 <div class="text"><b>Safari</b><small>1 个窗口</small></div>
-                <span class="t-circle"><i class="sym" style="--s:url(assets/symbols/macwindow.badge.plus.png)"></i></span>
-                <span class="t-circle"><i class="sym" style="--s:url(assets/symbols/xmark.square.png)"></i></span>
+                <span class="t-circle"><i class="sym" data-s="macwindow.badge.plus"></i></span>
+                <span class="t-circle"><i class="sym" data-s="xmark.square"></i></span>
               </div>
             </div>
           </div>
@@ -377,7 +392,7 @@
           <div class="split">
             <div class="side">
               <h1 class="t-title small">App</h1>
-              <div class="t-search"><i class="sym" style="--s:url(assets/symbols/magnifyingglass.png)"></i>搜索 App</div>
+              <div class="t-search"><i class="sym" data-s="magnifyingglass"></i>搜索 App</div>
               <div class="t-seg"><span aria-selected="true">运行中</span><span>全部</span></div>
               <div class="apps">
                 <div class="a" aria-selected="true"><img src="assets/apps/ghostty.png" alt=""><div><b>Ghostty</b><small>2 个窗口</small></div></div>
@@ -387,30 +402,30 @@
             </div>
             <div class="main">
               <div class="t-topbar">
-                <i class="sym" style="--s:url(assets/symbols/rectangle.portrait.and.arrow.right.png)"></i>
-                <i class="sym" style="--s:url(assets/symbols/iphone.png)"></i>
+                <i class="sym" data-s="rectangle.portrait.and.arrow.right"></i>
+                <i class="sym" data-s="iphone"></i>
               </div>
               <div class="t-card">
                 <div class="t-app">
                   <img src="assets/apps/ghostty.png" alt="">
                   <div class="text"><b>Ghostty</b><small>2 个窗口</small></div>
-                  <span class="t-circle"><i class="sym" style="--s:url(assets/symbols/macwindow.badge.plus.png)"></i></span>
-                  <span class="t-circle"><i class="sym" style="--s:url(assets/symbols/xmark.square.png)"></i></span>
+                  <span class="t-circle"><i class="sym" data-s="macwindow.badge.plus"></i></span>
+                  <span class="t-circle"><i class="sym" data-s="xmark.square"></i></span>
                 </div>
                 <div class="t-win">
-                  <i class="sym on-screen" style="--s:url(assets/symbols/iphone.png)"></i>
+                  <i class="sym on-screen" data-s="iphone"></i>
                   <span class="name">~/projects/snug — zsh</span>
                   <span class="t-pill">在这块屏上</span>
-                  <i class="sym t-x" style="--s:url(assets/symbols/xmark.circle.fill.png)"></i>
+                  <i class="sym t-x" data-s="xmark.circle.fill"></i>
                 </div>
                 <div class="t-zoom">
                   <span class="t-circle">A</span><span class="lvl">字号 +2</span><span class="t-circle big">A</span>
-                  <span class="restore"><i class="sym" style="--s:url(assets/symbols/arrow.uturn.backward.png)"></i>还原</span>
+                  <span class="restore"><i class="sym" data-s="arrow.uturn.backward"></i>还原</span>
                 </div>
                 <div class="t-win">
-                  <i class="sym" style="--s:url(assets/symbols/macwindow.png)"></i>
+                  <i class="sym" data-s="macwindow"></i>
                   <span class="name">~ — htop</span>
-                  <i class="sym t-x" style="--s:url(assets/symbols/xmark.circle.fill.png)"></i>
+                  <i class="sym t-x" data-s="xmark.circle.fill"></i>
                 </div>
               </div>
             </div>
@@ -430,7 +445,7 @@
           <div class="split">
             <div class="side">
               <h1 class="t-title" style="margin:var(--touch-space-s) 0 0">App</h1>
-              <div class="t-search"><i class="sym" style="--s:url(assets/symbols/magnifyingglass.png)"></i>搜索 App</div>
+              <div class="t-search"><i class="sym" data-s="magnifyingglass"></i>搜索 App</div>
               <div class="t-seg"><span>运行中</span><span aria-selected="true">全部</span></div>
               <div class="apps">
                 <div class="a"><img src="assets/apps/appstore.png" alt=""><div><b>App Store</b></div></div>
@@ -442,21 +457,21 @@
             </div>
             <div class="main">
               <div class="t-topbar" style="padding-right: var(--touch-layout-tablet-top-right-clear)">
-                <i class="sym" style="--s:url(assets/symbols/rectangle.portrait.and.arrow.right.png)"></i>
-                <i class="sym" style="--s:url(assets/symbols/ipad.png)"></i>
+                <i class="sym" data-s="rectangle.portrait.and.arrow.right"></i>
+                <i class="sym" data-s="ipad"></i>
               </div>
               <div class="t-card">
                 <div class="t-app">
                   <img src="assets/apps/notes.png" alt="">
                   <div class="text"><b>备忘录</b><small>1 个窗口</small></div>
-                  <span class="t-circle"><i class="sym" style="--s:url(assets/symbols/macwindow.badge.plus.png)"></i></span>
-                  <span class="t-circle"><i class="sym" style="--s:url(assets/symbols/xmark.square.png)"></i></span>
+                  <span class="t-circle"><i class="sym" data-s="macwindow.badge.plus"></i></span>
+                  <span class="t-circle"><i class="sym" data-s="xmark.square"></i></span>
                 </div>
                 <div class="t-win">
-                  <i class="sym" style="--s:url(assets/symbols/macwindow.png)"></i>
+                  <i class="sym" data-s="macwindow"></i>
                   <span class="name">周末计划</span>
                   <span class="t-pill gray">已最小化</span>
-                  <i class="sym t-x" style="--s:url(assets/symbols/xmark.circle.fill.png)"></i>
+                  <i class="sym t-x" data-s="xmark.circle.fill"></i>
                 </div>
               </div>
               <div class="t-cap">点窗口放到这块屏上，铺满并放大字号</div>
