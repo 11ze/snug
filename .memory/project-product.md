@@ -1,6 +1,6 @@
 ---
 name: project-product
-description: Snug 的目标与已拍板的形态：可选的竖屏手机屏、默认同原版 UU、Mac 零操作；首页是 App 资源库、按窗口换档、按机型定比例；否掉的取舍（设主屏、横竖切换、默认进手机屏等）；边界扩到电脑控制端
+description: Snug 的目标与已拍板的形态：可选的竖屏手机屏、默认同原版 UU、Mac 零操作；首页是 App 资源库、按窗口换档、按机型定比例、可选截图；否掉的取舍（设主屏、横竖切换、默认进手机屏等）；边界扩到电脑控制端
 metadata:
   node_type: memory
   type: project
