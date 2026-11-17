@@ -146,17 +146,17 @@ figure.frame figcaption b { display: block; color: var(--board-ink); font: var(-
 .slider .track { position: relative; width: 160px; height: 4px; border-radius: 2px; background: var(--mac-fill); }
 .slider .track i { position: absolute; top: -3px; width: 2px; height: 10px; background: var(--mac-tertiary-label); }
 .slider .knob { position: absolute; top: -8px; width: 12px; height: 20px; border-radius: 6px; background: #fff; box-shadow: 0 0 0 0.5px rgba(0,0,0,.25), 0 1px 3px rgba(0,0,0,.25); }
-.list-foot { display: flex; align-items: center; justify-content: space-between; margin-top: calc(var(--mac-space-m) * -1); }
+.list-foot { display: flex; align-items: center; justify-content: space-between; gap: var(--mac-space-l); margin-top: calc(var(--mac-space-m) * -1); }
 
-/* macOS 的帮助按钮和弹出气泡：说明平时收起来，想知道的人点开 */
+/* 结论留在页面上一行；理由收进行末的链接，点开是气泡 */
+.foot-line { margin: 0 0 0 var(--mac-space-xs); font: var(--mac-font-callout); color: var(--mac-secondary-label); }
 .help-anchor { position: relative; }
-.help {
-  width: 22px; height: 22px; border-radius: 50%; padding: 0; cursor: pointer;
-  font: var(--mac-font-headline); color: var(--mac-secondary-label);
-  background: var(--mac-control-background); border: 1px solid var(--mac-control-border); box-shadow: 0 0.5px 1px rgba(0,0,0,.1);
-}
+.foot-link { font: var(--mac-font-callout); color: var(--mac-accent); background: none; border: 0; padding: 0 0 0 var(--mac-space-xxs); cursor: pointer; }
+.sheet-tip { margin: calc(var(--mac-space-xs) * -1) 0 0; display: flex; gap: var(--mac-space-s); align-items: flex-start; font: var(--mac-font-callout); line-height: 17px; color: var(--mac-secondary-label); }
+.sheet-tip .sym { font-size: 15px; color: var(--mac-accent); margin-top: 1px; }
 .popover {
-  position: absolute; right: -14px; bottom: calc(100% + 12px); width: 300px; z-index: 3;
+  position: absolute; left: -110px; bottom: calc(100% + 10px); width: 300px; z-index: 3; text-align: left;
+  font: var(--mac-font-body); color: var(--mac-label);
   background: var(--mac-window-background); border-radius: var(--mac-radius-group);
   box-shadow: 0 0 0 0.5px rgba(0,0,0,.18), 0 12px 32px rgba(0,0,0,.22);
   padding: var(--mac-space-m) var(--mac-space-l) var(--mac-space-l);
@@ -164,7 +164,7 @@ figure.frame figcaption b { display: block; color: var(--board-ink); font: var(-
 }
 :root[data-theme="dark"] .popover { box-shadow: 0 0 0 0.5px rgba(255,255,255,.16), 0 12px 32px rgba(0,0,0,.5); }
 .popover::before {
-  content: ""; position: absolute; bottom: -6px; right: 19px; width: 12px; height: 12px; transform: rotate(45deg);
+  content: ""; position: absolute; bottom: -6px; left: 132px; width: 12px; height: 12px; transform: rotate(45deg);
   background: var(--mac-window-background); box-shadow: 0.5px 0.5px 0 rgba(0,0,0,.12);
 }
 .popover > b { font: var(--mac-font-headline); }
