@@ -1,0 +1,486 @@
+# 多屏
+
+> 状态：设计定稿（2026-11-17）。开工前先完成第 7 节的实测，结果填回本文。
+> 对应 issue：#7（自选分辨率 / 第二块虚拟屏）、#10（电脑虚拟屏）、#16（手机横屏），同时满足 #6（按设备记型号）的诉求。
+> 本文是多屏这件事唯一的计划来源：方向有变改这里，实测结果填这里，实现时以这里为准。
+
+## 1. 目标
+
+给每种控制端一块合身的屏，并且允许几台设备同时使用：
+
+- 手机竖着用：竖屏（即现在的手机屏）
+- 手机横着用：横屏
+- 平板：横屏；竖着用时选竖屏
+- 电脑：横屏
+- 几台设备同时远程同一台 Mac：各用各的屏，互不干扰
+
+不切到 Snug 的屏时，一切和原版 UU远程 一样。这条不变。
+
+## 2. 产品形态
+
+### 2.1 屏幕列表
+
+设置里有一张屏幕列表，由用户自己增删。每一项是一块虚拟屏：
+
+```
+屏幕
+  [开]  Snug 手机屏          竖 · iPhone 17 Pro Max
+  [开]  Snug · iPad Pro 11   横 · iPad Pro 11-inch (M4)
+  [关]  Snug · MacBook Air   横 · MacBook Air 13 (M4)
+  添加屏幕…
+```
+
+- **开关**：只有开着的屏才会在远程时建出来。大多数人只开一块，体验和现在完全一样。
+- **方向**：添加时选横或竖，之后不改，想换方向就再加一块。改方向要撤屏重建，UU 也得重选屏，和换一块新屏没有区别；而且名字、可选的型号都跟着方向走。
+- **型号**：从机型库里选，或者自己填分辨率。型号随时能改，改了在线换比例，不撤屏（现有能力）。
+- **名字**：「显示器」设置和 UU远程 屏幕列表里显示的名字，添加时按型号生成。用户在 UU 里就靠它认出该选哪块。
+- 远程进行中拨开关、增删屏，只影响那一块。
+
+### 2.2 型号由用户选，程序不识别控制端
+
+- 不读 UU 的设备列表，不替用户打开 UU 主界面，不按控制端名字猜设备类型。
+- 每块屏用什么比例、有什么行为，只取决于用户的设置。同样的设置，每次结果都一样。
+- 代价：同一块屏给两种设备轮流用（今天 iPad、明天笔记本）时，换设备要改一次型号。同时或经常用不同设备的，各加一块屏。
+
+### 2.3 行为跟着型号的类别标签走
+
+机型库里每个型号都带类别标签：手机、平板、电脑。标签在搜集数据时按官方规格写定；自己填的型号由用户选类别。
+
+| 类别 | 手势翻译 | 放上来时放大字号 | 基准尺寸（见 4.4） |
+| :--- | :--- | :--- | :--- |
+| 手机 | 开（设置里的手势总开关关掉就不开） | 是 | 2 倍高清里最窄的一档，字最大 |
+| 平板 | 开（同上） | 是，级数按 V10 定 | 同上 |
+| 电脑 | 不开 | 否 | 电脑自己的逻辑分辨率，和它本机看着一样大 |
+
+- 行为只看标签，不看屏的形状。竖着用显示器的电脑，在竖屏里自己填分辨率、类别选电脑，照样不开手势。
+- 尺寸重叠不影响判断。iPhone Duo 内屏 1878×2670（高宽比 1.42）和 iPad Pro 11（M4）1668×2420（1.45）形状几乎一样，一个是手机一个是平板，靠标签区分。
+- 型号列表默认按方向筛：竖屏只列手机和平板，横屏三类都列。自己填不受限制。
+
+### 2.4 每块屏上有什么
+
+三类屏用同一套面板，都有 App 资源库和底部小横条：
+
+- 横屏按宽排版（App 资源库分两栏），竖屏和现在一样。具体样式实现时出图确认。
+- 屏上「型号」入口改的是这一块屏的型号。
+- 截图键（设置里开着时）在每块屏的小横条上，截的是那块屏上放着的窗口。
+- 在手机上退出某块屏，只退这一块，这次远程内不再加它。
+
+### 2.5 升级与默认
+
+- **老用户升级**：现在的配置迁成列表里的一项「Snug 手机屏 · 竖 · 原来选的型号」，开关沿用原来的手机屏总开关。名字和屏的身份都不变，UU 里看到的和以前一样。
+- **新装**：列表里默认只有这一项。
+- **电脑屏**要用户自己加。添加处说明一句：没接显示器的 Mac，加任何一块屏都会顶掉系统的默认屏（#8），这和手机屏一样。
+
+### 2.6 不做
+
+- 设主屏、关物理屏
+- 一块屏在横竖之间切换
+- 自动识别控制端的设备类型、型号或分辨率
+
+## 3. 生命周期
+
+分两层看：屏在不在，屏上的东西。
+
+### 3.1 屏在不在
+
+由策略层的一个纯函数 `ScreenPlan` 决定（见 4.2），屏幕模块本身不带规则。
+
+- **默认规则（一定实现）**
+  - 远程开始时，建出所有开着的屏。
+  - 最后一台设备离开、过了 15 秒重连等待期，全部撤掉。
+  - 远程中途某一台设备离开，什么都不撤。
+- **按块撤（V1 实测通过才做）**
+  - 某块屏被看过，并且看它的那台设备断开了（不是切去看别的屏），就单独撤这一块；那台设备再连上时加回来。
+  - 依据是每台设备各有一路常驻推流（见 V1）。实测分不清时，保持默认规则。
+- 只开一块屏时，两种规则的结果完全一样。
+
+**屏必须在设备选中它之前就在。** UU 每次新连接都从主屏开始推流，用户要在 UU 的屏幕列表里手动选屏。所以有人连进来时，就要把开着的屏都建好，不能等谁选了再建。
+
+### 3.2 屏上的东西
+
+每块屏完全独立。放着哪个窗口、在哪一档、字号放大几级、App 资源库露没露、有没有正在打开的 App、有什么提示，都是这块屏自己的。一台设备离开、切屏、断网，不碰别的屏上的任何东西。
+
+一个窗口同一时刻只在一块屏上：
+- 在 B 屏上点了已经放在 A 屏上的窗口，就把它挪到 B 屏，A 屏回到 App 资源库。
+- 原位记录跟着窗口走，中间不还原一次。
+- 字号按 B 屏的类别调，挪到电脑屏上就缩回原样。
+
+### 3.3 拓扑变化
+
+加或撤任何一块屏，macOS 都会挪窗口，把别的屏拨回它给这组屏幕记的模式；UU 也会把所有推流停一下再重开。因此：
+
+- 屏的增删一次一步、排队做。同一批增删，前后只记一次周围的样子、只善后一次（见 4.2 的 ScreenSet）。
+- 现有的保护全部保留，改成每块屏各自执行：
+  - 最短存活 2.5 秒
+  - 建了不上线就换备用身份
+  - 加屏失败按 5 / 15 / 30 秒重试
+  - 撤了没下线，等它真下线再善后
+  - 远程中撤屏，只设回本次登录
+
+## 4. 架构
+
+### 4.1 总图
+
+箭头是依赖和调用的方向，只朝一个方向，没有环。
+
+```
+Snug（App 层）
+│
+├─ AppController ··········· 装配层：唯一写配置、唯一把模块接起来的地方
+│    │
+│    ├──▶ ScreenPlan ········· 策略（纯函数）：配置 + 会话 → 此刻要哪些屏、每块的比例和行为
+│    │
+│    ├──▶ DeskSet ············ 多块屏的总管：一条队、还原账、字号簿、留下的账、App 级的动作
+│    │      ├──▶ Desk × N ···· 一块屏上的事：放窗口、App 资源库、选档、字号
+│    │      │      └──▶ ScreenSet（只读查询 + 换档）
+│    │      └──▶ ScreenSet ···· 屏幕模块（单一数据源）：建、撤、换比例、换档、善后
+│    │
+│    ├──▶ TouchTap ··········· 手势：只认一组矩形，矩形里的触摸按 iPhone 手势翻译
+│    │
+│    └──▶ ScreenWindows × N ·· 每块屏上的面板（App 资源库、小横条），只读 Desk 的状态
+│
+├─ 设置页 ··················· 屏幕列表；改动经 AppController 写进配置
+│
+SnugCore（纯逻辑；系统能力全部经协议注入，可以用假的测试）
+│    ScreenPlan · DeskSet · Desk · ScreenSet · ScreenFit · DeviceCatalog · RemoteSession
+│         │
+│         ▼ 只依赖协议
+│    VirtualDisplays · WindowControl · AppControl · Timeline
+│         ▲
+│         │ 实现
+SnugSystem
+     VirtualDisplayService（CGVirtualDisplay）· WindowService · AppService · TouchTap
+```
+
+谁知道什么。依赖拆得干不干净，看这张表：
+
+| 模块 | 知道手机/平板/电脑 | 知道横/竖 | 直接动虚拟屏 |
+| :--- | :--- | :--- | :--- |
+| ScreenPlan | 是，只读型号的类别标签 | 是，只读配置 | 否 |
+| ScreenSet | 否 | 否，只认宽 × 高和身份 | 是（经 VirtualDisplays） |
+| DeskSet / Desk | 否，只认 ScreenPlan 给的行为参数 | 否 | 否，换档经 ScreenSet |
+| TouchTap | 否 | 否 | 否 |
+| ScreenWindows | 否 | 只按宽高比排版 | 否 |
+
+「手机和平板要手势、电脑不要」这条规则只在 ScreenPlan 里出现一次。加一种设备（比如安卓平板）只改机型库的数据；要让某类设备的行为不一样，只改 ScreenPlan。
+
+### 4.2 模块
+
+#### ScreenPlan（新增，SnugCore，纯函数）
+
+```swift
+/// 一块屏此刻该在，以及它该是什么样
+public struct ScreenWish: Equatable, Sendable {
+    public let id: ScreenID           // 配置里那一项的 id
+    public let spec: ScreenSpec       // 身份：名字、序列号、像素上限、物理尺寸
+    public let fit: ScreenFit         // 比例和档位
+    public let behavior: ScreenBehavior
+}
+
+public struct ScreenBehavior: Equatable, Sendable {
+    public var gestures: Bool         // 这块屏上翻不翻译手势
+    public var zoomSteps: Int?        // 放上来时默认放大几级；nil 表示不调字号
+}
+
+public enum ScreenPlan {
+    public static func wishes(config: AppConfig, remote: RemoteFacts, dismissed: Set<ScreenID>,
+                              trusted: Bool, preview: Bool) -> [ScreenWish]
+}
+```
+
+- 输入只有这几样：配置；会话给出的事实（在不在远程、含重连等待期，哪几路推流在推哪块屏）；在手机上退出过的屏；辅助功能权限；预览模式。
+- 替代现在的 `AppController.wantsPhoneScreen` 和 `RemoteSession.wantsPhoneScreen`。
+- 3.1 的两种规则都只写在这里，换规则不动任何模块。
+- 每拍算一次，交给 DeskSet；结果没变就什么都不做。
+
+#### ScreenSet（新增，SnugCore，从 PhoneDesk 的「加屏、撤屏」拆出）
+
+屏幕模块，单一数据源。此刻有哪几块 Snug 屏、各是什么状态、什么比例、在哪一档，只有它知道，也只有它能改。
+
+对外接口：
+- `apply(_ wishes: [ScreenWish])`：对照现状做差量。新的建出来，没了的撤掉，比例变了的在线换（同一身份），其余不碰。
+- 查询：`display(for:)`、`width`、`windowArea`、`bounds`、`fit`。
+- `setWidth(_:_:)`：换档，Desk 选好档后调用。
+- 状态：`[ScreenID: ScreenState]`，取值为 off、preparing、ready(DisplayID)、failed。
+
+从 PhoneDesk 搬来、逻辑不变、改成按块执行的：`reconcile`、`addScreen`、`retireDisplay`、`scheduleRetry` / `cancelRetry`、`Surroundings`、`settle`、`Retiring`、`persistOwed`、`settleDisplays`，以及最短存活。
+
+规则：
+- 一批差量里有多块屏要建或撤时，先记一次周围的样子，再逐块建撤（每块之间照样等系统稳定），最后善后一次。
+- 善后放回窗口时，跳过所有放在 Snug 屏上的窗口。这组窗口由 DeskSet 注入一个闭包来取，ScreenSet 不认识 Desk。
+- 依赖：VirtualDisplays、WindowControl（只用 `snapshot` / `restore`）、Timeline。
+
+#### Desk（由 PhoneDesk 瘦身改名，SnugCore）
+
+一块屏上的事，每块屏一个：
+
+- 状态：放着的窗口、App 资源库露没露、正在做的事、提示、关闭按钮的位置、在手机上退出过没有。
+- 动作：放窗口、放回、回到列表、回到窗口、调字号；选档（`wantedWidth`、`fill`、`reveal`、`refill`、`recheck`）。
+- 行为参数来自 `ScreenBehavior`，例如电脑屏不调字号。
+- 不建屏、不撤屏；换档经 ScreenSet。
+
+#### DeskSet（新增，SnugCore）
+
+多块屏的总管。所有动作排成一条队（现有的 `SerialLane`），屏的增删和窗口的挪动不会交错。
+
+- `setWishes`：先让要撤的那几块屏的 Desk 放回窗口，再交给 ScreenSet 做差量，最后给新屏建 Desk。
+- 带屏号的意图（「在 B 屏上放这个窗口」）转给对应的 Desk。窗口在别的屏上时，先从那块屏转过来（见 3.2）。
+- App 级的动作放在这里：打开、新建窗口、退出 App、强制退出、关窗口。
+  - 退出 App 前，把它在所有屏上的窗口都放回原位。
+  - 「正在退出」「正在关闭」是全局状态，每块屏的 App 资源库都显示。
+- 共用的账：
+  - 还原账，改成每块屏一份，见 5.5
+  - 字号簿 `ZoomBook`
+  - 留下的账 `LeftBehindBook`
+  - 启动时按账还原（`recover`），等窗口回来再还（`checkReturns`）
+
+#### RemoteSession / CaptureSessionState（改）
+
+推流改成一路一路地记：
+- 推流开始和停止的日志行都带着这一路推流的地址，例如 `-[SCStream startCaptureWithCompletionHandler:]:939 0x777e84de00`。
+- 开始时，记下这一路推的是哪块屏（紧挨着的那行 `SCDisplay initWithDict: displayID=N`）；停止时按地址销掉。
+- 远程在不在，看还有没有活着的推流。编码会话中途续推、3 秒宽限这些现有处理照旧。
+- 对外给出 `RemoteFacts`：在不在远程、此刻被推的屏的集合。V1 通过后再加上「哪台设备来了、哪台走了」。
+- 不带地址的停止行（`Stopping stream due to stream frameStatus=7`）怎么归属，按 V1 的真实日志定。
+
+这一步本身就修掉一个可能存在的问题（未验证）。现在只记一个总的开关：两台设备同时连着时一台退出，另一台的推流不会再打日志，如果 UU 主界面没开，Snug 可能 3 秒后就判远程结束，把屏撤掉。
+
+#### TouchTap（改）
+
+- `setRegion(TouchRegion?)` 改成 `setRegions([TouchRegion])`。
+- 按下的那一刻落在哪个矩形里，这一下就按那个矩形的缩放来翻译；不在任何矩形里的原样放行。
+- 手势逻辑 `TouchTranslator` 不变。
+
+#### ScreenWindows（由 PhoneScreenWindows 改，Snug）
+
+每块就绪的屏一组面板，跟着那块屏的 Desk 状态走。横屏时 App 资源库横排。
+
+### 4.3 数据
+
+#### 配置
+
+```swift
+public struct ScreenConfig: Codable, Equatable, Sendable, Identifiable {
+    public var id: ScreenID              // 添加时生成，之后不变；还原账、桌面、身份都按它对应
+    public var orientation: Orientation  // .portrait / .landscape，添加时定，之后不改
+    public var device: DeviceChoice      // 型号 id（自己填的为 nil）+ 分辨率 + 类别
+    public var enabled: Bool
+    public var name: String              // 「显示器」设置和 UU 屏幕列表里显示的名字
+    public var serials: [UInt32]         // 身份：主序列号加备用的，添加时分配，之后不变
+}
+
+// AppConfig
+public var screens: [ScreenConfig]       // 替代 phoneScreen 和 phone
+```
+
+`gestures`（手势总开关）、`zoomSteps`（默认放大级数）、`screenshot` 仍是全局设置。
+
+#### 机型库
+
+- `Assets/phone-models.json` 改名为 `Assets/device-models.json`，仍是唯一的数据源，加机型只改它。
+- 每个型号加一个必填的 `kind`，取值 `phone`、`tablet`、`computer`。测试逐条校验：类别必填、型号不重复、Apple 设备有逻辑宽度。
+- 分辨率一律按「短边, 长边」写，横竖由屏的方向决定。
+- 要补的数据：
+  - 安卓平板：MatePad、小米 Pad、Galaxy Tab、OPPO Pad、联想、荣耀等
+  - Mac 全系：MacBook Air / Pro、iMac
+  - 常见电脑分辨率：单列成「通用」一组，比如 1920×1080、2560×1600、2880×1800、3840×2160。Windows 笔记本型号太多，按分辨率选更实用
+- 搜集纪律照旧：以官网为准，规格站补充；只用搜索和抓网页；一款试两次不成就跳过。
+- 类型改名并加类别：
+  - `PhoneScreen` → `DeviceScreen`
+  - `PhoneModel` → `DeviceModel`，加 `kind`
+  - `PhoneChoice` → `DeviceChoice`，加 `kind`
+  - `PhoneCatalog` → `DeviceCatalog`
+
+#### 屏的身份
+
+系统按身份（vendorID + productID + 序列号）记住一块屏的设置、排布和 ICC 文件，所以每块屏一组自己的身份：
+
+- vendorID 沿用 `'SN'`，用来认出自己建的屏。productID：竖屏沿用 `0x00F0`，横屏用 `0x00F1`。
+- 序列号在添加时从没用过的号段里分配，写进配置。号码永不复用，删掉的屏的号也不回收，免得系统把旧屏的记忆套到新屏上。迁移来的那块竖屏沿用现在的 `200_000_108 / 118 / 128`。
+- 像素上限按方向各定一个：竖屏 2160×4320 不变，横屏按 V5 定。
+- 物理尺寸按像素上限、约 220ppi 折算，和现在一样。按真实像素密度折算的话，全新身份的屏不会上线。
+- 同时最多几块屏，按 V8 定一个上限。
+
+### 4.4 每块屏的尺寸（推广 ScreenFit）
+
+现在的 ScreenFit 只服务竖屏手机，改成按方向、型号和类别来算：
+
+- **比例**：把型号的屏幕按这块屏的方向摆好，扣掉 UU 在这个方向上压住画面的部分。竖屏手机现在是上下各扣 91 点；横屏、平板、电脑的扣除量按 V6 实测定。
+- **基准宽度**：
+  - 手机、平板：满足 2 倍高清门槛的最窄一档，字最大。竖屏的门槛是宽 ≥ 540、高 ≥ 800 点，横屏的按 V4 定。
+  - 电脑：电脑自己的逻辑分辨率，和它本机看着一样大。
+- **档位**：从基准宽度到最宽一档，宽高比都相同；App 限定了最小尺寸时，照现在的办法换档。横屏的最宽一档按 V5 定。
+- **比例范围**按方向分：竖屏 1～2（不变），横屏按 V4、V5 定。
+- **面板和手势阈值的缩放**：现在按 540 点宽设计，只对竖屏手机成立。改成按「这块屏上的一个点在控制端上实际有多大」换算，用型号的逻辑分辨率来算，公式按 V10 定。
+- ScreenFit 由 ScreenPlan 按配置算好，放进 ScreenWish；ScreenSet 和 Desk 只用不算。
+
+### 4.5 一次远程里发生什么
+
+```
+UU 留下的痕迹（推流日志、覆盖窗口、控制端表格）
+    │ 每拍采样
+    ▼
+RemoteSession ── RemoteFacts（在不在远程、被推的屏）──┐
+                                                      ▼
+config.screens ────────────────────────────▶ ScreenPlan.wishes
+                                                      │ [ScreenWish]
+                                                      ▼
+                                              DeskSet.setWishes（排进队）
+                                                      │
+                  ┌───────────────────────────────────┼───────────────────────┐
+                  ▼                                   ▼                       ▼
+  要撤的屏：它的 Desk 先放回窗口          ScreenSet.apply（差量）        新屏：建 Desk
+                                         记周围 → 逐块建撤 → 善后
+                                                      │
+                                                      ▼
+                                   AppController 读每块 Desk 的状态
+                                       ├─▶ ScreenWindows（每块屏的面板）
+                                       └─▶ TouchTap.setRegions（behavior.gestures 为真的屏）
+```
+
+## 5. 改动清单
+
+### 5.1 拆：PhoneDesk.swift（1365 行）
+
+```
+PhoneDesk.swift 的分节                    去处
+──────────────────────────────────────────────────────────────────────────
+MARK 意图
+  setWanted / setFit / setRemote          删：由 ScreenPlan 的结果经 DeskSet.setWishes 代替
+  pull / showList / returnToPlaced /       → DeskSet 收下，按屏号转给对应的 Desk
+  putBack / zoom / dismissScreen
+  open / newWindow / quit / forceQuit /    → DeskSet（App 级）
+  close / closePlaced
+  displaysChanged / verifyPlacement /      → DeskSet 转给每块 Desk
+  recover / checkReturns
+  settleDisplays                           → ScreenSet
+MARK 加屏、撤屏                           → ScreenSet（整节）
+MARK 屏幕适配                             → Desk（选档）；真正换档经 ScreenSet.setWidth
+MARK 放窗口                               → Desk
+MARK 打开、退出 App，关窗口                → DeskSet（盯退出、盯关窗）+ Desk（把对话框放上屏这一步）
+MARK 留下的账                             → DeskSet
+MARK 小工具                               跟着用它的代码走
+```
+
+测试照着拆：`PhoneDesk*Tests` 按改名后的模块归位，`PhoneFakes` / `PhoneRig` 改成支持多块屏。拆的这一步行为不变，单测全绿了再往下走。
+
+### 5.2 删
+
+| 删什么 | 位置 | 原因 |
+| :--- | :--- | :--- |
+| `ControllerKind` 整个文件，以及它的测试 | `Sources/SnugCore/PhoneScreen/ControllerKind.swift`；`PhoneScreenModelTests.swift` 里的 `ControllerKindTests` | 不再按名字猜设备类型 |
+| `RemoteSession.wantsPhoneScreen`，以及只为它服务的 `departed`、`episodeControllers` | `ControllerKind.swift` 末尾、`RemoteSession.swift` | 同上；在不在远程由 RemoteFacts 给 |
+| `AppController.wantsPhoneScreen` | `Sources/Snug/App/AppController.swift:149` | 由 ScreenPlan 代替 |
+| 状态文字「电脑控制端，不提供手机屏」 | `Sources/Snug/UI/StatusText.swift:47` | 同上 |
+| UUDump 里按名字区分电脑的两行 | `Sources/Snug/Debug/UUDump.swift:33-34` | 同上；读到的控制端名字照样打印 |
+| `PhoneScreenSpec` | `Sources/SnugCore/PhoneScreen/PhoneScreenSpec.swift` | 身份改成每块屏一组，放进 ScreenSpec 和配置 |
+| `AppConfig.phoneScreen`、`AppConfig.phone` | `Sources/SnugCore/Config/AppConfig.swift` | 由 `screens` 代替。读旧字段做迁移，写旧字段保留一个弃用周期（见 5.5） |
+
+控制端表格的读取保留：它仍是「有人在远程」的证据之一（`ConnectionTracker`），只是不再拿来判断设备类型。
+
+### 5.3 改
+
+| 改什么 | 怎么改 |
+| :--- | :--- |
+| `PhoneDisplays` 协议 / `PhoneDisplayService` | 改名为 `VirtualDisplays` / `VirtualDisplayService`；`create` 改收 ScreenSpec（身份、名字、像素上限）和 ScreenFit |
+| `ScreenFit` | 见 4.4 |
+| `CaptureSessionState`、`RemoteSession` | 推流逐路记，对外给 `RemoteFacts`（见 4.2） |
+| `TouchTap` | `setRegions`（见 4.2） |
+| `AppState` | `phone` 改成 `desks: [ScreenID: Desk.State]`；`streamedDisplay` 改成被推的屏的集合；`phoneInUse` 改成按屏判断 |
+| `AppController` | 接上 ScreenPlan 和 DeskSet；`syncGestures` 按屏给矩形 |
+| `PhoneScreenWindows` | 改成每块屏一组（ScreenWindows） |
+| `Screenshots` | 浮层按屏 |
+| `StatusText`、菜单栏 | 按屏汇总状态 |
+| 欢迎页 | 「选择「Snug 手机屏」」改成通用的说法 |
+| 目录与类型名 | `Sources/SnugCore/PhoneScreen/`、`Sources/Snug/PhoneScreen/` 改名为 `Screens/`；类型名里的 Phone 换成和职责一致的词，手机只是其中一类 |
+
+### 5.4 加
+
+| 加什么 | 位置 |
+| :--- | :--- |
+| `ScreenPlan`、`ScreenWish`、`ScreenBehavior`、`RemoteFacts` | `Sources/SnugCore/Screens/` |
+| `ScreenSet`、`ScreenState`、`ScreenSpec`、`ScreenID`、`DeskSet` | 同上（`Desk` 由 PhoneDesk 改来） |
+| `ScreenConfig`、`Orientation`、`DeviceKind` | `Sources/SnugCore/Config/`；机型相关的放 `Screens/` |
+| 设置页的屏幕列表：增删、开关、改型号 | `Sources/Snug/UI/SettingsWindow.swift` |
+| 横屏的 App 资源库排版 | `Sources/Snug/Screens/` 下的视图 |
+| 启动参数 `--preview-screens`：不等远程，建出所有开着的屏，替代 `--preview-phone` | `Sources/SnugCore/Launch/LaunchMode.swift` |
+| 启动参数 `--probe-screens <规格…>`：实测用，按给定的尺寸建屏，打印每块的模式和 2 倍是否可用，按 Ctrl-C 前一直留着 | 同上，实现放 `Sources/Snug/Debug/` |
+
+### 5.5 数据格式的迁移与回滚
+
+- **config.json**
+  - 读到旧的 `phoneScreen` 和 `phone`、没有 `screens` 时，迁成一项竖屏：名字「Snug 手机屏」，身份沿用，开关取原来的 `phoneScreen`。
+  - 新版继续写 `phoneScreen` 和 `phone`，取第一块竖屏的值。降级回 2.5.x 照样能用。过两个大版本再停写。
+- **还原账**
+  - `phone-screen.json`（只有一条记录）改成每块屏一份：`placed/<屏 id>.json`。
+  - 启动时如果还有旧文件，先按它还原（和现在一样），然后删掉。
+  - 降级的影响：新版崩溃时留下的账，旧版看不到，这几个窗口要手动挪回。这一点写进发版说明。
+- **zoom.json、left-behind.json**：格式不变。
+- 迁移逻辑配单测：旧配置能迁成新配置；新版写出的配置，旧版能读出该读的字段。
+
+### 5.6 文档
+
+- `docs/how-it-works.md`：「连接判定」删掉按控制端类型加屏的部分；「手机屏」「屏幕适配」「手机型号」三节改成多屏和型号；新增「屏幕列表」一节。
+- `docs/development.md`：更新代码结构和启动参数。
+- README（中英文）：写多屏的用法，讲清「同时用几台设备，就加几块屏」。
+
+## 6. 为什么这样设计是合理的
+
+1. **顺着 UU 的硬约束走。** UU 每次新连接都从主屏开始，用户反正要在 UU 里选一次屏；UU 只在选屏那一刻按屏幕尺寸开推流，屏中途改比例，画面就会错位。所以每块屏固定方向、由用户自己选，不需要任何横竖切换逻辑，也就没有「换了方向要重选」的代价。
+2. **单一数据源。** 只有 ScreenSet 碰虚拟屏，屏的增删排队、一次一步、前后善后。WindowServer 在拓扑变化上很脆弱：屏建好太快就释放会卡死，热插拔还没处理完又建屏会崩。把所有拓扑变化收在一处，现有的保护才能覆盖到每一块屏。
+3. **差异是数据，不是代码。** 手机、平板、电脑、横、竖，在屏幕模块看来都只是宽 × 高。加一种设备只改机型库；没有子类，也就不会出现「某类设备的代码路径没测到」。
+4. **行为看写明的标签，不靠猜。** 设备类别是型号上写明的标签，不从形状或名字推断。形状重叠、控制端改名、竖着用的显示器，都不会认错。
+5. **结果可预期。** 决定建哪些屏、各有什么行为的输入，只有用户的设置和远程在不在。不读 UU 的界面来做决定，同样的设置每次结果都一样，问题能复现、能测。
+6. **规则集中在一个纯函数里。** 生命周期规则、类别到行为的映射，都在 ScreenPlan 里。实测之后要换规则（比如打开按块撤），只改这一处，有单测兜着，其他模块都不动。
+7. **按块隔离。** 每块屏一个 Desk，一块屏出了问题（建不出来、窗口卡住），不连累别的屏。窗口的挪动和 App 级的动作仍在同一条队里，不会两块屏抢着挪同一个窗口。
+8. **大多数人无感。** 只开一块屏的人，行为和现在一模一样；配置自动迁移，屏的名字和身份不变。
+9. **依赖单向。** SnugCore → SnugSystem → Snug 的分层不变；SnugCore 里 ScreenPlan、DeskSet、Desk、ScreenSet 之间也只朝一个方向，全部能用假的系统能力测试。
+
+## 7. 待实测
+
+开工前先测 V1～V5、V7、V8：用手机和那台闲置电脑就够，有几项只要这台 Mac。V6、V9、V10 等借到 iPad 时测。结果写回表里的「结果」一栏。
+
+| 编号 | 测什么 | 怎么测 | 结果决定什么 | 设备 | 结果 |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| V1 | 两台设备同时连着时，一台退出、一台切屏、一台重连，UU 的日志里各打出什么 | 手机和电脑同时连这台 Mac，分别做这三种操作；用 `log show` 抓 UURemoteServer 的推流行，看地址、屏号、常驻推流的条数；存成测试夹具 | 推流怎么逐路记；能不能按块撤（3.1） | 手机 + 电脑 | |
+| V2 | 撤或加一块屏时，另一台设备卡多久 | 两台连着，在设置里拨某块屏的开关，另一台计时：画面停多久、要不要重选屏 | 按块撤值不值得；远程中拨开关时要不要提示 | 手机 + 电脑 | |
+| V3 | 两块 Snug 屏同时在：UU 能不能都列出来、按什么顺序、显示什么名字；推哪块都对得上、点得准 | 用 `--probe-screens` 建一竖一横 | 多屏能不能成立；屏名怎么起 | 手机 | |
+| V4 | 横屏的 2 倍高清门槛 | 用 `--probe-screens` 建一组横屏尺寸，看哪些 2 倍模式被标成桌面可用 | 横屏的基准宽度；手机横屏上的字有多大 | 只要 Mac | |
+| V5 | 横屏的像素上限和新身份 | 用新号段建横屏，看能不能上线、多出几份 ICC 文件；上限要框得住 Mac 的高分辨率（如 5K 的 5120×2880） | 横屏的像素上限、物理尺寸、最宽一档 | 只要 Mac | |
+| V6 | UU 在各设备上压住画面多少 | 手机横拿、iPad 横拿和竖拿、电脑上 UU 全屏和窗口两种，截屏量工具栏和安全区 | 各方向、各类别的扣除量（4.4 的比例） | 手机、iPad、电脑 | |
+| V7 | 同一身份改屏名 | 把现有「Snug 手机屏」的身份改个名字建屏，看系统会不会当成新屏（排布、ICC、记住的档位） | 迁移来的屏能不能改成按型号起名；屏名能不能让用户改 | 只要 Mac | |
+| V8 | 同时最多能有几块虚拟屏 | 一块块往上加，直到失败或明显卡顿 | 屏幕列表的数量上限 | 只要 Mac | |
+| V9 | 通过 UU 把横屏当桌面用：程序坞能不能呼出、新开的 App 会不会落在这块屏上、菜单栏的表现 | 电脑连上，切到横屏上操作 | 电脑屏要不要额外处理 | 电脑 | |
+| V10 | 平板上要不要手势和字号放大、放大几级；面板和手势阈值在 iPad 和横拿的手机上是什么大小 | 在 iPad 和横拿的手机上实际用 | 平板的行为参数；缩放公式 | 手机、iPad | |
+
+已知的参考数据，来自 #7 原型作者在 Snug 2.4.4 基础上的实测：
+- 11 英寸 iPad Pro 的横屏，1150×803 点（2300×1606 像素，2 倍）在 iPad 上可用。
+- 12.9 英寸的 1070×802 点在 Mac 上建出来过，没在 iPad 上看过。
+
+## 8. 实施顺序
+
+每一步都先写测试、看它失败，再实现；一步验完再走下一步。全部在 `multi-screen` 分支上做。
+
+1. **实测**：加 `--probe-screens`，跑 V1～V5、V7、V8，结果填进第 7 节，据此补齐 4.3、4.4 里待定的数。
+2. **推流逐路记**：改 CaptureSessionState，用 V1 抓到的真实日志做夹具。这一步可以单独发版，修掉多台设备同时连着时屏可能被误撤的问题。
+3. **拆 PhoneDesk**：拆成 ScreenSet + DeskSet + Desk，仍然只有一块竖屏，行为不变。完成标准：
+   - 现有单测全绿，只改名和归位
+   - 新增 ScreenSet 的单测
+   - 真机回归手机竖屏
+4. **屏幕列表**：`ScreenConfig` 和迁移、ScreenPlan、多块屏、还原账按屏、`TouchTap.setRegions`；删掉 ControllerKind。先用两块竖屏验证多屏。
+5. **横屏**：按方向和类别推广 ScreenFit、横屏的身份、App 资源库横排；机型库加类别，补安卓平板、Mac 和通用分辨率。
+6. **界面和文档**：设置页的屏幕列表、屏上选型号、截图按屏；同步 5.6 里的文档。
+7. **真机验收**：
+   - 单屏手机（回归）
+   - 手机一竖一横
+   - iPad 横屏
+   - 电脑横屏
+   - 手机和电脑同时连，一台退出后另一台不受影响
+   - 升级迁移，以及降级回 2.5.x
+8. **发版、回复 issue**：
+   - #7：感谢原型作者的实测数据，说明不收单屏拆了重建的补丁，邀请对方在新版上帮着测平板
+   - #10、#16：说明新版的做法
+   - #4：补一句
+   - #6：说明按屏选型号满足了这个需求
+
+   只回复，不关别人的 issue。
