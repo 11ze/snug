@@ -103,6 +103,21 @@ struct LaunchModeTests {
         ]))
     }
 
+    @Test("--probe-screens：main=on 把这块设成主屏（V11），最多一块")
+    func probeScreensMain() throws {
+        #expect(try LaunchMode.parse(["--probe-screens", "modes=540x950", "modes=1470x956,main=on"]) == .probeScreens([
+            ProbeScreen(name: "Snug 实验屏", serial: 999_000_001, modes: [.init(540, 950)], maxPixels: .init(1080, 1900), pattern: true),
+            ProbeScreen(name: "Snug 实验屏 2", serial: 999_000_002, modes: [.init(1470, 956)], maxPixels: .init(2940, 1912),
+                        pattern: true, main: true),
+        ]))
+        #expect(throws: LaunchModeError.invalidProbeScreen("modes=1470x956,main=on")) {
+            try LaunchMode.parse(["--probe-screens", "modes=540x950,main=on", "modes=1470x956,main=on"])
+        }
+        #expect(throws: LaunchModeError.invalidProbeScreen("modes=540x950,main=yes")) {
+            try LaunchMode.parse(["--probe-screens", "modes=540x950,main=yes"])
+        }
+    }
+
     @Test("--probe-screens 写错了：报错，指出是哪一份规格")
     func probeScreensErrors() {
         #expect(throws: LaunchModeError.missingValue("--probe-screens")) { try LaunchMode.parse(["--probe-screens"]) }

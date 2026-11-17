@@ -1,7 +1,8 @@
 // --probe-screens：按规格建实验屏，打印系统给它们列出的模式，屏上铺校准图，按 Ctrl-C 撤掉（实测见 docs/multi-screen.md 第 7 节）。
 // 校准图：四边每 10 点一条线、每 50 点一条黄线，数字是离那条边多远（点）。在手机、平板、电脑上截 UU远程 的画面，
 // 看每条边最先露出的是哪条线，就知道 UU 压住了多少。九个靶心用来测点得准不准：点下去标出落点，同时打印到终端。
-// 切模式照正式版的做法交给帮手子进程（Snug --set-mode）：亲自切过模式的进程，虚拟屏释放后要拖很久才下线
+// 切模式照正式版的做法交给帮手子进程（Snug --set-mode）：亲自切过模式的进程，虚拟屏释放后要拖很久才下线。
+// main=on 的那块建好后设成主屏（V11），撤之前先按记下的排布摆回去，再释放
 import AppKit
 import SnugCore
 import SnugSystem
@@ -15,6 +16,8 @@ final class ScreenProbe: NSObject, NSApplicationDelegate {
     private var signals: [DispatchSourceSignal] = []
     private var pendingReport: Task<Void, Never>?
     private var shuttingDown = false
+    /// 设主屏之前各屏的原点；没设过主屏是 nil
+    private var savedOrigins: [DisplayID: CGPoint]?
 
     init(screens: [ProbeScreen]) { self.screens = screens }
 
@@ -52,6 +55,13 @@ final class ScreenProbe: NSObject, NSApplicationDelegate {
             }
             report(probe)
             if screen.pattern { showPattern(probe) }
+        }
+        if let main = probes.first(where: { $0.screen.main && $0.isOnline }) {
+            let before = DisplayArrangement.origins()
+            savedOrigins = before
+            let id = main.id
+            let err = await Self.offMain { DisplayArrangement.makeMain(id) }
+            say("#\(id) 设成主屏：\(err == .success ? "成功" : "失败（CGError=\(err.rawValue)）")，屏幕：\(Self.allDisplays())")
         }
         watcher = DisplayWatcher { [weak self] in self?.displaysChanged() }
         watcher?.start()
@@ -119,6 +129,11 @@ final class ScreenProbe: NSObject, NSApplicationDelegate {
         Task {
             panels.values.forEach { $0.close() }
             panels = [:]
+            if let saved = savedOrigins {
+                let err = await Self.offMain { DisplayArrangement.restore(saved) }
+                say("排布摆回设主屏之前：\(err == .success ? "成功" : "失败（CGError=\(err.rawValue)）")，屏幕：\(Self.allDisplays())")
+                try? await Task.sleep(for: .seconds(1))
+            }
             for probe in probes {
                 // 建好不到 2.5 秒就释放会让 WindowServer 卡死（原作者实测）
                 let age = Self.now - probe.bornAt
@@ -165,6 +180,13 @@ final class ScreenProbe: NSObject, NSApplicationDelegate {
             let origin = CGDisplayBounds(id).origin
             return "#\(id)「\(Screens.name(of: id))」\(CGDisplayIsMain(id) != 0 ? "主屏 " : "")\(DisplayMode.describe(id)) @(\(Int(origin.x)),\(Int(origin.y)))"
         }.joined(separator: " | ")
+    }
+
+    /// 屏幕配置事务不在主线程上做
+    private static func offMain(_ work: @escaping @Sendable () -> CGError) async -> CGError {
+        await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async { continuation.resume(returning: work()) }
+        }
     }
 
     private static func setMode(_ id: DisplayID, _ size: ProbeScreen.Size) async -> Int32? {

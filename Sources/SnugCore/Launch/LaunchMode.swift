@@ -32,7 +32,7 @@ public enum LaunchMode: Equatable, Sendable {
       --render-<界面> <目录>           把界面渲染成 PNG（界面：\(RenderTarget.allCases.map(\.rawValue).joined(separator: " / "))）
       --dump-uu                       打印从 UU远程 读到的表格行、控制端与屏幕
       --probe-screens <规格> [<规格> …]  实测用：建实验屏、打印模式，按 Ctrl-C 撤掉。规格写成
-                                      modes=1180x820+1000x695[,name=名字][,serial=999000001][,cap=像素宽x像素高][,pattern=off]
+                                      modes=1180x820+1000x695[,name=名字][,serial=999000001][,cap=像素宽x像素高][,pattern=off][,main=on]
       --set-mode <屏幕编号> <宽> <高>   把手机屏换到这一档（点，2 倍）（主程序内部用）
       --restore-mode <屏幕编号> <模式编号> <宽> <高> <像素宽> <像素高> <刷新率> session|permanent
                                       把一块屏设回这个模式，只对本次登录或连永久配置（主程序内部用）
@@ -110,8 +110,8 @@ public enum LaunchModeError: Error, Equatable, Sendable, CustomStringConvertible
         case .missingValue(let f): "\(f) 缺少参数值"
         case .invalidNumber(let f, let v): "\(f) 的参数「\(v)」不是正整数"
         case .conflicting(let a, let b): "\(a) 和 \(b) 不能一起用"
-        case .invalidProbeScreen(let spec): "实验屏的规格「\(spec)」写错了（键只认 modes、name、serial、cap、pattern，各写一次；"
-            + "尺寸写成 宽x高；像素上限要框得住最大一档的 2 倍；身份不能重复）"
+        case .invalidProbeScreen(let spec): "实验屏的规格「\(spec)」写错了（键只认 modes、name、serial、cap、pattern、main，各写一次；"
+            + "尺寸写成 宽x高；像素上限要框得住最大一档的 2 倍；身份不能重复；主屏最多一块）"
         }
     }
 }
