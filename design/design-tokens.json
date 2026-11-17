@@ -1,0 +1,167 @@
+{
+  "meta": {
+    "name": "Snug 设计令牌",
+    "version": "0.1.0",
+    "date": "2026-11-17",
+    "about": "界面上的字号、颜色、间距、圆角、尺寸、动效只从这里取。分两套：mac 管 Mac 上的界面（菜单栏菜单、设置、关于、欢迎、电脑屏的 App 资源库窗口），touch 管手机和平板屏上的面板（App 资源库、小横条、型号页、截图）。原型 design/prototype 用 tokens-to-css.mjs 把这份文件转成 CSS 变量；Swift 代码以后按同一份文件生成常量。",
+    "rules": [
+      "颜色带 system 的，Swift 里用对应的系统语义色，不写死数值；light / dark 只给原型预览用，取自 macOS 26 实际渲染或苹果公布的 iOS 26 系统色",
+      "touch 的数值是 Snug 屏上的点。手机竖屏 540 点宽，1 个点在手机上约 0.82 个点，所以比 iOS 原生的数大约 1.25 倍；平板屏（V10）不缩放，照样用这些数，在 iPad 上约大 1.24 倍，实测字大、舒服",
+      "图标只用 SF Symbols，名字写在用到它的地方"
+    ]
+  },
+
+  "palette": {
+    "about": "苹果系统色（iOS 26 / macOS 26），只给图标底块和状态用，不拿来装饰",
+    "blue":   { "system": "systemBlue",   "light": "#0088FF", "dark": "#0091FF" },
+    "indigo": { "system": "systemIndigo", "light": "#6155F5", "dark": "#6D7CFF" },
+    "purple": { "system": "systemPurple", "light": "#CB30E0", "dark": "#DB34F2" },
+    "pink":   { "system": "systemPink",   "light": "#FF2D55", "dark": "#FF375F" },
+    "red":    { "system": "systemRed",    "light": "#FF383C", "dark": "#FF4245" },
+    "orange": { "system": "systemOrange", "light": "#FF8D28", "dark": "#FF9230" },
+    "yellow": { "system": "systemYellow", "light": "#FFCC00", "dark": "#FFD600" },
+    "green":  { "system": "systemGreen",  "light": "#34C759", "dark": "#30D158" },
+    "teal":   { "system": "systemTeal",   "light": "#00C3D0", "dark": "#00D2E0" },
+    "gray":   { "system": "systemGray",   "light": "#8E8E93", "dark": "#8E8E93" }
+  },
+
+  "mac": {
+    "about": "Mac 上的界面，按 macOS 的规矩：系统字体、系统语义色、SwiftUI 分组表单（Form .grouped）",
+    "color": {
+      "windowBackground": { "system": "windowBackgroundColor",  "light": "#F8F8F8", "dark": "#353535", "note": "设置窗口底色，macOS 26 渲染实测" },
+      "groupBackground":  { "system": "Form .grouped 分组底",      "light": "#F5F5F5", "dark": "#393939", "note": "分组表单里一组的底色，macOS 26 渲染实测" },
+      "groupBorder":      { "system": "Form .grouped 分组描边",    "light": "#E5E5E5", "dark": "#484848", "note": "近似值" },
+      "separator":        { "system": "separatorColor",         "light": "#ECECEC", "dark": "#454545", "note": "macOS 26 渲染实测" },
+      "label":            { "system": "labelColor",             "light": "rgba(0,0,0,0.85)",   "dark": "rgba(255,255,255,0.85)" },
+      "secondaryLabel":   { "system": "secondaryLabelColor",    "light": "rgba(0,0,0,0.55)",   "dark": "rgba(255,255,255,0.55)", "note": "比系统默认的 0.5 略深，浅灰底上过 4.5:1" },
+      "tertiaryLabel":    { "system": "tertiaryLabelColor",     "light": "rgba(0,0,0,0.26)",   "dark": "rgba(255,255,255,0.25)", "note": "只给占位和禁用，不给要读的字" },
+      "accent":           { "system": "controlAccentColor",     "light": "#0088FF", "dark": "#0091FF", "note": "跟随用户在系统设置里选的强调色" },
+      "controlBackground":{ "system": "controlColor",           "light": "#FFFFFF", "dark": "#5B5B5B", "note": "按钮、弹出菜单的底" },
+      "controlBorder":    { "system": "控件描边",                 "light": "rgba(0,0,0,0.12)", "dark": "rgba(255,255,255,0.10)" },
+      "fill":             { "system": "quaternarySystemFill",   "light": "rgba(0,0,0,0.05)",  "dark": "rgba(255,255,255,0.07)", "note": "选中行、分段控件底" },
+      "menuBackground":   { "system": "菜单材质",                 "light": "rgba(246,246,246,0.92)", "dark": "rgba(40,40,40,0.92)" },
+      "menuHighlight":    { "system": "selectedContentBackgroundColor", "light": "#0088FF", "dark": "#0091FF" },
+      "positive":         { "ref": "palette.green" },
+      "warning":          { "ref": "palette.orange" },
+      "danger":           { "ref": "palette.red" }
+    },
+    "font": {
+      "about": "macOS 文本样式（点）。family 用系统字体：SF Pro 加苹方",
+      "family": "-apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"PingFang SC\", sans-serif",
+      "largeTitle": { "style": ".largeTitle", "size": 26, "weight": 400, "lineHeight": 32 },
+      "title1":     { "style": ".title",      "size": 22, "weight": 400, "lineHeight": 26 },
+      "title2":     { "style": ".title2",     "size": 17, "weight": 400, "lineHeight": 22 },
+      "title3":     { "style": ".title3",     "size": 15, "weight": 400, "lineHeight": 20 },
+      "headline":   { "style": ".headline",   "size": 13, "weight": 600, "lineHeight": 16 },
+      "body":       { "style": ".body",       "size": 13, "weight": 400, "lineHeight": 16 },
+      "callout":    { "style": ".callout",    "size": 12, "weight": 400, "lineHeight": 15 },
+      "footnote":   { "style": ".footnote",   "size": 10, "weight": 400, "lineHeight": 13 }
+    },
+    "space": {
+      "about": "间距只从这几个数里挑：组内紧、组间松",
+      "xxs": 2, "xs": 4, "s": 8, "m": 12, "l": 16, "xl": 20, "xxl": 24, "section": 32
+    },
+    "radius": {
+      "iconTile": 6,
+      "statusTile": 10,
+      "group": 10,
+      "control": 6,
+      "sheet": 12,
+      "window": 16,
+      "menu": 10
+    },
+    "size": {
+      "settingsWidth": 520,
+      "iconTile": 24,
+      "statusTile": 40,
+      "rowMinHeight": 40,
+      "toolbarItem": 56,
+      "toggleWidth": 38,
+      "toggleHeight": 22,
+      "menuWidth": 280,
+      "menuRowHeight": 24,
+      "aboutWidth": 420,
+      "libraryWindow": { "width": 760, "height": 520 },
+      "librarySidebar": 200
+    },
+    "iconTile": {
+      "about": "设置行左边的彩色小方块，里面是白色 SF Symbol。一种颜色只表示一类东西",
+      "screenPhone":    { "ref": "palette.blue",   "symbol": "iphone" },
+      "screenTablet":   { "ref": "palette.blue",   "symbol": "ipad.landscape" },
+      "screenComputer": { "ref": "palette.blue",   "symbol": "laptopcomputer" },
+      "mainScreen":     { "ref": "palette.indigo", "symbol": "menubar.rectangle" },
+      "gestures":       { "ref": "palette.orange", "symbol": "hand.tap.fill" },
+      "zoom":           { "ref": "palette.green",  "symbol": "textformat.size" },
+      "screenshot":     { "ref": "palette.pink",   "symbol": "camera.viewfinder" },
+      "launchAtLogin":  { "ref": "palette.gray",   "symbol": "power" },
+      "accessibility":  { "ref": "palette.indigo", "symbol": "hand.raised.fill" },
+      "screenRecording":{ "ref": "palette.red",    "symbol": "record.circle" },
+      "update":         { "ref": "palette.blue",   "symbol": "arrow.down" },
+      "updateSource":   { "ref": "palette.gray",   "symbol": "server.rack" }
+    },
+    "status": {
+      "about": "远程状态块的颜色：只有这四种",
+      "remote":  { "ref": "palette.green",  "symbol": "iphone.radiowaves.left.and.right", "text": "远程中" },
+      "waiting": { "ref": "palette.gray",   "symbol": "iphone",                           "text": "等待连接" },
+      "reconnecting": { "ref": "palette.orange", "symbol": "iphone.slash",              "text": "正在重连" },
+      "problem": { "ref": "palette.orange", "symbol": "exclamationmark.triangle.fill",    "text": "需要处理" }
+    }
+  },
+
+  "touch": {
+    "about": "手机、平板屏上的面板，按 iOS 的规矩（分组背景、大标题、分段控件、系统蓝），数值是 Snug 屏上的点，取自现在的 PhoneStyle",
+    "color": {
+      "background":  { "system": "iOS systemGroupedBackground",          "light": "#F2F2F7", "dark": "#000000" },
+      "card":        { "system": "iOS secondarySystemGroupedBackground", "light": "#FFFFFF", "dark": "#1C1C1E" },
+      "fill":        { "system": "iOS tertiarySystemFill",               "light": "rgba(118,118,128,0.12)", "dark": "rgba(118,118,128,0.24)", "note": "搜索框、分段控件、圆形按钮的底" },
+      "segment":     { "system": "分段控件选中段",                          "light": "#FFFFFF", "dark": "#636366" },
+      "label":       { "system": "iOS label",          "light": "#000000", "dark": "#FFFFFF" },
+      "secondaryLabel": { "system": "iOS secondaryLabel", "light": "rgba(60,60,67,0.70)", "dark": "rgba(235,235,245,0.70)", "note": "比 iOS 默认的 0.6 略深，过 4.5:1" },
+      "separator":   { "system": "iOS separator",      "light": "rgba(60,60,67,0.18)", "dark": "rgba(84,84,88,0.65)" },
+      "tint":        { "ref": "palette.blue", "note": "不跟 Mac 的强调色走，手机上的 App 都是这个蓝" },
+      "tintFill":    { "light": "rgba(0,136,255,0.14)", "dark": "rgba(0,145,255,0.22)", "note": "「在手机屏上」这类标签、返回键的浅底" },
+      "danger":      { "ref": "palette.red" }
+    },
+    "font": {
+      "family": "-apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"PingFang SC\", sans-serif",
+      "largeTitle": { "size": 40, "weight": 700, "lineHeight": 48 },
+      "headline":   { "size": 22, "weight": 600, "lineHeight": 28 },
+      "body":       { "size": 18, "weight": 400, "lineHeight": 24 },
+      "label":      { "size": 15, "weight": 500, "lineHeight": 20 },
+      "caption":    { "size": 13, "weight": 400, "lineHeight": 16, "note": "新加：横屏、平板上窗口数、状态这类小字" }
+    },
+    "space": {
+      "xxs": 2, "xs": 4, "s": 8, "m": 12, "l": 16, "margin": 20, "xxl": 24, "section": 32
+    },
+    "radius": {
+      "card": 12,
+      "control": 12,
+      "pill": 999,
+      "appIcon": 13
+    },
+    "size": {
+      "touchTarget": 56,
+      "listIcon": 48,
+      "gridIcon": 58,
+      "circleButton": 56,
+      "homeIndicator": { "width": 160, "height": 6, "hitHeight": 34 }
+    },
+    "layout": {
+      "about": "每种 Snug 屏的大小和排法（多屏方案 4.4 定的数）",
+      "phonePortrait":  { "width": 540, "height": 950, "columns": 1 },
+      "phoneLandscape": { "width": 940, "height": 525, "columns": 2, "sidebar": 340, "note": "扣完左右的约数，精确数等量完截图" },
+      "tabletPortrait": { "width": 660, "height": 950, "columns": 1 },
+      "tabletLandscape":{ "width": 950, "height": 660, "columns": 2, "sidebar": 360 },
+      "tabletTopRightClear": 50
+    }
+  },
+
+  "motion": {
+    "about": "动效只表达状态变化；跟随系统的「减弱动态效果」时改成淡入淡出或直接切换",
+    "fast":     { "duration": 150, "easing": "cubic-bezier(0.2, 0, 0, 1)", "use": "按下、开关、小状态" },
+    "standard": { "duration": 200, "easing": "cubic-bezier(0.2, 0, 0, 1)", "use": "面板切换、列表展开" },
+    "sheet":    { "duration": 250, "easing": "cubic-bezier(0.2, 0, 0, 1)", "use": "弹出表单" },
+    "pressedOpacity": 0.6,
+    "disabledOpacity": 0.4
+  }
+}

@@ -19,3 +19,6 @@ dist/
 
 # 演示录制的工作区（原始录像、抽帧分析、录制脚本、内容生产说明），只留本机，绝不提交
 /footage/
+
+# 原型用的苹果图标和 SF Symbols，本地导出（design/prototype/export-assets.swift），不随仓库分发
+design/prototype/assets/

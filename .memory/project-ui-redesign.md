@@ -12,6 +12,8 @@ metadata:
 3. 对齐苹果的设计规范，参照主人在学苹果设计规范的项目 `~/coding/personal/learn-ui`，收出一套设计令牌，统一放进一个 JSON（如 `design-tokens.json`），界面都从这里取
 4. 主人确认原型和规范后，才开始多屏的功能代码；主人的说法是「相当于前后端都已经定好了，再开始全面铺开」
 
+**进度（11-17）**：主人要求「先定设计令牌，再画原型」，顺序不能反。已做：`design/design-tokens.json`（mac / touch 两套，颜色带 system 名和预览值）→ `node design/tokens-to-css.mjs` 生成 CSS 变量 → `design/prototype/index.html` 画了 11 张（菜单栏、设置·屏幕/触控/通用、添加屏幕、屏幕详情、关于、电脑屏 App 资源库、手机竖屏、手机横屏两栏、平板横屏两栏让开 UU 按钮）。图标用 `swift design/prototype/export-assets.swift` 本地导出、不进 git。等主人看原型、提修改。主人偏好：直接看原型图调，少讲文字。docs/PRODUCT.md 是给设计工具（impeccable）的产品说明。
+
 **Why:** 先定界面和规范，功能代码和界面代码一次写对，之后也好维护。
 
 **How to apply:** 这是 `docs/multi-screen.md` 第 8 节第 2 步；技术方案见 [[project-multi-screen]]，界面文字和图标规矩见 [[feedback-ui-style]]，产品取舍见 [[project-product]]。原型定稿前不写多屏功能代码。
