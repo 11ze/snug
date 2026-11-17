@@ -145,7 +145,7 @@ UU远程 将画面等比缩放后放进手机，比例不符时会留下黑边�
 **更新**：启动时自动检查，有新版本时一键更新，设置与授权保留；也可在「关于」页手动检查或切换更新源。2.1.0 之前的版本请手动下载替换。
 
 <div align="center">
-<img src="https://dl.zephyrxiang.com/snug/media/welcome.529d7d28.png" width="30%" alt="欢迎页"> <img src="https://dl.zephyrxiang.com/snug/media/settings-ready.ee67ab30.png" width="30%" alt="设置"> <img src="https://dl.zephyrxiang.com/snug/media/about.5534d9dc.png" width="30%" alt="关于：版本、软件更新与更新源">
+<img src="https://dl.zephyrxiang.com/snug/media/welcome.529d7d28.png" width="30%" alt="欢迎页"> <img src="https://dl.zephyrxiang.com/snug/media/settings-ready.a76a5b8c.png" width="30%" alt="设置"> <img src="https://dl.zephyrxiang.com/snug/media/about.5534d9dc.png" width="30%" alt="关于：版本、软件更新与更新源">
 <p><sub>欢迎页 · 设置 · 关于</sub></p>
 </div>
 
