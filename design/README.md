@@ -12,7 +12,8 @@ design/
     prototype.css         原型的样式，数值全部取 tokens.css 的变量
     tokens.css            生成的，不要手改
     export-assets.swift   从本机导出原型要用的 SF Symbols 和 App 图标
-    assets/               导出的图标（不进 git：苹果的图标不随仓库分发）
+    snapshot.swift        用 WebKit（Safari 的内核）直接打开原型截图，检查 Safari 里的样子
+    assets/               导出的图标和内嵌图标的 symbols.css（不进 git：苹果的图标不随仓库分发）
 ```
 
 ## 打开原型
@@ -22,7 +23,14 @@ swift design/prototype/export-assets.swift   # 第一次，或者加了新图标
 open design/prototype/index.html
 ```
 
-右上角可以切浅色、深色。
+右上角可以切浅色、深色。原型的状态是 2026-11-17 主人确认过的版本，界面以它为准。
+
+检查改动时用 Safari 的内核截图，别只用 Chrome 加本地服务器（Safari 直接打开本地文件时有自己的限制，比如 CSS 遮罩读不了本地图片）：
+
+```bash
+swiftc -O -o /tmp/snapshot design/prototype/snapshot.swift
+/tmp/snapshot design/prototype/index.html /tmp/proto.png 1500        # 加 dark 截深色
+```
 
 ## 改令牌
 
