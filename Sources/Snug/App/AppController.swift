@@ -5,8 +5,10 @@ import AppKit
 import SnugCore
 import SnugSystem
 
+/// 显式标 Sendable（主线程隔离的类本来就是）：意图协议要求 Sendable，而遵循写在另一个文件里，
+/// 不在这里标的话编译器会警告「Sendable 须在类所在的文件里声明」
 @MainActor
-final class AppController {
+final class AppController: Sendable {
     static let tickInterval: TimeInterval = 0.5
     /// 每隔这么久核对一次手机屏上的窗口还在不在
     static let verifyInterval: TimeInterval = 2

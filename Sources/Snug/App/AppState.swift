@@ -89,8 +89,7 @@ enum LoginItemIssue: Equatable {
 }
 
 /// 设置窗口、菜单栏能发起的意图。AppController 是唯一实现（渲染 PNG 时用一个什么都不做的替身）。
-/// Sendable：实现都是 @MainActor 的类型，状态受主线程隔离保护，可以安全地交给视图——不标的话，
-/// 把 intents.setPhone 这种函数引用存进视图属性时，Swift 6.2 会当成非 Sendable 值跨隔离域传递而报错
+/// 几个意图协议都标 Sendable：Swift 6.2 把 intents.setPhone 这种方法引用存进视图属性时要求它可跨隔离域传递
 @MainActor
 protocol AppIntents: AnyObject, Sendable {
     func setPhoneScreen(_ on: Bool)
