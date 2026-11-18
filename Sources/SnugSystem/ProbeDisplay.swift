@@ -40,11 +40,5 @@ public final class ProbeDisplay {
         autoreleasepool { display = nil }
     }
 
-    public var isOnline: Bool {
-        var count: UInt32 = 0
-        guard CGGetOnlineDisplayList(0, nil, &count) == .success, count > 0 else { return false }
-        var ids = [CGDirectDisplayID](repeating: 0, count: Int(count))
-        guard CGGetOnlineDisplayList(count, &ids, &count) == .success else { return false }
-        return ids.prefix(Int(count)).contains(id)
-    }
+    public var isOnline: Bool { Screens.online()?.contains(id) == true }
 }

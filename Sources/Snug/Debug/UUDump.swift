@@ -47,12 +47,8 @@ enum UUDump {
     }
 
     private static func printDisplays() {
-        var count: UInt32 = 0
-        CGGetOnlineDisplayList(0, nil, &count)
-        var ids = [CGDirectDisplayID](repeating: 0, count: Int(count))
-        CGGetOnlineDisplayList(count, &ids, &count)
         print("屏幕：")
-        for id in ids.prefix(Int(count)) {
+        for id in Screens.online() ?? [] {
             let mine = CGDisplayVendorNumber(id) == ScreenSpec.vendorID ? "（Snug 的屏）" : ""
             print("  #\(id) \(Screens.name(of: id))\(mine) \(DisplayMode.describe(id))")
         }

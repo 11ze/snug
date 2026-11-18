@@ -115,7 +115,7 @@ final class ScreenProbe: NSObject, NSApplicationDelegate {
         }
         panel.setFrame(screen.frame, display: true)
         panel.contentView?.needsDisplay = true
-        let landed = (panel.screen?.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.uint32Value
+        let landed = panel.screen?.displayID
         if landed != id || panel.frame != screen.frame {
             say("#\(id) 的校准图没摆对：想要 \(screen.frame)，实际 \(panel.frame)，落在 #\(landed.map(String.init) ?? "无")")
         }
@@ -188,12 +188,8 @@ final class ScreenProbe: NSObject, NSApplicationDelegate {
     }
 
     private static func allDisplays() -> String {
-        var count: UInt32 = 0
-        CGGetOnlineDisplayList(0, nil, &count)
-        var ids = [CGDirectDisplayID](repeating: 0, count: Int(count))
-        CGGetOnlineDisplayList(count, &ids, &count)
         // 带上排布位置：系统按身份记住每块屏摆在哪，换了名字还摆回原处说明它认得这块屏
-        return ids.prefix(Int(count)).map { id in
+        return (Screens.online() ?? []).map { id in
             let origin = CGDisplayBounds(id).origin
             return "#\(id)「\(Screens.name(of: id))」\(CGDisplayIsMain(id) != 0 ? "主屏 " : "")\(DisplayMode.describe(id)) @(\(Int(origin.x)),\(Int(origin.y)))"
         }.joined(separator: " | ")

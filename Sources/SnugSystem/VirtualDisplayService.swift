@@ -141,7 +141,7 @@ public final class VirtualDisplayService: VirtualDisplays {
     }
 
     public func otherDisplays() -> [OtherDisplay] {
-        Self.onlineIDs().filter { displays[$0] == nil }.compactMap { id in
+        (Screens.online() ?? []).filter { displays[$0] == nil }.compactMap { id in
             DisplayMode.current(id).map { OtherDisplay(id: id, name: Screens.name(of: id), mode: $0, bounds: CGDisplayBounds(id),
                                                   asleep: CGDisplayIsAsleep(id) != 0) }
         }
@@ -199,15 +199,7 @@ public final class VirtualDisplayService: VirtualDisplays {
         return true
     }
 
-    private static func isOnline(_ id: DisplayID) -> Bool { onlineIDs().contains(id) }
-
-    private static func onlineIDs() -> [DisplayID] {
-        var count: UInt32 = 0
-        guard CGGetOnlineDisplayList(0, nil, &count) == .success, count > 0 else { return [] }
-        var ids = [CGDirectDisplayID](repeating: 0, count: Int(count))
-        guard CGGetOnlineDisplayList(count, &ids, &count) == .success else { return [] }
-        return Array(ids.prefix(Int(count)))
-    }
+    private static func isOnline(_ id: DisplayID) -> Bool { Screens.online()?.contains(id) == true }
 
     /// 起帮手进程切模式，等它退出；返回退出码，起不来返回 nil。
     /// 最多等 helperTimeout：帮手卡在屏幕配置里不退出，就结束它（换档本来就是尽力而为），不能让建屏和整条调度队一直等

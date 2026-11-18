@@ -5,8 +5,20 @@ import SnugCore
 @MainActor
 public enum Screens {
     public static func screen(for id: DisplayID) -> NSScreen? {
-        let key = NSDeviceDescriptionKey("NSScreenNumber")
-        return NSScreen.screens.first { ($0.deviceDescription[key] as? NSNumber)?.uint32Value == id }
+        NSScreen.screens.first { $0.displayID == id }
+    }
+
+    /// 在线的屏，按系统列出的顺序（含镜像中的从属屏）。读不到记 warn、返回 nil，调用方按「没有屏」处理还是另说
+    public nonisolated static func online() -> [DisplayID]? {
+        var count: UInt32 = 0
+        var error = CGGetOnlineDisplayList(0, nil, &count)
+        var ids = [CGDirectDisplayID](repeating: 0, count: Int(count))
+        if error == .success, count > 0 { error = CGGetOnlineDisplayList(count, &ids, &count) }
+        guard error == .success else {
+            Log.warn("读不到在线的屏（CGError=\(error.rawValue)）")
+            return nil
+        }
+        return Array(ids.prefix(Int(count)))
     }
 
     /// 在「显示器」设置里的名字；找不到就用编号
@@ -20,5 +32,12 @@ public enum Screens {
     /// AppKit 坐标 → 辅助功能坐标
     public static func axRect(fromAppKit rect: CGRect) -> CGRect {
         CGRect(x: rect.minX, y: (primary?.frame.height ?? 0) - rect.maxY, width: rect.width, height: rect.height)
+    }
+}
+
+extension NSScreen {
+    /// 这块屏的显示器编号（和 CGDirectDisplayID 同一个数）
+    public var displayID: DisplayID? {
+        (deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.uint32Value
     }
 }

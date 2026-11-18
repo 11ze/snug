@@ -31,11 +31,7 @@ public final class DisplayArrangementService: DisplayArrangement {
 
     /// 每块在线屏此刻的原点（全局坐标，左上原点）
     nonisolated static func origins() -> [DisplayID: CGPoint] {
-        var count: UInt32 = 0
-        guard CGGetOnlineDisplayList(0, nil, &count) == .success, count > 0 else { return [:] }
-        var ids = [CGDirectDisplayID](repeating: 0, count: Int(count))
-        guard CGGetOnlineDisplayList(count, &ids, &count) == .success else { return [:] }
-        return Dictionary(uniqueKeysWithValues: ids.prefix(Int(count)).map { ($0, CGDisplayBounds($0).origin) })
+        Dictionary(uniqueKeysWithValues: (Screens.online() ?? []).map { ($0, CGDisplayBounds($0).origin) })
     }
 
     private nonisolated static func configure(_ targets: [DisplayID: CGPoint]) -> CGError {

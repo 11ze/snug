@@ -314,15 +314,11 @@ public final class WindowService: WindowControl {
 
     /// 各块在线屏的范围（全局坐标，左上原点，和窗口服务器报的窗口位置同一个坐标系），按系统列出的顺序
     private static func onlineDisplays() -> [(id: DisplayID, bounds: CGRect)] {
-        var count: UInt32 = 0
-        var error = CGGetOnlineDisplayList(0, nil, &count)
-        var ids = [CGDirectDisplayID](repeating: 0, count: Int(count))
-        if error == .success, count > 0 { error = CGGetOnlineDisplayList(count, &ids, &count) }
-        guard error == .success else {
+        guard let ids = Screens.online() else {
             // 读不到屏，资源库里的窗口全标成「不在当前桌面」：记下来，不然看着像位置没同步
-            Log.warn("读不到在线的屏（CGError=\(error.rawValue)），资源库认不出窗口在哪块屏")
+            Log.warn("资源库认不出窗口在哪块屏")
             return []
         }
-        return ids.prefix(Int(count)).map { ($0, CGDisplayBounds($0)) }
+        return ids.map { ($0, CGDisplayBounds($0)) }
     }
 }
