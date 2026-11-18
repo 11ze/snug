@@ -119,6 +119,7 @@ public final class Desk {
 
     /// 放在这块屏上的窗口
     var placedWindow: WindowKey? { placement?.window.key }
+    var placedRecord: PlacedRecord? { placement?.record }
     var watchesReplacement: Bool { replaced != nil }
 
     // MARK: 状态
@@ -144,9 +145,17 @@ public final class Desk {
 
     // MARK: 放窗口
 
+    /// 从别的屏转过来的窗口：跟过来的还原记录（原位记录跟着窗口走，中间不还原一次），和让那块屏交出窗口的那一下。
+    /// 接手的屏把账写下了才交出：在那之前哪一步没成（够不着、自己原来那个放不回去、账写不进去），窗口都还归原来那块屏
+    struct Handover {
+        let record: PlacedRecord
+        let release: () -> Void
+    }
+
     /// zoom 为 false：放的是在问用户的窗口（对话框、挂着 sheet 的文档），不调字号，按键会被对话框挡下。
-    /// inherited：从别的屏转过来的窗口的还原记录（原位记录跟着窗口走，中间不还原一次，见 DeskSet.pull）
-    func place(_ window: WindowInfo, zoom: Bool = true, inherited: PlacedRecord? = nil) async {
+    /// handover：从别的屏转过来（见 DeskSet.pull）
+    func place(_ window: WindowInfo, zoom: Bool = true, from handover: Handover? = nil) async {
+        let inherited = handover?.record
         let started = timeline.now
         guard let display = readyDisplay(for: "放 \(window.label)") else {
             state.notice = .screenNotReady
@@ -183,6 +192,7 @@ public final class Desk {
             state.notice = .recordUnwritable
             return
         }
+        handover?.release()
         if let owed {
             Log.info("\(window.label) 带着屏上的样子回来了，接着放：原位按当初的 \(record.original.short)，字号已大 \(record.zoom) 级")
             env.leftBehind.remove(at: owed)
@@ -227,15 +237,13 @@ public final class Desk {
         await changeZoom(by: steps)
     }
 
-    /// 把屏上的窗口交出去（转到别的屏，见 DeskSet.pull）：不还原，交回它的还原记录；账由接手的屏写下后再销（transferred）
-    func handOver() -> PlacedRecord? {
-        guard let p = placement else { return nil }
+    /// 把屏上的窗口交出去（接手的屏写下账的那一刻，见 Handover）：不还原，露出列表；这边的账等 transferred 再销
+    func handOver() {
         placement = nil
         state.listVisible = true
-        return p.record
     }
 
-    /// 接手的屏已经把账记下了：这边的账销掉，屏换回基准宽度
+    /// 窗口交出去了：账由接手的屏管（铺上了接着管，没铺上已按账放回、或留着下次再放），这边的销掉，屏换回基准宽度
     func transferred() async {
         settleRecord()
         await matchWidth()

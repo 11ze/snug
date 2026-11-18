@@ -180,6 +180,7 @@ final class FakeWindows: WindowControl {
     private let grows = Locked(false)
     private let minSizes = Locked<[WindowKey: CGSize]>([:])
     private let moveHook = Locked<(@Sendable (WindowKey) -> Void)?>(nil)
+    private let refusal = Locked<(@Sendable (WindowKey, CGRect) -> Bool)?>(nil)
     private let asking = Locked<Asking?>(nil)
     private let closeReactions = Locked<[WindowKey: CloseReaction]>([:])
     /// 判断窗口出没出现在屏上的时钟（见 Window.shownFrom）
@@ -206,6 +207,8 @@ final class FakeWindows: WindowControl {
     func setMinSize(_ key: WindowKey, width: CGFloat = 0, height: CGFloat = 0) {
         minSizes.withLock { $0[key] = CGSize(width: width, height: height) }
     }
+    /// 只有某几次挪不动（比如挪到某块屏上的那一下刚好超时），别的照常
+    func refuseMoves(_ when: @escaping @Sendable (WindowKey, CGRect) -> Bool) { refusal.withLock { $0 = when } }
     /// 每次挪窗口前先调一下（检查挪的那一刻还原记录里写的是什么）
     func onMove(_ hook: @escaping @Sendable (WindowKey) -> Void) { moveHook.withLock { $0 = hook } }
 
@@ -323,7 +326,8 @@ final class FakeWindows: WindowControl {
     }
 
     func move(_ window: WindowKey, to frame: CGRect) async -> CGRect? {
-        guard reachable, !movesBlocked.withLock({ $0 }), self.window(window) != nil else { return nil }
+        guard reachable, !movesBlocked.withLock({ $0 }), self.window(window) != nil,
+              refusal.withLock({ $0 })?(window, frame) != true else { return nil }
         moveHook.withLock { $0 }?(window)
         journal.add("move \(window.id) \(frame.short)\(mark)")
         if movesIgnored.withLock({ $0 }) { return self.window(window)?.frame }

@@ -213,10 +213,11 @@ public final class DeskSet {
         guard desk.behavior.touch else { return await bring(window, to: desk) }
         guard let from = holder(of: window.key), from !== desk else { return await desk.place(window, zoom: zoom) }
         guard desk.readyDisplay(for: "把 \(window.label) 转过来") != nil else { return desk.setNotice(.screenNotReady) }
-        guard let record = from.handOver() else { return }
+        guard let record = from.placedRecord else { return }
         Log.info("\(window.label) 从屏（\(from.id)）转到屏（\(desk.id)），原位记录跟着走")
-        await desk.place(window, zoom: zoom, inherited: record)
-        if desk.placedWindow == window.key { await from.transferred() } else { await from.matchWidth() }
+        await desk.place(window, zoom: zoom, from: Desk.Handover(record: record, release: from.handOver))
+        // 还认着就是没接住（接手的屏写账之前哪一步没成），窗口原样留在这边
+        if from.placedWindow != window.key { await from.transferred() }
     }
 
     /// 电脑屏：把窗口挪到这块屏上居中，大小不超过这块屏（放在手机、平板屏上的先放回原位）

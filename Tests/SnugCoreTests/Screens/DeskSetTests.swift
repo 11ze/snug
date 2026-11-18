@@ -81,6 +81,44 @@ struct DeskSetTests {
         #expect(rig.windows.window(ghostty.key)?.zoom == 0)
     }
 
+    @Test("转过去时 B 屏原来那个窗口放不回去（App 卡住）：不转，窗口留在 A 屏上，A 照旧认它、账照旧")
+    func transferBlockedByStuckTarget() async throws {
+        let rig = try Rig()
+        await rig.readyTwo()
+        await rig.pull(ghostty)
+        rig.set.pull(finder, on: second)
+        await rig.set.idle()
+        let before = rig.record(of: .phone)
+        rig.windows.refuseMoves { key, _ in key == finder.key }
+        rig.set.pull(ghostty, on: second)
+        await rig.set.idle()
+        #expect(rig.placed(on: .phone) == ghostty)
+        #expect(rig.set.state.desks[.phone]?.listVisible == false)
+        #expect(rig.windows.window(ghostty.key)?.frame == phoneArea)
+        #expect(rig.record(of: .phone) == before)
+        #expect(rig.set.state.desks[second]?.notice == .windowUnresponsive(app: finder.app))
+    }
+
+    @Test("转过去时铺到 B 屏那一下挪不动：B 按跟过来的账放回原位，A 的那份一起销，之后不再还一遍")
+    func transferFillFails() async throws {
+        let rig = try Rig()
+        await rig.readyTwo()
+        await rig.pull(ghostty)
+        let area = rig.secondArea
+        rig.windows.refuseMoves { key, frame in key == ghostty.key && frame == area }
+        rig.set.pull(ghostty, on: second)
+        await rig.set.idle()
+        #expect(rig.windows.window(ghostty.key)?.frame == ghosttyHome)
+        #expect(rig.windows.window(ghostty.key)?.zoom == 0)
+        #expect(rig.placed(on: .phone) == nil)
+        #expect(rig.placed(on: second) == nil)
+        #expect(rig.record(of: .phone) == nil)
+        #expect(rig.record(of: second) == nil)
+        await rig.pull(finder)
+        #expect(rig.windows.window(ghostty.key)?.zoom == 0)
+        #expect(rig.windows.window(ghostty.key)?.frame == ghosttyHome)
+    }
+
     @Test("挪到电脑屏：先在手机屏上放回原位、缩回字号，再挪到电脑屏居中，不铺满")
     func transferToComputer() async throws {
         let rig = try Rig()
