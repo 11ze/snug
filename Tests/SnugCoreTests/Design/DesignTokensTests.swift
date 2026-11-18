@@ -82,7 +82,7 @@ private struct TokenRenderer {
             switch key {
             case "color": out += "        static let \(name) = \(try color(item, at))\n"
             case "font": out += "        static let \(name) = \(try font(item, at))\n"
-            case "iconTile", "status": out += "        static let \(name) = \(try tile(item, at, status: key == "status"))\n"
+            case "iconTile", "status": out += "        \(try tile(name, item, at, status: key == "status"))\n"
             default: out += try measure(name, item, at, indent: "        ")
             }
         }
@@ -142,13 +142,17 @@ private struct TokenRenderer {
         return "FontToken(size: \(number(size)), weight: .\(name), lineHeight: \(number(line)))"
     }
 
-    private func tile(_ item: Any, _ path: String, status: Bool) throws -> String {
+    /// 图标块：颜色加图标。没写 symbol 的只定颜色，翻成带 symbol 参数的函数，图标由用的地方按状态给
+    private func tile(_ name: String, _ item: Any, _ path: String, status: Bool) throws -> String {
         let spec = try require(item as? [String: Any], path)
         let color = try paletteColor(try require(spec["ref"] as? String, "\(path).ref"), path)
+        if !status, spec["symbol"] == nil {
+            return "static func \(name)(symbol: String) -> TileToken { TileToken(color: \(color), symbol: symbol) }"
+        }
         let symbol = try require(spec["symbol"] as? String, "\(path).symbol")
-        guard status else { return "TileToken(color: \(color), symbol: \"\(symbol)\")" }
+        guard status else { return "static let \(name) = TileToken(color: \(color), symbol: \"\(symbol)\")" }
         let text = try require(spec["text"] as? String, "\(path).text")
-        return "StatusToken(color: \(color), symbol: \"\(symbol)\", text: \"\(text)\")"
+        return "static let \(name) = StatusToken(color: \(color), symbol: \"\(symbol)\", text: \"\(text)\")"
     }
 
     private func number(_ n: NSNumber) -> String {

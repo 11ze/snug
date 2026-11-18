@@ -62,7 +62,7 @@ struct AddScreenSheet: View {
                             .labelsHidden()
                             .textFieldStyle(.roundedBorder)
                             .multilineTextAlignment(.leading)
-                            .frame(width: 200)
+                            .frame(width: MacTokens.Size.nameFieldWidth)
                     } label: {
                         Text("名字")
                         Text("显示在 UU远程 的屏幕列表里")
@@ -86,7 +86,7 @@ struct AddScreenSheet: View {
             }
         }
         .padding(MacTokens.Space.xl)
-        .frame(width: 460)
+        .frame(width: MacTokens.Size.sheetWidth)
         .onAppear { name = suggested }
         .onChange(of: kind) {
             // 每类设备平常的方向：手机竖，平板、电脑横
@@ -120,12 +120,7 @@ struct ScreenDetailSheet: View {
     private func content(_ screen: ScreenConfig) -> some View {
         VStack(alignment: .leading, spacing: MacTokens.Space.l) {
             HStack(spacing: MacTokens.Space.m) {
-                Image(systemName: screen.symbol)
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: MacTokens.Size.statusTile, height: MacTokens.Size.statusTile)
-                    .background(MacTokens.IconTile.screenPhone.color.gradient,
-                                in: RoundedRectangle(cornerRadius: MacTokens.Radius.statusTile, style: .continuous))
+                StatusTile(MacTokens.IconTile.screen(symbol: screen.symbol))
                 VStack(alignment: .leading, spacing: MacTokens.Space.xxs) {
                     Text(screen.name).font(.headline)
                     Text("\(screen.device.kind.title) · \(screen.sizeText)").foregroundStyle(.secondary)
@@ -138,7 +133,7 @@ struct ScreenDetailSheet: View {
                             .labelsHidden()
                             .textFieldStyle(.roundedBorder)
                             .multilineTextAlignment(.leading)
-                            .frame(width: 200)
+                            .frame(width: MacTokens.Size.nameFieldWidth)
                             .onSubmit { intents.renameScreen(id, name) }
                     }
                     LabeledContent("型号") {
@@ -166,7 +161,7 @@ struct ScreenDetailSheet: View {
             }
         }
         .padding(MacTokens.Space.xl)
-        .frame(width: 460)
+        .frame(width: MacTokens.Size.sheetWidth)
         .onAppear { name = screen.name }
         .confirmationDialog("删除「\(screen.name)」？", isPresented: $confirmingDelete) {
             Button("删除", role: .destructive) {
@@ -269,7 +264,7 @@ private struct CustomScreenForm: View {
             }
         }
         .padding(MacTokens.Space.l)
-        .frame(width: 280)
+        .frame(width: MacTokens.Size.resolutionPopoverWidth)
         .onAppear {
             guard let screen = current.customScreen else { return }
             width = screen.width

@@ -37,10 +37,8 @@ enum MacTokens {
         static let gestures = TileToken(color: SwiftUI.Color(nsColor: .systemOrange), symbol: "hand.tap.fill")
         static let launchAtLogin = TileToken(color: SwiftUI.Color(nsColor: .systemGray), symbol: "power")
         static let mainScreen = TileToken(color: SwiftUI.Color(nsColor: .systemIndigo), symbol: "menubar.rectangle")
-        static let screenComputer = TileToken(color: SwiftUI.Color(nsColor: .systemBlue), symbol: "laptopcomputer")
-        static let screenPhone = TileToken(color: SwiftUI.Color(nsColor: .systemBlue), symbol: "iphone")
+        static func screen(symbol: String) -> TileToken { TileToken(color: SwiftUI.Color(nsColor: .systemBlue), symbol: symbol) }
         static let screenRecording = TileToken(color: SwiftUI.Color(nsColor: .systemRed), symbol: "record.circle")
-        static let screenTablet = TileToken(color: SwiftUI.Color(nsColor: .systemBlue), symbol: "ipad.landscape")
         static let screenshot = TileToken(color: SwiftUI.Color(nsColor: .systemPink), symbol: "camera.viewfinder")
         static let update = TileToken(color: SwiftUI.Color(nsColor: .systemBlue), symbol: "arrow.down")
         static let updateSource = TileToken(color: SwiftUI.Color(nsColor: .systemGray), symbol: "server.rack")
@@ -57,6 +55,7 @@ enum MacTokens {
     }
     enum Size {
         static let aboutWidth: CGFloat = 420
+        static let helpPopoverWidth: CGFloat = 300
         static let iconTile: CGFloat = 24
         static let librarySidebar: CGFloat = 200
         enum LibraryWindow {
@@ -65,12 +64,16 @@ enum MacTokens {
         }
         static let menuRowHeight: CGFloat = 24
         static let menuWidth: CGFloat = 280
+        static let nameFieldWidth: CGFloat = 200
+        static let resolutionPopoverWidth: CGFloat = 280
         static let rowMinHeight: CGFloat = 40
         static let settingsWidth: CGFloat = 520
+        static let sheetWidth: CGFloat = 460
         static let statusTile: CGFloat = 40
         static let toggleHeight: CGFloat = 22
         static let toggleWidth: CGFloat = 38
         static let toolbarItem: CGFloat = 56
+        static let zoomSliderWidth: CGFloat = 160
     }
     enum Space {
         static let l: CGFloat = 16

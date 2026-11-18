@@ -24,6 +24,9 @@ struct StatusToken: Equatable {
     let color: Color
     let symbol: String
     let text: String
+
+    /// 画成图标块时只要颜色和图标
+    var tile: TileToken { TileToken(color: color, symbol: symbol) }
 }
 
 extension NSColor {
