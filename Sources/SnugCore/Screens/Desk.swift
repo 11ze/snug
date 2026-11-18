@@ -112,6 +112,12 @@ public final class Desk {
         }
     }
     private var verifying = false
+    /// 发过几个号、排着没做的号、正在做的事（见 Ticket）
+    private var issued = 0
+    private var queued: [(ticket: Ticket, work: Work)] = []
+    private var running: Work? {
+        didSet { showWork() }
+    }
     /// 刚在 Snug 之外没了的窗口：它的 App 在 replaceWait 内开出不在 known 里的新窗口，就接着放上来
     private var replaced: (pid: Int32, known: Set<WindowKey>, until: TimeInterval)?
 
@@ -129,16 +135,66 @@ public final class Desk {
 
     // MARK: 状态
 
-    func begin(_ work: Work) {
+    // MARK: 正在做的事
+
+    /// 一个动作的号：点下去时排上（begin），轮到时开始（start），做完收掉（end）。屏上显示正在做的那个，
+    /// 没在做的就显示最先排上的：后点的不冲掉先点的，先点的做完也不清掉后点的（DeskSet 的动作排一条队，一个做完再做下一个）
+    struct Ticket: Hashable {
+        fileprivate let number: Int
+    }
+
+    /// 点下去：排上号，前面没有别的就马上显示，提示清掉
+    @discardableResult
+    func begin(_ work: Work) -> Ticket {
+        issued += 1
+        let ticket = Ticket(number: issued)
+        queued.append((ticket, work))
         state.notice = nil
-        state.work = work
+        showWork()
+        return ticket
     }
 
-    func finish(_ work: Work? = nil) {
-        if work == nil || state.work == work { state.work = nil }
+    /// 轮到了（在队里调用）：从排着的里拿出来，开始做
+    func start(_ ticket: Ticket) {
+        guard let i = queued.firstIndex(where: { $0.ticket == ticket }) else { return }
+        running = queued.remove(at: i).work
     }
 
-    func setWork(_ work: Work?) { state.work = work }
+    /// 队里自己起的动作（自动放上屏、换比例、放在问用户的窗口）：不排号，直接开始，提示清掉
+    func start(_ work: Work) {
+        state.notice = nil
+        running = work
+    }
+
+    /// 做的途中换阶段（打开 → 放上来 → 调字号）
+    func advance(to work: Work) {
+        if running != nil { running = work }
+    }
+
+    func end() { running = nil }
+
+    /// 排了号又不用做了（换比例前又改回了原来的型号）
+    func cancel(_ ticket: Ticket) {
+        queued.removeAll { $0.ticket == ticket }
+        showWork()
+    }
+
+    /// 轮到这个号：开始、做完、收掉
+    func perform(_ ticket: Ticket, _ body: () async -> Void) async {
+        start(ticket)
+        await body()
+        end()
+    }
+
+    /// 队里自己起的动作：开始、做完、收掉
+    func perform(_ work: Work, _ body: () async -> Void) async {
+        start(work)
+        await body()
+        end()
+    }
+
+    private func showWork() { state.work = running ?? queued.first?.work }
+
     func setNotice(_ notice: Notice?) { state.notice = notice }
     func showListNow() { state.listVisible = true }
 
@@ -237,7 +293,7 @@ public final class Desk {
         let steps = target - next.record.zoom
         guard zoom, steps != 0 else { return }
         // 窗口已经在屏上了，剩下的只是调字号
-        state.work = .zooming
+        advance(to: .zooming)
         await timeline.sleep(Self.settleDelay)
         await changeZoom(by: steps)
     }
@@ -487,15 +543,12 @@ public final class Desk {
         if await placeOnItsOwn(next) { replaced = nil }
     }
 
-    /// 后台自动放上屏（App 换了个窗口、窗口回到了屏上）：用户已经开始别的动作就让出，返回 false；
-    /// 照放窗口的样子显示「正在打开」，做完只清自己设的状态（用户期间点的动作已经把状态换成了它的）
+    /// 后台自动放上屏（App 换了个窗口、窗口回到了屏上）：用户已经点了别的动作就让出，返回 false；
+    /// 照放窗口的样子显示「正在打开」
     @discardableResult
     func placeOnItsOwn(_ window: WindowInfo) async -> Bool {
         guard state.work == nil else { return false }
-        state.notice = nil
-        state.work = .placing(window)
-        await place(window)
-        if state.work == .placing(window) || state.work == .zooming { state.work = nil }
+        await perform(.placing(window)) { await place(window) }
         return true
     }
 

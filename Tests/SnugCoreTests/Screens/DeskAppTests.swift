@@ -43,6 +43,28 @@ struct DeskAppTests {
         #expect(rig.timeline.now - started >= 1.2)
     }
 
+    @Test("打开 App 等窗口时又点了放另一个窗口：屏上照实显示正在打开，前一个做完才换成放后一个，中途不清空")
+    func queuedActionShowsInTurn() async throws {
+        let rig = try Rig()
+        await rig.ready()
+        rig.apps.willSpawn(chat, .init(id: 30, frame: chatHome, delay: 1.2))
+        let works = recordWork(rig.desk)
+        rig.desk.open(chat)
+        rig.desk.pull(finder)
+        #expect(rig.desk.state.work == .opening(chat))
+        await rig.desk.idle()
+        let pid = try #require(await rig.apps.pid(of: chat))
+        let window = WindowInfo(key: WindowKey(pid: pid, id: 30), app: chat.name, bundleID: chat.bundleID, title: "")
+        let all = works()
+        #expect(all.first == .some(.opening(chat)))
+        #expect(all.last == .some(nil))
+        #expect(!all.dropLast().contains { $0 == nil })
+        let opened = try #require(all.firstIndex(of: .placing(window)))
+        let next = try #require(all.firstIndex(of: .placing(finder)))
+        #expect(opened < next)
+        #expect(rig.desk.state.placed?.window == finder)
+    }
+
     @Test("唤回在跑但没窗口的 App：App 重新显示原来那个窗口（编号不变）也认得出来")
     func reopenSameWindow() async throws {
         let rig = try Rig()

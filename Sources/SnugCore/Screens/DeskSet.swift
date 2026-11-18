@@ -80,6 +80,9 @@ public final class DeskSet {
         case close(WindowKey)
     }
     private var watches: [Watched: Task<Void, Never>] = [:]
+    /// 在手机上退出、换了型号时马上排上的号（见 Desk.Ticket），轮到 reconcile 时开始、撤完换完收掉
+    private var dismissTickets: [ScreenID: Desk.Ticket] = [:]
+    private var reshapeTickets: [ScreenID: Desk.Ticket] = [:]
 
     public init(displays: any VirtualDisplays, windows: any WindowControl, apps: any AppControl, arrangement: any DisplayArrangement,
                 timeline: any Timeline = SystemTimeline(), paths: SnugPaths, defaultZoom: Int = 2) {
@@ -112,7 +115,7 @@ public final class DeskSet {
                 desk.wanted = true
                 // 换了型号：闲着就马上盖上「正在调整」；别的动作在做时不冲掉它的状态，轮到换比例时再设
                 if let old = previous.first(where: { $0.id == wish.id }), old.fit != wish.fit, desk.state.work == nil, desk.state.display != nil {
-                    desk.begin(.reshaping)
+                    reshapeTickets[wish.id] = desk.begin(.reshaping)
                 }
             } else {
                 addDesk(for: wish)
@@ -130,7 +133,7 @@ public final class DeskSet {
         wishes.removeAll { $0.id == id }
         desk.wanted = false
         Log.info("在手机上退出了屏（\(id)）：放回窗口、撤屏，这次远程不再加")
-        desk.begin(.dismissing)
+        dismissTickets[id] = desk.begin(.dismissing)
         lane.run { await self.reconcile() }
     }
 
@@ -152,13 +155,25 @@ public final class DeskSet {
         // 设了主屏的那块要撤（或不再当主屏）：先设回原主屏，跟过去的窗口回去了，剩下的才清场
         await screens.releaseMain(keeping: target)
         let leaving = desks.values.filter { !ids.contains($0.id) && screens.display($0.id) != nil }
+        // 在手机上退出的那块：「正在退出」一直显示到撤完（Desk 收掉，或又被要回来时在下面收号）
+        var busy: [Desk] = []
         for desk in leaving {
+            if let ticket = dismissTickets.removeValue(forKey: desk.id) {
+                desk.start(ticket)
+                busy.append(desk)
+            }
             await desk.vacate()
             await clear(desk.id)
         }
         for wish in target where screens.display(wish.id) != nil && screens.fit(wish.id) != wish.fit {
-            desks[wish.id]?.begin(.reshaping)
+            guard let desk = desks[wish.id] else { continue }
+            if let ticket = reshapeTickets.removeValue(forKey: wish.id) { desk.start(ticket) } else { desk.start(.reshaping) }
+            busy.append(desk)
         }
+        // 排了号又用不着了：退出时屏已经不在、换比例前又改回了原来的型号
+        for (id, ticket) in dismissTickets.merging(reshapeTickets, uniquingKeysWith: { first, _ in first }) { desks[id]?.cancel(ticket) }
+        dismissTickets = [:]
+        reshapeTickets = [:]
         let reshaped = await screens.apply(target)
         // 收 Desk 按「此刻」要不要判断，不按开头拷下的 target：撤屏途中（清场、等最短在线时间、等系统摆好）
         // setWishes 可能又把这块屏要了回来，它看 Desk 还在就不再建，这里删了，下一轮建出来的屏就没有 Desk
@@ -168,7 +183,7 @@ public final class DeskSet {
             state.desks[id] = nil
         }
         for (id, ok) in reshaped { await desks[id]?.reshaped(ok) }
-        for desk in desks.values { desk.finish(.reshaping) }
+        for desk in busy { desk.end() }
         guard desks.isEmpty else { return }
         // 这次远程的提示、没盯完的退出和关窗不带到下一次（App 照样在退，只是不再盯）
         watches.values.forEach { $0.cancel() }
@@ -197,11 +212,8 @@ public final class DeskSet {
     public func pull(_ window: WindowInfo, on id: ScreenID) {
         guard !state.quitting.contains(window.key.pid) else { return Log.info("\(window.app) 正在退出，不放 \(window.label)") }
         guard let desk = desks[id] else { return }
-        desk.begin(.placing(window))
-        lane.run {
-            await self.place(window, on: desk)
-            desk.finish()
-        }
+        let ticket = desk.begin(.placing(window))
+        lane.run { await desk.perform(ticket) { await self.place(window, on: desk) } }
     }
 
     private func place(_ window: WindowInfo, on desk: Desk, zoom: Bool = true) async {
@@ -243,22 +255,16 @@ public final class DeskSet {
     /// 打开 App，等它的新窗口出来放上这块屏：没在跑就启动，在跑但没窗口就唤回（点在跑且有窗口的 App 是 pull，见 AppList.action）
     public func open(_ app: AppInfo, on id: ScreenID) {
         guard let desk = desks[id] else { return }
-        desk.begin(.opening(app))
-        lane.run {
-            await self.openWindow(of: app, newWindowIn: nil, on: desk)
-            desk.finish()
-        }
+        let ticket = desk.begin(.opening(app))
+        lane.run { await desk.perform(ticket) { await self.openWindow(of: app, newWindowIn: nil, on: desk) } }
     }
 
     /// 给在跑的 App 新建一个窗口（菜单里的 ⌘N），放上这块屏：从出现起就是屏的宽度，终端不会因为尺寸剧变重排
     public func newWindow(_ app: RunningApp, on id: ScreenID) {
         guard !state.quitting.contains(app.pid) else { return Log.info("\(app.app.name) 正在退出，不新建窗口") }
         guard let desk = desks[id] else { return }
-        desk.begin(.opening(app.app))
-        lane.run {
-            await self.openWindow(of: app.app, newWindowIn: app.pid, on: desk)
-            desk.finish()
-        }
+        let ticket = desk.begin(.opening(app.app))
+        lane.run { await desk.perform(ticket) { await self.openWindow(of: app.app, newWindowIn: app.pid, on: desk) } }
     }
 
     /// 关掉这块屏上的提示（「稍后」）。没退出的那个就不再盯了
@@ -279,32 +285,23 @@ public final class DeskSet {
     /// 列表左上角的返回键：回到屏上的窗口。换档要一会儿，期间和放窗口一样显示「正在打开」、列表点不了
     public func returnToPlaced(on id: ScreenID) {
         guard let desk = desks[id], let placed = desk.state.placed else { return }
-        desk.begin(.placing(placed.window))
-        lane.run {
-            await desk.reveal()
-            desk.finish()
-        }
+        let ticket = desk.begin(.placing(placed.window))
+        lane.run { await desk.perform(ticket) { await desk.reveal() } }
     }
 
     /// 把屏上的窗口放回原位
     public func putBack(on id: ScreenID) {
         guard let desk = desks[id], desk.state.placed != nil else { return }
-        desk.begin(.puttingBack)
-        lane.run {
-            await desk.putBackPlaced()
-            desk.finish()
-        }
+        let ticket = desk.begin(.puttingBack)
+        lane.run { await desk.perform(ticket) { await desk.putBackPlaced() } }
     }
 
     /// 字大 / 字小一级，并记到这个 App 名下。到了上下限什么都不做（界面上那个按钮已经点不了）
     public func zoom(by delta: Int, on id: ScreenID) {
         guard let desk = desks[id], let placed = desk.state.placed, placed.zoomable,
               (placed.zoom + delta).clamped(to: ZoomBook.range) != placed.zoom else { return }
-        desk.begin(.zooming)
-        lane.run {
-            await desk.zoom(by: delta)
-            desk.finish()
-        }
+        let ticket = desk.begin(.zooming)
+        lane.run { await desk.perform(ticket) { await desk.zoom(by: delta) } }
     }
 
     /// 设置里改了默认级数：以它为准，各 App 记住的级数一起清掉（不然改了看起来不起作用）
@@ -425,7 +422,7 @@ public final class DeskSet {
         case .appeared(let window):
             let how = running != nil ? "新建窗口" : runningPid == nil ? "启动" : "唤回"
             Log.info("\(app.name) \(how)后 \(String(format: "%.1f", timeline.now - started))s 出现 \(window.label)，放上屏（\(desk.id)）")
-            desk.setWork(.placing(window))
+            desk.advance(to: .placing(window))
             await place(window, on: desk)
         case .appQuit:
             Log.warn("\(app.name) 打开后又退出了，没有窗口")
@@ -556,15 +553,12 @@ public final class DeskSet {
         return .canceled
     }
 
-    /// 排进队里再放，状态也轮到它时才改：不然会被前面那个动作结束时的 work = nil 冲掉
+    /// 排进队里再放，轮到它时才显示「正在打开」
     private func placeAsking(_ window: WindowInfo, on id: ScreenID) async {
         guard !Task.isCancelled else { return }
         await lane.run {
             guard let desk = self.desks[id] else { return }
-            desk.setNotice(nil)
-            desk.setWork(.placing(window))
-            await self.place(window, on: desk, zoom: false)
-            desk.setWork(nil)
+            await desk.perform(.placing(window)) { await self.place(window, on: desk, zoom: false) }
         }.value
     }
 
