@@ -35,10 +35,13 @@ final class DeskEnvironment {
         leftBehind = leftBehindFile.loadOrQuarantine() ?? LeftBehindBook()
     }
 
-    /// 原位：落在 Snug 屏上的（App 按上次记住的位置把窗口开在了那块屏上）改成主屏居中，屏一撤那个位置就不存在了
+    /// 原位，按没设主屏时的坐标记（见 ScreenSet.homeFrame）。落在 Snug 屏上的（App 按上次记住的位置把窗口开在了那块屏上，
+    /// 或设主屏时跟了过去）改成原来那块主屏居中，屏一撤那个位置就不存在了
     func originalFrame(_ frame: CGRect) -> CGRect {
-        guard screens.screen(at: CGPoint(x: frame.midX, y: frame.midY)) != nil, let main = screens.mainArea() else { return frame }
-        return main.centered(frame.size)
+        guard screens.screen(at: CGPoint(x: frame.midX, y: frame.midY)) != nil, let home = screens.homeMainArea() else {
+            return screens.homeFrame(frame)
+        }
+        return screens.homeFrame(home.centered(frame.size))
     }
 
     /// 窗口在 Snug 之外没了：账不销，转成留下的账，等它带着屏上的大小回来再还（见 LeftBehind）。

@@ -50,6 +50,9 @@ public final class ScreenSet {
     private(set) var mainScreen: ScreenID?
     /// Snug 的屏出现之前的主屏（建第一块屏前记下）：设主屏记账时按它算原来的排布
     private var homeMain: DisplayID?
+    /// 设成主屏的那块屏，和设主屏后全局坐标整体平移了多少：主屏的原点总在 (0,0)，设主屏时别的屏连同窗口一起平移，
+    /// 此刻的坐标加上它就是没设主屏时的坐标（见 homeFrame）。设回、或那块屏撤掉（系统随之摆回）时归零
+    private var claimed: (display: DisplayID, shift: CGVector)?
     /// 要的屏，按屏幕列表的顺序（建屏按这个顺序，UU 也按建屏顺序列出）
     private var wishes: [ScreenWish] = []
     private var live: [ScreenID: (display: DisplayID, bornAt: TimeInterval)] = [:]
@@ -122,6 +125,8 @@ public final class ScreenSet {
                 before.windows = before.windows.filter { !bounds.contains(CGPoint(x: $0.value.midX, y: $0.value.midY)) }
             }
             if await !displays.retire(display) { offline = false }
+            // 设回没摆成的那块主屏撤掉了：系统按剩下这组屏记的排布摆回，坐标回到没设主屏时的样子
+            if claimed?.display == display { claimed = nil }
             live[id] = nil
             states[id] = nil
             gone.append(display)
@@ -304,6 +309,8 @@ public final class ScreenSet {
             return
         }
         mainScreen = wish.id
+        let origin = before[display] ?? .zero
+        claimed = (display, CGVector(dx: origin.x, dy: origin.y))
         Log.info("「\(wish.spec.name)」#\(display) 设成主屏（原来的原点：\(Self.describe(savedOrigins ?? before))）")
         await timeline.sleep(Self.topologySettle)
     }
@@ -314,6 +321,7 @@ public final class ScreenSet {
         if await arrangement.restore(saved) {
             Log.info("\(reason)，排布摆回设主屏之前（\(Self.describe(saved))）")
             savedOrigins = nil
+            claimed = nil
         } else {
             // 留着：再设主屏时还用这份最早的；屏撤掉时 macOS 按这组屏幕记的排布摆回
             Log.error("\(reason)，排布没能摆回去（\(Self.describe(saved))），屏撤掉时系统会按这组屏幕记的排布摆回")
@@ -354,6 +362,26 @@ public final class ScreenSet {
     }
 
     func mainArea() -> CGRect? { displays.mainArea() }
+
+    /// 窗口原位按没设主屏时的坐标记：设回、撤屏后放回都准；Snug 崩溃后系统已经摆回，账也照样对得上
+    func homeFrame(_ frame: CGRect) -> CGRect {
+        guard let shift = claimed?.shift else { return frame }
+        return frame.offsetBy(dx: shift.dx, dy: shift.dy)
+    }
+
+    /// 按原位账放回时，换成此刻的坐标
+    func currentFrame(_ home: CGRect) -> CGRect {
+        guard let shift = claimed?.shift else { return home }
+        return home.offsetBy(dx: -shift.dx, dy: -shift.dy)
+    }
+
+    /// 原来那块主屏此刻的范围：设了主屏时，此刻的主屏是 Snug 的屏，原位不能落在它上面
+    func homeMainArea() -> CGRect? {
+        guard claimed != nil, let home = homeMain, let bounds = displays.otherDisplays().first(where: { $0.id == home })?.bounds else {
+            return mainArea()
+        }
+        return bounds
+    }
 
     /// 这个点落在哪块 Snug 屏上（就绪的）
     func screen(at point: CGPoint) -> ScreenID? {

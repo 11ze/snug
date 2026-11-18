@@ -258,6 +258,29 @@ struct DeskSetTests {
         #expect(rig.arrangement.origins()[101] == CGPoint(x: 1512, y: 0))
     }
 
+    @Test("设了主屏时放上屏的外接屏窗口：原位按没设主屏时的坐标记，不再当主屏、撤屏后回到原处")
+    func placedWhileMainReturnsHome() async throws {
+        let rig = try Rig()
+        let home = CGRect(x: -1800, y: 100, width: 800, height: 600)
+        let xcode = WindowInfo(key: WindowKey(pid: 30, id: 50), app: "Xcode", bundleID: "com.apple.dt.Xcode", title: "snug")
+        rig.windows.add(xcode.key, frame: home, info: xcode)
+        var wish = rig.secondWish(computer)
+        wish.main = true
+        rig.set.setWishes([rig.desk.wish, wish])
+        await rig.set.idle()
+        // 设成主屏的那块屏原来的原点：主屏的原点总在 (0,0)，别的屏连同上面的窗口一起平移了这么多
+        let shift = try #require(rig.displays.bounds(102)).origin
+        _ = await rig.windows.move(xcode.key, to: home.offsetBy(dx: -shift.x, dy: -shift.y))
+        await rig.pull(xcode)
+        wish.main = false
+        rig.set.setWishes([rig.desk.wish, wish])
+        await rig.set.idle()
+        rig.timeline.advance(10)
+        rig.set.setWishes([])
+        await rig.set.idle()
+        #expect(rig.windows.window(xcode.key)?.frame == home)
+    }
+
     @Test("屏留着、只是不再当主屏：设回原主屏，屏不撤")
     func unsetMainKeepsScreen() async throws {
         let rig = try Rig()

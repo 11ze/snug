@@ -381,7 +381,8 @@ public final class Desk {
             record.zoom = 0
             write(record)
         }
-        guard let got = await windows.move(record.window, to: record.original) else {
+        let target = env.screens.currentFrame(record.original)
+        guard let got = await windows.move(record.window, to: target) else {
             return await stuckOrGone(record, "挪不动")
         }
         if restoringState, record.wasFullScreen {
@@ -391,11 +392,11 @@ public final class Desk {
             await windows.setMinimized(record.window, true)
         }
         settleRecord()
-        if got.matches(record.original) {
+        if got.matches(target) {
             let restored = !restoringState ? "" : record.wasFullScreen ? "并恢复全屏" : record.wasMinimized ? "并最小化" : ""
             Log.info("\(record.label) 已放回原位\(restored)\(zoom != 0 ? "，字号缩回 \(zoom) 级" : "")")
         } else {
-            Log.warn("\(record.label) 放回没对上：目标 \(record.original.short)，实际 \(got.short)")
+            Log.warn("\(record.label) 放回没对上：目标 \(target.short)，实际 \(got.short)")
         }
         return nil
     }

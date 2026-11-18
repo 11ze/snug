@@ -695,7 +695,7 @@ public final class DeskSet {
             env.leftBehind.update(at: i) { $0.record.zoom = 0 }
             env.saveLeftBehind()
         }
-        guard let got = await windows.move(window.key, to: owed.original) else {
+        guard let got = await windows.move(window.key, to: screens.currentFrame(owed.original)) else {
             return Log.warn("\(window.label) 带着屏上的样子回来了，但挪不动（App 没响应），下一拍再试")
         }
         env.leftBehind.remove(at: i)
