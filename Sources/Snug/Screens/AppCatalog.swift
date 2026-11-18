@@ -93,12 +93,12 @@ final class AppCatalog {
         scanning = nil
     }
 
-    /// 一次远程结束：停下、清空，下次露出时显示「正在读取」，不拿上次的旧列表
+    /// 一次远程结束：清空，下次露出时显示「正在读取」，不拿上次的旧列表。各块屏的面板撤掉时已经各自 release；
+    /// 电脑屏的资源库窗口可能还开着，它的需求留着、接着刷新（清了它，下次远程这个窗口就不动了）
     func reset() {
-        demand = [:]
-        stopRefreshing()
         running = []
         loaded = false
+        if demand.isEmpty { stopRefreshing() }
     }
 
     /// 退完了的 App、关上了的窗口：马上去掉，顺序不动（见 DeskSet.onGone）

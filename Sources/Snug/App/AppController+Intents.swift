@@ -14,16 +14,15 @@ extension AppController: AppIntents {
         guard store.config.screens.count < ScreenConfig.limit else { return Log.warn("屏幕列表已有 \(ScreenConfig.limit) 块，不再加") }
         let name = name.trimmingCharacters(in: .whitespaces)
         var added: ScreenConfig?
-        changeConfig("加屏「\(name)」：\(orientation == .portrait ? "竖" : "横") · \(device.title)") {
+        guard changeConfig("加屏「\(name)」：\(orientation == .portrait ? "竖" : "横") · \(device.title)", {
             added = $0.addScreen(orientation: orientation, device: device, name: name.isEmpty ? nil : name)
-        }
-        if let added { Log.info("新屏「\(added.name)」\(added.fit)，序列号 \(added.serials.map(String.init).joined(separator: "/"))") }
+        }), let added else { return }
+        Log.info("新屏「\(added.name)」\(added.fit)，序列号 \(added.serials.map(String.init).joined(separator: "/"))")
         applyPlan()
     }
 
     func removeScreen(_ id: ScreenID) {
-        guard let screen = state.screen(id) else { return }
-        changeConfig("删屏「\(screen.name)」") { $0.removeScreen(id) }
+        guard let screen = state.screen(id), changeConfig("删屏「\(screen.name)」", { $0.removeScreen(id) }) else { return }
         applyPlan()
     }
 
