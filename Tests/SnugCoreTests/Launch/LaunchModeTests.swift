@@ -64,10 +64,11 @@ struct LaunchModeTests {
         #expect(try LaunchMode.parse(ModeTarget.hiDPI(width: 540, height: 1170).arguments(display: 9)) == .setMode(display: 9, to: .hiDPI(width: 540, height: 1170)))
     }
 
-    @Test("--dump-uu、--preview-phone")
+    @Test("--dump-uu、--preview-screens；旧的 --preview-phone 不认")
     func flags() throws {
         #expect(try LaunchMode.parse(["--dump-uu"]) == .dumpUU)
-        #expect(try LaunchMode.parse(["--preview-phone"]) == .previewPhone)
+        #expect(try LaunchMode.parse(["--preview-screens"]) == .previewScreens)
+        #expect(throws: LaunchModeError.self) { try LaunchMode.parse(["--preview-phone"]) }
     }
 
     @Test("缺参数值、数字写错、两个模式一起：报错而不是悄悄按正常模式启动")

@@ -97,7 +97,7 @@ The home page of the phone screen (「App 资源库」), for managing your Mac's
 | Close a window | Tap the close button next to the window, then tap again to confirm |
 | Quit an app | Tap "Quit" on the app's card, then tap again to confirm; if it hasn't quit after 10 seconds, you can force quit it |
 | Save unsaved changes | The save prompt that appears when closing or quitting shows up on the phone screen, so you can answer it there |
-| Exit the phone screen | Tap "Exit Phone Screen" at the top right, then tap again to confirm; windows return to where they were and the phone screen is removed for the rest of this session. It comes back next session (reconnecting within 15 seconds of disconnecting still counts as this session) |
+| Exit this screen | Tap "Exit This Screen" at the top right, then tap again to confirm; windows return to where they were and this screen is removed for the rest of this session. It comes back next session (reconnecting within 15 seconds of disconnecting still counts as this session) |
 
 ## 📐 Fits Every App and Phone
 
@@ -117,10 +117,24 @@ Some apps enforce a minimum width and can't shrink to the phone screen. Snug fir
 
 UU Remote scales the picture proportionally to fit the phone, leaving black bars when the proportions don't match. Snug sizes the phone screen to your phone model, so the picture fills it exactly.
 
-- **Any platform, any brand**: fully supports iPhone, iPad, and Android devices from every major brand, with 800 built-in models across 17 brands
+- **Any platform, any brand**: fully supports iPhone, iPad, and Android devices from every major brand, with 785 built-in phones across 19 brands and 46 tablets, plus common Macs and standard resolutions
 - **Custom**: if your model isn't listed, enter its screen resolution or aspect ratio
 
 <p align="center"><img src="https://dl.zephyrxiang.com/snug/media/phone-models.3137ee0e.png" width="36%" alt="Phone model page: the current model, a custom resolution, and models listed by brand"><br><sub>Phone model: models listed by brand, or enter a custom resolution</sub></p>
+
+### A Screen That Fits Every Phone, Tablet, and Computer
+
+Add screens on the Screens page of Snug's settings, choosing a device and an orientation for each, up to 4:
+
+| Screen | Proportions and size | On screen |
+| :--- | :--- | :--- |
+| Phone · portrait / landscape | Calculated from your phone model, leaving room for UU Remote's toolbar | App Library, home indicator, gestures, larger text |
+| Tablet · landscape / portrait | Calculated from your tablet model, with text slightly larger than native for comfortable reading | Same as above; landscape uses two columns |
+| Computer · landscape | Matches the computer's own resolution; on a MacBook with a notch it leaves the top strip free, pixel for pixel | Nothing added, just like an ordinary display |
+
+- **Only one screen in use at a time**: UU Remote lets only one device control a Mac at a time. Extra screens are there for switching one device between portrait and landscape, or for picking another device's screen when you switch devices, with no settings to change. Turn off the ones you don't need; screens that are off aren't created during a session
+- **App Library for computer screens**: open it from the menu bar. It shows which screen each window is on and brings any window over with one click, which helps when the remote side can't see the other screens or drag windows across
+- **Set as main display** (optional, off by default): UU Remote always starts each connection on the main display. Make a screen the main display and every connection lands there, with the menu bar and Dock following it; everything is put back when the session ends
 
 ## 🆚 Compared with Alternatives
 
@@ -172,18 +186,21 @@ rm ~/Library/LaunchAgents/com.corndog.uudisplay.watchdog-agent.plist
 
 ## 🧭 Usage
 
-1. **Switch screens**: once a phone or tablet connects, choose "Snug 手机屏" (Snug Phone Screen) in UU Remote's screen list
+1. **Switch screens**: once connected, choose a Snug screen in UU Remote's screen list (by default there is just "Snug 手机屏", the Snug Phone Screen; add tablet, computer, or landscape phone screens on the Screens page of Snug's settings first)
 
    <img src="https://dl.zephyrxiang.com/snug/media/uu-screen-picker.212fdbe9.png" width="50%" alt="UU Remote's screen list, showing display 3: Snug Phone Screen">
 
-2. **Choose your phone model** (first time only): in the top-right corner of the App Library or in Snug's settings. Then switch to another screen in UU Remote and back, and the phone screen fills your display at the new proportions
+2. **Choose your model** (first time only): in the top-right corner of the App Library or in the screen's details in Snug's settings. Then switch to another screen in UU Remote and back, and the screen fills your display at the new proportions
 3. **Pick an app or window**: tap an app or window in the App Library and it fills the screen; apps that aren't running are launched
 4. **Switch windows**: tap the bottom indicator bar to return to the App Library; choosing another window returns the previous one to its place
-5. **End the session**: windows return to their original positions, text sizes are restored, and the phone screen is removed
+5. **End the session**: windows return to their original positions, text sizes are restored, and the Snug screens are removed
+
+> 💡 Set UU Remote's picture quality to the highest: at lower quality the picture looks blurry, especially on a tablet.
 
 ## 🔒 Isolation and Restoration
 
-- **Only the phone screen is touched**: the main display, other screens, and other windows are left alone; when you are not on the phone screen, UU Remote behaves exactly as it always has
+- **Only Snug's screens are touched**: other screens and other windows are left alone; when you are not on a Snug screen, UU Remote behaves exactly as it always has. The main display stays as it is unless you turn on "Set as main display", and it is put back when the session ends
+- **Cleared before removal**: windows opened directly on a Snug screen are moved back to the main display before the screen is removed, instead of being pushed into a corner
 - **Record first, then change**: each window's original position and text size are recorded in advance, so they can be restored even if Snug quits unexpectedly
 - **Restored even when a window is closed directly**: if you close a window directly on your phone, the next time the app opens it at the phone-screen size, Snug moves it back and restores its text size
 - **Unresponsive apps are left as they are**: if an app stops responding, Snug does not force its window to move and explains why on screen
@@ -194,11 +211,11 @@ rm ~/Library/LaunchAgents/com.corndog.uudisplay.watchdog-agent.plist
 | Limitation | Details |
 | :--- | :--- |
 | Relies on undocumented macOS APIs | May break after a major macOS update |
-| Portrait only | A tablet held in landscape gets the standard UU Remote experience; landscape support for tablets is planned |
+| A screen doesn't rotate between portrait and landscape | Add one of each if you use both, and switch in UU Remote when you turn the device |
 | Not an official NetEase product | Unaffiliated with UU Remote or its developer; UU Remote updates may affect some features |
-| The phone screen may occasionally remain after a session ends | Occurs when the system log misses the end of the stream; the menu bar still shows the session as active (「远程中」). Turn off the phone screen in Settings to restore |
+| A Snug screen may occasionally remain after a session ends | Occurs when the system log misses the end of the stream; the menu bar still shows the session as active (「远程中」). Turn off the screens that are on in Settings to restore |
 | VS Code and Cursor may remember the enlarged text size if a window is closed on the phone with a shortcut or menu | If the text looks too large when you reopen it after the session, press ⌘- to restore it (the phone screen shows how many steps when the window closes). With gestures on, tapping the window's own close button, or closing it from the app library, is not affected |
-| On a Mac with no display attached, you can't switch back to the original screen | macOS provides a default screen only when no display is connected, and removes it as soon as the phone screen appears. Exit the phone screen from the top right of the app library to get the original screen back |
+| On a Mac with no display attached, you can't switch back to the original screen | macOS provides a default screen only when no display is connected, and removes it as soon as a Snug screen appears. Exit that screen from the top right of the app library to get the original screen back |
 
 The technical reasons behind each limitation are explained in [How It Works](docs/how-it-works.md#已知限制的技术原因) (in Chinese).
 

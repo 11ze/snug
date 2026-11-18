@@ -42,9 +42,17 @@
   --mac-size-menu-width: 280px;
   --mac-size-menu-row-height: 24px;
   --mac-size-about-width: 420px;
+  --mac-size-sheet-width: 460px;
+  --mac-size-name-field-width: 200px;
+  --mac-size-resolution-popover-width: 280px;
+  --mac-size-help-popover-width: 300px;
+  --mac-size-zoom-slider-width: 160px;
   --mac-size-library-window-width: 760px;
   --mac-size-library-window-height: 520px;
   --mac-size-library-sidebar: 200px;
+  --mac-size-library-row-icon: 28px;
+  --mac-size-library-grid-icon: 56px;
+  --mac-size-library-grid-item: 96px;
   --touch-font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", sans-serif;
   --touch-font-large-title: 700 40px/48px var(--touch-font-family);
   --touch-font-large-title-size: 40px;
@@ -124,9 +132,7 @@
   --mac-positive: var(--palette-green);
   --mac-warning: var(--palette-orange);
   --mac-danger: var(--palette-red);
-  --mac-tile-screen-phone: var(--palette-blue);
-  --mac-tile-screen-tablet: var(--palette-blue);
-  --mac-tile-screen-computer: var(--palette-blue);
+  --mac-tile-screen: var(--palette-blue);
   --mac-tile-main-screen: var(--palette-indigo);
   --mac-tile-gestures: var(--palette-orange);
   --mac-tile-zoom: var(--palette-green);

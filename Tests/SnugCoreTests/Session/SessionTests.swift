@@ -79,7 +79,7 @@ struct RemoteSessionTests {
         for seconds in [0.5, 59.5, 60, 60.5, 75.6, 300] {
             #expect(s.update(streaming, now: at(seconds)) == [])
         }
-        #expect(s.wantsPhoneScreen(now: at(300)))
+        #expect(s.inEpisode)
         #expect(s.update(stopped, now: at(300.5)) == [])
         #expect(s.update(stopped, now: at(301.6)) == [.interrupted])
         #expect(s.update(stopped, now: at(316.7)) == [.ended])
@@ -95,112 +95,20 @@ struct RemoteSessionTests {
     }
 }
 
-@Suite("要不要手机屏 RemoteSession.wantsPhoneScreen")
-struct PhoneDemandTests {
-    private let overlayOnly = UUSignals(overlayVisible: true, controllers: .unrecognized, captureActive: nil)
-    private let absent = UUSignals(overlayVisible: false, controllers: .unrecognized, captureActive: nil)
+@Suite("换手接管 RemoteSession")
+struct HandoverTests {
+    private let streaming = UUSignals(overlayVisible: false, controllers: .unrecognized, captureActive: true)
+    private let stopped = UUSignals(overlayVisible: false, controllers: .unrecognized, captureActive: false)
 
-    @Test("电脑控制端：断开后的重连窗口里也不要（断开那一拍名字被清空，不能当成手机）")
-    func computerStaysComputerWhileReconnecting() {
+    @Test("换手慢到断开了（推流停过了宽限）：还在 15 秒重连等待期里，算同一次远程（ScreenPlan 只看在不在远程，屏不撤）")
+    func slowTakeover() {
         var s = RemoteSession()
-        _ = s.update(table("DESKTOP-7Q2K1LM"), now: at(0))
-        #expect(!s.wantsPhoneScreen(now: at(0)))
-        _ = s.update(absent, now: at(1))
-        #expect(s.update(absent, now: at(2)) == [.interrupted])
-        #expect(s.controllers.isEmpty)
+        _ = s.update(streaming, now: at(0))
+        _ = s.update(streaming, now: at(9.5))
+        #expect(s.update(stopped, now: at(10)) == [])
+        #expect(s.update(stopped, now: at(11.1)) == [.interrupted])
         #expect(s.inEpisode)
-        #expect(!s.wantsPhoneScreen(now: at(2)))
-        #expect(!s.wantsPhoneScreen(now: at(16)))
-        #expect(s.update(absent, now: at(17.1)) == [.ended])
-        #expect(s.episodeControllers(at: at(17.1)).isEmpty)
-    }
-
-    @Test("手机控制端：重连窗口里照样要，手机屏和上面的窗口留着")
-    func phoneKeepsScreenWhileReconnecting() {
-        var s = RemoteSession()
-        _ = s.update(table("iPhone"), now: at(0))
-        _ = s.update(absent, now: at(1))
-        _ = s.update(absent, now: at(2))
-        #expect(s.wantsPhoneScreen(now: at(10)))
-        _ = s.update(absent, now: at(17.1))
-        #expect(!s.wantsPhoneScreen(now: at(17.1)))
-    }
-
-    @Test("刚连上名字还没读到：先等 2 秒；名字下一拍读到是电脑，就一直不要")
-    func waitsForNameThenComputer() {
-        var s = RemoteSession()
-        #expect(s.update(overlayOnly, now: at(0)) == [.began(controllers: [])])
-        #expect(!s.wantsPhoneScreen(now: at(0)))
-        #expect(s.update(UUSignals(overlayVisible: true, controllers: .shown(["MacBook Air"]), captureActive: nil), now: at(0.5))
-                == [.controllersChanged(["MacBook Air"])])
-        #expect(!s.wantsPhoneScreen(now: at(0.5)))
-        #expect(!s.wantsPhoneScreen(now: at(5)))
-    }
-
-    @Test("一直没拿到名字（表格读不到或没认出控制端）：等满 2 秒后按手机处理", arguments: [ControllerTable.unreadable, .unrecognized])
-    func namelessGetsScreenAfterGrace(table: ControllerTable) {
-        var s = RemoteSession()
-        _ = s.update(UUSignals(overlayVisible: true, controllers: table, captureActive: nil), now: at(0))
-        #expect(!s.wantsPhoneScreen(now: at(1.9)))
-        #expect(s.wantsPhoneScreen(now: at(2)))
-    }
-
-    @Test("回归 #3：电脑和手机同时连着也要（只看第一个控制端会把手机屏撤掉）；手机走了、只剩电脑，等过重连窗口才不要")
-    func phoneAlongsideComputer() {
-        var s = RemoteSession()
-        _ = s.update(table("markzhang的MacBook Pro"), now: at(0))
-        #expect(!s.wantsPhoneScreen(now: at(0)))
-        _ = s.update(table("iPhone 18 Pro"), now: at(95))
-        #expect(s.wantsPhoneScreen(now: at(95)))
-        _ = s.update(table("markzhang的MacBook Pro", "iPhone 18 Pro"), now: at(96))
-        #expect(s.wantsPhoneScreen(now: at(96)))
-        _ = s.update(table("iPhone 18 Pro", "markzhang的MacBook Pro"), now: at(97))
-        #expect(s.wantsPhoneScreen(now: at(97)))
-        _ = s.update(table("markzhang的MacBook Pro"), now: at(120))
-        #expect(s.wantsPhoneScreen(now: at(135)))
-        _ = s.update(table("markzhang的MacBook Pro"), now: at(135.1))
-        #expect(!s.wantsPhoneScreen(now: at(135.1)))
-    }
-
-    @Test("几台同时连着，表格漏读一拍手机那一行（手机先连、电脑后连时 UU 先单独显示新来的）：一直要")
-    func missedRowKeepsScreen() {
-        var s = RemoteSession()
-        _ = s.update(table("iPhone"), now: at(0))
-        #expect(s.update(table("MacBook Pro"), now: at(10)) == [.controllersChanged(["MacBook Pro"])])
-        #expect(s.wantsPhoneScreen(now: at(10)))
-        _ = s.update(table("iPhone", "MacBook Pro"), now: at(10.5))
-        #expect(s.wantsPhoneScreen(now: at(10.5)))
-        _ = s.update(table("MacBook Pro"), now: at(40))
-        #expect(s.wantsPhoneScreen(now: at(54.9)))
-    }
-
-    @Test("几台同时连着，手机短暂断网：和单独连着一样有 15 秒重连窗口，回来再走又重新计时")
-    func phoneDropsOutOfMixedGroup() {
-        var s = RemoteSession()
-        _ = s.update(table("MacBook Pro", "iPhone"), now: at(0))
-        _ = s.update(table("MacBook Pro"), now: at(5))
-        #expect(s.wantsPhoneScreen(now: at(19)))
-        _ = s.update(table("MacBook Pro", "iPhone"), now: at(19))
-        _ = s.update(table("MacBook Pro"), now: at(30))
-        #expect(s.wantsPhoneScreen(now: at(45)))
-        #expect(!s.wantsPhoneScreen(now: at(45.1)))
-    }
-
-    @Test("几台一起断开、重连时电脑先回来：手机照样等满重连窗口")
-    func computerResumesFirst() {
-        var s = RemoteSession()
-        let absent = UUSignals(overlayVisible: false, controllers: .unrecognized, captureActive: nil)
-        _ = s.update(table("MacBook Pro", "iPhone"), now: at(0))
-        _ = s.update(absent, now: at(1))
-        #expect(s.update(absent, now: at(2)) == [.interrupted])
-        #expect(s.update(table("MacBook Pro"), now: at(6)) == [.resumed(controllers: ["MacBook Pro"])])
-        #expect(s.wantsPhoneScreen(now: at(21)))
-        #expect(!s.wantsPhoneScreen(now: at(21.1)))
-    }
-
-    @Test("不在远程里：不要")
-    func idle() {
-        #expect(!RemoteSession().wantsPhoneScreen(now: at(0)))
+        #expect(s.update(streaming, now: at(20)) == [.resumed(controllers: [])])
+        #expect(s.inEpisode)
     }
 }
-

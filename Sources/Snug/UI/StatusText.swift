@@ -1,5 +1,5 @@
-// 状态文案：一个标题 + 一个短说明。把 AppState 翻成菜单栏和设置窗口共用的状态，也给手机屏上的提示用；
-// 手机屏列表里窗口、App 的几处说法也在这里。只用短词，书面、克制
+// 状态文案：一个标题 + 一个短说明。把 AppState 翻成菜单栏和设置窗口共用的状态，也给屏上的提示用；
+// 屏上列表里窗口、App 的几处说法也在这里。只用短词，书面、克制
 import SnugCore
 import SwiftUI
 
@@ -29,35 +29,34 @@ struct StatusText: Equatable {
         }
     }
 
+    /// 远程时说清正在看哪块屏：UU 一次只推一块，其余的在列表里各自标着
     @MainActor
     private static func detail(_ s: AppState) -> String? {
         if s.quitting { return "正在还原窗口" }
         if !s.accessibilityTrusted { return "用于移动窗口与转换手势" }
-        if !s.config.phoneScreen { return "手机屏已关闭" }
+        if !s.config.screens.contains(where: \.enabled) { return "屏幕都已关闭" }
         if s.connection == .idle { return nil }
         if s.gesturesFailed { return "手势转换未启用" }
-        switch s.phone.screen {
-        case .preparing: return "正在准备手机屏"
-        case .failed: return "手机屏创建失败"
-        case .ready:
-            guard s.phoneInUse else { return "手机屏已就绪" }
-            return s.phone.placed.map { "手机屏 · \($0.window.app)" } ?? "手机屏使用中"
-        case .off:
-            if s.phone.dismissed { return "本次远程已退出手机屏" }
-            return ControllerKind.wantsPhoneScreen(s.controllers) ? nil : "电脑控制端，不提供手机屏"
+        let screens = s.config.screens.filter(\.enabled)
+        let states = screens.map { s.desks.desks[$0.id]?.screen ?? .off }
+        if let watched = s.watchedScreen, let name = s.screen(watched)?.name {
+            return s.desks.desks[watched]?.placed.map { "正在看「\(name)」· \($0.window.app)" } ?? "正在看「\(name)」"
         }
+        if states.contains(.preparing) { return "正在准备屏幕" }
+        if states.contains(.failed) { return "有屏幕创建失败" }
+        if states.contains(where: { $0.display != nil }) { return "在 UU远程 中选择 Snug 的屏" }
+        return s.desks.dismissed.isEmpty ? nil : "本次远程已退出这些屏"
     }
 }
 
 extension AppState {
-    /// 状态的颜色，菜单栏的圆点和设置页顶部的图标共用：绿色远程中；橙色要处理（缺权限、连接中断）；灰色等待连接、手机屏关着
-    var statusColor: Color {
-        guard accessibilityTrusted else { return .orange }
-        guard config.phoneScreen else { return .gray }
+    /// 远程状态（设计令牌 mac.status）：颜色、图标，菜单栏顶上一行和设置页顶部共用
+    var status: StatusToken {
+        guard accessibilityTrusted, !quitting else { return MacTokens.Status.problem }
         switch connection {
-        case .connected: return .green
-        case .reconnecting: return .orange
-        case .idle: return .gray
+        case .connected: return MacTokens.Status.remote
+        case .reconnecting: return MacTokens.Status.reconnecting
+        case .idle: return MacTokens.Status.waiting
         }
     }
 }
@@ -73,27 +72,14 @@ extension LoginItemIssue {
     }
 }
 
-extension PhoneChoice {
-    /// 名字：机型全名，自己填的叫「自定义」（分辨率另外写，见 sizeText）
-    var title: String { model ?? "自定义" }
-    /// 自己填的分辨率：打开自定义输入时先填上它
-    var customScreen: PhoneScreen? { model == nil ? screen : nil }
-}
-
-extension PhoneScreen {
-    var sizeText: String { "\(width) × \(height)" }
-    /// 自定义输入下面的说明（设置窗口、手机屏共用）
-    static let customHint = "屏幕分辨率或比例，如 1080 × 2400、9 × 20"
-}
-
-extension PhoneDesk.Notice {
-    /// 手机屏列表顶部的提示：出了什么事，和接下来怎么办。不出现技术词
+extension Desk.Notice {
+    /// 屏上列表顶部的提示：出了什么事，和接下来怎么办。不出现技术词
     var text: StatusText {
         switch self {
         case .windowGone(let app): StatusText(headline: "\(app) 窗口已关闭", detail: "请另选一个窗口")
         case .windowUnresponsive(let app): StatusText(headline: "\(app) 无响应", detail: "可能正忙，请稍后再试")
         case .recordUnwritable: StatusText(headline: "无法保存原位置", detail: "为确保能放回原处，窗口未移动")
-        case .screenNotReady: StatusText(headline: "手机屏未就绪", detail: "屏幕正在调整，请稍后再试")
+        case .screenNotReady: StatusText(headline: "屏幕未就绪", detail: "屏幕正在调整，请稍后再试")
         case .openFailed(let app): StatusText(headline: "无法打开 \(app)", detail: "请稍后再试")
         case .noNewWindow(let app): StatusText(headline: "\(app) 无法新建窗口", detail: "可点 App 打开已有窗口")
         case .noWindow(let app): StatusText(headline: "未找到 \(app) 的窗口", detail: "App 已打开，但没有可显示的窗口")
@@ -106,7 +92,7 @@ extension PhoneDesk.Notice {
 }
 
 extension ScreenshotNotice {
-    /// 手机屏上截图、裁剪之后的提示
+    /// 屏上截图、裁剪之后的提示
     var text: StatusText {
         switch self {
         case .cropped: StatusText(headline: "已复制选区", detail: nil)

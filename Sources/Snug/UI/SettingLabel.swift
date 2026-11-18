@@ -1,5 +1,5 @@
 // 设置页、「关于 Snug」、欢迎页共用的行标题：系统设置那样的彩色方块图标（SF Symbols）+ 标题 + 一行短说明；
-// 以及权限那几行的标题、状态和「授权…」按钮
+// 页面顶部的大图标块（设置页的远程状态、屏幕详情）；以及权限那几行的标题、状态和「授权…」按钮
 import PermissionFlow
 import SwiftUI
 
@@ -19,17 +19,22 @@ struct SettingLabel: View {
         self.tint = tint
     }
 
+    /// 图标块取设计令牌（mac.iconTile）
+    init(_ title: String, detail: String? = nil, warning: Bool = false, tile: TileToken) {
+        self.init(title, detail: detail, warning: warning, symbol: tile.symbol, tint: tile.color)
+    }
+
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: MacTokens.Space.m) {
             Image(systemName: symbol)
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(.white)
-                .frame(width: 24, height: 24)
-                .background(tint.gradient, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
-            VStack(alignment: .leading, spacing: 2) {
+                .frame(width: MacTokens.Size.iconTile, height: MacTokens.Size.iconTile)
+                .background(tint.gradient, in: RoundedRectangle(cornerRadius: MacTokens.Radius.iconTile, style: .continuous))
+            VStack(alignment: .leading, spacing: MacTokens.Space.xxs) {
                 Text(title)
                 if let detail, warning {
-                    Label(detail, systemImage: "exclamationmark.triangle.fill").font(.callout).foregroundStyle(.orange)
+                    Label(detail, systemImage: "exclamationmark.triangle.fill").font(.callout).foregroundStyle(MacTokens.Color.warning)
                 } else if let detail {
                     Text(detail).font(.callout).foregroundStyle(.secondary)
                 }
@@ -41,12 +46,29 @@ struct SettingLabel: View {
 extension SettingLabel {
     /// 辅助功能权限那一行（欢迎页、设置页）
     static var accessibility: SettingLabel {
-        SettingLabel(PermissionName.accessibility, detail: "用于移动窗口与转换手势", symbol: "hand.raised.fill", tint: .indigo)
+        SettingLabel(PermissionName.accessibility, detail: "用于移动窗口与转换手势", tile: MacTokens.IconTile.accessibility)
     }
 
-    /// 录屏权限那一行（设置页，开了截图键才有）
+    /// 录屏权限那一行（设置的通用页）
     static var screenRecording: SettingLabel {
-        SettingLabel(PermissionName.screenRecording, detail: "用于截图", symbol: "rectangle.dashed.badge.record", tint: .red)
+        SettingLabel(PermissionName.screenRecording, detail: "只有截图要用", tile: MacTokens.IconTile.screenRecording)
+    }
+}
+
+/// 页面顶部的大图标块：和行标题的小方块同一种样子，大一号（设置页的远程状态、屏幕详情的头部）
+struct StatusTile: View {
+    let tile: TileToken
+
+    init(_ tile: TileToken) {
+        self.tile = tile
+    }
+
+    var body: some View {
+        Image(systemName: tile.symbol)
+            .font(.system(size: 20, weight: .semibold))
+            .foregroundStyle(.white)
+            .frame(width: MacTokens.Size.statusTile, height: MacTokens.Size.statusTile)
+            .background(tile.color.gradient, in: RoundedRectangle(cornerRadius: MacTokens.Radius.statusTile, style: .continuous))
     }
 }
 

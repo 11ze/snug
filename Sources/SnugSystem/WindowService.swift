@@ -116,9 +116,9 @@ public final class WindowService: WindowControl {
         }
     }
 
-    public func restore(_ snapshot: [WindowKey: CGRect], except: WindowKey?) async {
+    public func restore(_ snapshot: [WindowKey: CGRect], except: Set<WindowKey>) async {
         await run {
-            for (window, saved) in snapshot where window != except {
+            for (window, saved) in snapshot where !except.contains(window) {
                 guard let element = AX.element(for: window), let now = AX.frame(element), !now.matches(saved) else { continue }
                 let got = Self.move(element, to: saved)
                 Log.info("系统挪了 pid \(window.pid) 的窗口 \(now.short)，已放回 \(saved.short)"
@@ -158,16 +158,30 @@ public final class WindowService: WindowControl {
     }
 
     public func frames(of pid: Int32) async -> [WindowKey: CGRect] {
-        let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]]
-        var frames: [WindowKey: CGRect] = [:]
-        for info in list ?? [] where (info[kCGWindowOwnerPID as String] as? NSNumber)?.int32Value == pid
-            && (info[kCGWindowLayer as String] as? NSNumber)?.intValue == 0 {
-            guard let id = (info[kCGWindowNumber as String] as? NSNumber)?.uint32Value,
+        Self.onScreenFrames().filter { $0.key.pid == pid }
+    }
+
+    public func windows(in area: CGRect) async -> [WindowKey: CGRect] {
+        let me = ProcessInfo.processInfo.processIdentifier
+        return Self.onScreenFrames().filter { $0.key.pid != me && area.contains(CGPoint(x: $0.value.midX, y: $0.value.midY)) }
+    }
+
+    /// 屏上普通窗口（第 0 层）此刻的位置，问窗口服务器
+    private static func onScreenFrames() -> [WindowKey: CGRect] {
+        levelZeroWindows([.optionOnScreenOnly, .excludeDesktopElements]).mapValues(\.frame)
+    }
+
+    private static func levelZeroWindows(_ options: CGWindowListOption) -> [WindowKey: (frame: CGRect, shown: Bool)] {
+        let list = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]]
+        var windows: [WindowKey: (frame: CGRect, shown: Bool)] = [:]
+        for info in list ?? [] where (info[kCGWindowLayer as String] as? NSNumber)?.intValue == 0 {
+            guard let pid = (info[kCGWindowOwnerPID as String] as? NSNumber)?.int32Value,
+                  let id = (info[kCGWindowNumber as String] as? NSNumber)?.uint32Value,
                   let bounds = info[kCGWindowBounds as String] as? NSDictionary,
                   let frame = CGRect(dictionaryRepresentation: bounds as CFDictionary) else { continue }
-            frames[WindowKey(pid: pid, id: id)] = frame
+            windows[WindowKey(pid: pid, id: id)] = (frame, (info[kCGWindowIsOnscreen as String] as? NSNumber)?.boolValue == true)
         }
-        return frames
+        return windows
     }
 
     public func closeButton(_ window: WindowKey) async -> CGRect? {
@@ -179,7 +193,17 @@ public final class WindowService: WindowControl {
         }
     }
 
-    // MARK: App 资源库（手机屏上的卡片）
+    // MARK: App 资源库（AppCatalog 读）
+
+    /// 每个普通窗口在哪块屏、露没露着（见 WindowSpot），连不在当前桌面的（别的桌面、全屏空间、最小化）一起。
+    /// 电脑屏的资源库要分清「在这块屏、露着」和「在这块屏的全屏空间里，被资源库所在的桌面盖住」。
+    /// 问窗口服务器，不经过 App；全系统的窗口表一次拷全，不按进程分开读
+    public func spots() async -> [WindowKey: WindowSpot] {
+        let displays = Self.onlineDisplays()
+        return Self.levelZeroWindows([.optionAll, .excludeDesktopElements]).mapValues {
+            WindowSpot(frame: $0.frame, shown: $0.shown, displays: displays)
+        }
+    }
 
     /// 给在跑的 App 补上窗口：不管在哪块屏、哪个桌面空间，全屏、最小化的也算。App 和窗口都按最近用过排
     public func withWindows(_ apps: [RunningApp]) async -> [RunningApp] {
@@ -287,4 +311,14 @@ public final class WindowService: WindowControl {
 
     /// 屏上窗口从前到后的编号
     private static func frontToBack() -> [UInt32] { onScreen().map(\.id) }
+
+    /// 各块在线屏的范围（全局坐标，左上原点，和窗口服务器报的窗口位置同一个坐标系），按系统列出的顺序
+    private static func onlineDisplays() -> [(id: DisplayID, bounds: CGRect)] {
+        guard let ids = Screens.online() else {
+            // 读不到屏，资源库里的窗口全标成「不在当前桌面」：记下来，不然看着像位置没同步
+            Log.warn("资源库认不出窗口在哪块屏")
+            return []
+        }
+        return ids.map { ($0, CGDisplayBounds($0)) }
+    }
 }

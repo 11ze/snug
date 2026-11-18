@@ -29,12 +29,11 @@ struct UpdateSection: View {
     let navigation: any Navigation
 
     var body: some View {
-        Section {
+        Section("更新") {
             LabeledContent {
                 action
             } label: {
-                SettingLabel("软件更新", detail: state.update.summary, warning: state.update.problem != nil,
-                             symbol: "arrow.down", tint: .blue)
+                SettingLabel("软件更新", detail: state.update.summary, warning: state.update.problem != nil, tile: MacTokens.IconTile.update)
             }
             LabeledContent {
                 Picker("更新源", selection: Binding(get: { state.config.updateSource }, set: { intents.setUpdateSource($0) })) {
@@ -45,7 +44,7 @@ struct UpdateSection: View {
                 .fixedSize()
                 .disabled(state.update.phase != .idle)
             } label: {
-                SettingLabel("更新源", symbol: "server.rack", tint: .gray)
+                SettingLabel("更新源", tile: MacTokens.IconTile.updateSource)
             }
         }
     }

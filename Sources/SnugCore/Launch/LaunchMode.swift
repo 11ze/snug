@@ -4,23 +4,29 @@
 import Foundation
 
 public enum RenderTarget: String, CaseIterable, Equatable, Sendable {
-    case settings, welcome, about, legacy
+    /// 设置窗口三页，加添加屏幕、屏幕详情
+    case settings
+    case welcome, about, legacy
     /// 查到新版本时的更新窗口（几种状态）
     case update
-    /// 手机屏上的 App 资源库（几种状态）
-    case phone
+    /// 菜单栏菜单
+    case menu
+    /// 手机、平板屏上的 App 资源库（竖屏、横屏、平板，几种状态）
+    case screens
+    /// 电脑屏的 App 资源库窗口
+    case library
 }
 
 public enum LaunchMode: Equatable, Sendable {
     case app
-    /// 正常启动，但不等手机连上，直接加手机屏（开发自测用：没有手机也能看手机屏和上面的列表）
-    case previewPhone
+    /// 正常启动，但不等远程，直接建出开着的屏（开发自测用：没有手机也能看屏和上面的列表）
+    case previewScreens
     /// 只把界面渲染成 PNG
     case render(RenderTarget, output: URL)
     /// 打印从 UU远程 读到的控制端与屏幕
     case dumpUU
-    /// 帮手模式：把一块屏切到 target 后立即退出（手机屏换档，或把加屏、撤屏时被 macOS 拨动的屏设回去）。
-    /// 目标由主程序算好传来，帮手不读配置。主程序亲自切模式，手机屏释放时会拖 40 秒以上才下线；交给短命的子进程切就没有这个问题
+    /// 帮手模式：把一块屏切到 target 后立即退出（Snug 的屏换档，或把加屏、撤屏时被 macOS 拨动的屏设回去）。
+    /// 目标由主程序算好传来，帮手不读配置。主程序亲自切模式，Snug 的屏释放时会拖 40 秒以上才下线；交给短命的子进程切就没有这个问题
     case setMode(display: DisplayID, to: ModeTarget)
     /// 实测：按规格建几块实验屏，打印它们的模式，按 Ctrl-C 撤掉（见 ProbeScreen）
     case probeScreens([ProbeScreen])
@@ -28,12 +34,12 @@ public enum LaunchMode: Equatable, Sendable {
     public static let usage = """
     用法：Snug [模式]
       （无参数）                      正常启动
-      --preview-phone                 正常启动，不等手机连上就加手机屏（开发自测用）
+      --preview-screens               正常启动，不等远程就建出开着的屏（开发自测用）
       --render-<界面> <目录>           把界面渲染成 PNG（界面：\(RenderTarget.allCases.map(\.rawValue).joined(separator: " / "))）
       --dump-uu                       打印从 UU远程 读到的表格行、控制端与屏幕
       --probe-screens <规格> [<规格> …]  实测用：建实验屏、打印模式，按 Ctrl-C 撤掉。规格写成
                                       modes=1180x820+1000x695[,name=名字][,serial=999000001][,cap=像素宽x像素高][,pattern=off][,main=on]
-      --set-mode <屏幕编号> <宽> <高>   把手机屏换到这一档（点，2 倍）（主程序内部用）
+      --set-mode <屏幕编号> <宽> <高>   把 Snug 的屏换到这一档（点，2 倍）（主程序内部用）
       --restore-mode <屏幕编号> <模式编号> <宽> <高> <像素宽> <像素高> <刷新率> session|permanent
                                       把一块屏设回这个模式，只对本次登录或连永久配置（主程序内部用）
     """
@@ -70,8 +76,8 @@ public enum LaunchMode: Equatable, Sendable {
             return .render(target, output: URL(fileURLWithPath: try value()))
         }
         switch flag {
-        case "--preview-phone":
-            return .previewPhone
+        case "--preview-screens":
+            return .previewScreens
         case "--dump-uu":
             return .dumpUU
         case "--probe-screens":

@@ -1,4 +1,4 @@
-// 显示模式：读此刻是哪一档，以及帮手进程里真正去切（手机屏换档、把被 macOS 拨动的别的屏设回去）。
+// 显示模式：读此刻是哪一档，以及帮手进程里真正去切（Snug 的屏换档、把被 macOS 拨动的别的屏设回去）。
 // 主程序不亲自切模式：亲自切过模式的进程，这块虚拟屏释放后要拖 40 秒以上才下线（两次实测）；
 // 交给短命的帮手进程（Snug --set-mode / --restore-mode）切完就退出，释放照样 0.1 秒下线
 import CoreGraphics
@@ -60,7 +60,7 @@ public enum DisplayMode {
         }
     }
 
-    /// 帮手进程里调用：把屏切到 target。手机屏换档只对本次登录生效；设回别的屏按 target 要求，
+    /// 帮手进程里调用：把屏切到 target。Snug 的屏换档只对本次登录生效；设回别的屏按 target 要求，
     /// 连永久配置时写的是 WindowServer 的永久配置（屏幕组合一变，它会把套用来的旧模式存进去：日志「Saving configuration: session, permanent store」）
     public static func apply(_ target: ModeTarget, to id: DisplayID) -> Outcome {
         guard let mode = find(target, on: id) else { return .unavailable }

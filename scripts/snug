@@ -217,7 +217,7 @@ build_app() {
   # App 图标；界面里的其它图标都是 SF Symbols
   cp Assets/AppIcon/AppIcon.icns "$APP/Contents/Resources/"
   # 机型库：手机型号唯一的数据源（App 启动时读）
-  cp Assets/phone-models.json "$APP/Contents/Resources/"
+  cp Assets/device-models.json "$APP/Contents/Resources/"
   write_info_plist "$version" > "$APP/Contents/Info.plist"
   step "签名：$(describe_identity)"
   sign "$APP"

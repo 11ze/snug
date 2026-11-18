@@ -1,6 +1,6 @@
 # 设计
 
-Snug 界面的设计令牌和原型。多屏开工前先在这里把界面定下来（见 [docs/multi-screen.md](../docs/multi-screen.md) 第 8 节第 2 步），产品定位见 [docs/PRODUCT.md](../docs/PRODUCT.md)。
+Snug 界面的设计令牌和原型。界面以这里的原型为准，产品定位见 [docs/PRODUCT.md](../docs/PRODUCT.md)。
 
 ```
 design/
@@ -34,10 +34,13 @@ swiftc -O -o /tmp/snapshot design/prototype/snapshot.swift
 
 ## 改令牌
 
-只改 `design-tokens.json`，改完重新生成 CSS：
+只改 `design-tokens.json`，改完重新生成原型的 CSS 和 App 的 Swift 常量：
 
 ```bash
 node design/tokens-to-css.mjs
+SNUG_WRITE_TOKENS=1 swift test --filter DesignTokensTests
 ```
 
-令牌分两套：`mac` 管 Mac 上的界面，`touch` 管手机和平板屏上的面板。带 `system` 的颜色在 Swift 里用对应的系统语义色，`light` / `dark` 只给原型预览用。界面代码以后也从这份文件取值。
+令牌分两套：`mac` 管 Mac 上的界面，`touch` 管手机和平板屏上的面板。带 `system` 的颜色在 Swift 里用对应的系统语义色，`light` / `dark` 只给原型预览用。
+
+App 里的取值都来自生成的 `Sources/Snug/UI/DesignTokens.swift`（`MacTokens`、`TouchTokens`、`MotionTokens`），不手改；`DesignTokensTests` 校验它和 `design-tokens.json` 一致，忘了重新生成测试就过不了。界面改完用 `--render-<界面>` 渲染出来和原型对照（见 [docs/development.md](../docs/development.md#启动参数)）。

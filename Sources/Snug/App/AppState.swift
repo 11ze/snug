@@ -1,5 +1,5 @@
 // 发布给界面的状态。界面只读它，改动一律走意图协议（由 AppController 实现）。
-// 菜单栏、设置窗口、手机屏上的列表读的是同一份状态：任何入口改了，所有界面一起变
+// 菜单栏、设置窗口、各块屏上的面板读的是同一份状态：任何入口改了，所有界面一起变
 import CoreGraphics
 import Observation
 import SnugCore
@@ -7,7 +7,7 @@ import SnugCore
 enum ConnectionPhase: Equatable {
     case idle
     case connected
-    /// 断开了，还在重连窗口里（这段时间内再连上算同一次远程，手机屏留着）
+    /// 断开了，还在重连窗口里（这段时间内再连上算同一次远程，屏都留着）
     case reconnecting
 }
 
@@ -15,18 +15,19 @@ enum ConnectionPhase: Equatable {
 @Observable
 final class AppState {
     var config = AppConfig()
-    /// 机型库（启动时读一次）：设置和手机屏上选手机型号用
-    var phones = PhoneCatalog.empty
+    /// 机型库（启动时读一次）：设置和屏上选型号用
+    var devices = DeviceCatalog.empty
     var connection = ConnectionPhase.idle
     /// 此刻同时连着的控制端
     var controllers: [String] = []
     /// UU 此刻在推的屏
     var streamedDisplay: DisplayID?
-    var phone = PhoneDesk.State()
+    /// 各块屏上的状态（DeskSet 写）
+    var desks = DeskSet.State()
     /// 手势翻译要开却没开起来（建事件监听失败）
     var gesturesFailed = false
     var accessibilityTrusted = false
-    /// 录屏权限：手机屏上的截图要它，和辅助功能分开授权（开了截图键才去读）
+    /// 录屏权限：手机、平板屏上的截图要它，和辅助功能分开授权（开了截图键才去读）
     var screenRecordingTrusted = false
     var launchAtLogin = false
     /// 上一次打开开机启动没成
@@ -39,15 +40,32 @@ final class AppState {
     var quitting = false
     /// 应用内更新：查到了什么、进行到哪（Updater 写）
     var update = UpdateState()
-    /// 手机屏上浮着的截图界面：缩略图、裁剪或一句结果（Screenshots 写）
+    /// 屏上浮着的截图界面：缩略图、裁剪或一句结果（Screenshots 写），和它在哪块屏上
     var screenshotOverlay: ScreenshotOverlay?
+    var screenshotScreen: ScreenID?
 
     init() {}
 
-    /// UU 正在推手机屏，也就是用户此刻正在手机屏上
-    var phoneInUse: Bool {
-        guard let display = phone.display else { return false }
-        return streamedDisplay == display
+    /// 配置里的这块屏
+    func screen(_ id: ScreenID) -> ScreenConfig? { config.screens.first { $0.id == id } }
+
+    /// 这块屏上的面板看到的状态
+    func panel(_ id: ScreenID) -> PanelState {
+        PanelState(desk: desks.desks[id] ?? Desk.State(), quitting: desks.quitting, closing: desks.closing)
+    }
+
+    /// 这块显示器是哪块 Snug 屏；不是 Snug 的屏（内建屏、外接显示器）返回 nil
+    func screenID(on display: DisplayID) -> ScreenID? {
+        desks.desks.first { $0.value.display == display }?.key
+    }
+
+    /// UU 此刻在推的那块 Snug 屏，也就是用户此刻正在这块屏上
+    var watchedScreen: ScreenID? { streamedDisplay.flatMap { screenID(on: $0) } }
+
+    /// 菜单栏「App 资源库」能往哪些屏放：就绪的电脑屏，按屏幕列表的顺序。手机、平板屏有自己的面板，
+    /// Mac 样式的窗口开在它们上面也放不下
+    var libraryScreens: [ScreenID] {
+        config.screens.map(\.id).filter { id in desks.desks[id].map { $0.display != nil && !$0.behavior.touch } == true }
     }
 
     /// 只在值真的变了时才写，免得每拍都让界面重算
@@ -64,11 +82,29 @@ enum LoginItemIssue: Equatable {
     case failed
 }
 
+/// 一块屏上的面板看到的状态：这块屏自己的，加上全局的「正在退出 / 正在关闭」
+@dynamicMemberLookup
+struct PanelState: Equatable {
+    var desk: Desk.State
+    var quitting: Set<Int32> = []
+    var closing: Set<WindowKey> = []
+
+    subscript<T>(dynamicMember keyPath: KeyPath<Desk.State, T>) -> T { desk[keyPath: keyPath] }
+}
+
 /// 设置窗口、菜单栏能发起的意图。AppController 是唯一实现（渲染 PNG 时用一个什么都不做的替身）。
 /// 几个意图协议都标 Sendable：Swift 6.2 把 intents.setPhone 这种方法引用存进视图属性时要求它可跨隔离域传递
 @MainActor
 protocol AppIntents: AnyObject, Sendable {
-    func setPhoneScreen(_ on: Bool)
+    /// 屏幕列表：开关、增删、改型号、改名字（远程进行中改，只影响那一块屏，见 docs/how-it-works.md「屏幕列表」）
+    func setScreenEnabled(_ id: ScreenID, _ on: Bool)
+    func addScreen(orientation: Orientation, device: DeviceChoice, name: String)
+    func removeScreen(_ id: ScreenID)
+    /// 换型号：屏在就马上换成它的比例
+    func setScreenDevice(_ id: ScreenID, _ device: DeviceChoice)
+    func renameScreen(_ id: ScreenID, _ name: String)
+    /// 远程时设为主屏的那块；nil 不改主屏
+    func setMainScreen(_ id: ScreenID?)
     func setGestures(_ on: Bool)
     func setZoomSteps(_ steps: Int)
     func setLaunchAtLogin(_ on: Bool)
@@ -82,15 +118,13 @@ protocol AppIntents: AnyObject, Sendable {
     func setUpdateSource(_ source: UpdateSource)
     /// 自动更新走不通时，打开所选更新源的下载地址
     func openDownloadPage()
-    /// 换手机型号：手机屏在就马上换成它的比例
-    func setPhone(_ phone: PhoneChoice)
     /// 指示条上的相机键（截图）
     func setScreenshot(_ on: Bool)
 }
 
-/// 手机屏上的 App 资源库和小横条能发起的意图
+/// 一块屏上的 App 资源库和小横条能发起的意图（每块屏一份，见 ScreenIntents）
 @MainActor
-protocol PhoneIntents: AnyObject, Sendable {
+protocol TouchIntents: AnyObject, Sendable {
     func pull(_ window: WindowInfo)
     /// 点一个 App：在跑且有窗口就放最近用过的那个，否则打开它、等新窗口出来再放（见 AppList.action）
     func open(_ app: AppInfo)
@@ -103,10 +137,11 @@ protocol PhoneIntents: AnyObject, Sendable {
     func returnToPlaced()
     func putBack()
     func zoom(by delta: Int)
-    func setPhone(_ phone: PhoneChoice)
-    /// 退出手机屏：这次远程不再显示（见 PhoneDesk.dismissScreen）
+    /// 换这块屏的型号
+    func setDevice(_ device: DeviceChoice)
+    /// 退出这块屏：这次远程不再显示（见 DeskSet.dismissScreen）
     func dismissScreen()
-    /// 截铺满手机屏的窗口到剪贴板（见 Screenshots）
+    /// 截铺满这块屏的窗口到剪贴板（见 Screenshots）
     func takeScreenshot()
     func openCrop()
     func cancelCrop()
@@ -117,8 +152,11 @@ protocol PhoneIntents: AnyObject, Sendable {
 /// 打开各个窗口
 @MainActor
 protocol Navigation: AnyObject, Sendable {
-    func openSettings()
+    /// 设置、关于：从菜单栏打开时摆到点的那块屏上（display 为点的那块屏，不是从菜单栏打开的给 nil）
+    func openSettings(on display: DisplayID?)
     func openWelcome()
-    func openAbout()
+    func openAbout(on display: DisplayID?)
     func openUpdate()
+    /// 电脑屏的 App 资源库：在哪块屏的菜单栏点，就在哪块屏打开
+    func openLibrary(on display: DisplayID?)
 }

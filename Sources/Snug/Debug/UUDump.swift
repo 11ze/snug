@@ -18,7 +18,7 @@ enum UUDump {
             return 1
         }
         guard let windows = UUAccessibility.windows(pid: pid) else {
-            print("界面：读不到（UU远程 没有窗口、没响应，或界面超出遍历上限）→ 控制端按手机处理")
+            print("界面：读不到（UU远程 没有窗口、没响应，或界面超出遍历上限）")
             return 0
         }
         // 打出界面树里的文字、表格和行：没认出控制端时，看 UU 停在哪一页
@@ -26,12 +26,11 @@ enum UUDump {
         for window in windows { printTree(window, depth: 1) }
         guard case .shown(let names) = ControllerTable(windows: windows) else {
             print("控制端：未识别（只认本机被控页里「本机被控中」那张表：远程中出现这一行，多半是 UU 停在首页、错误页、别的设备的详情页，或收起了被控页；"
-                + "上面确实有本机被控页和它的表，才是认不出 UU 的界面）→ 按手机处理")
+                + "上面确实有本机被控页和它的表，才是认不出 UU 的界面）")
             return 0
         }
         print("控制端：")
-        for name in names { print("  \(name)：\(ControllerKind(name: name) == .computer ? "电脑" : "手机、平板或认不出")") }
-        print(ControllerKind.wantsPhoneScreen(names) ? "→ 有一台不是电脑，加手机屏" : "→ 全是电脑，不加")
+        for name in names { print("  \(name)") }
         return 0
     }
 
@@ -48,13 +47,9 @@ enum UUDump {
     }
 
     private static func printDisplays() {
-        var count: UInt32 = 0
-        CGGetOnlineDisplayList(0, nil, &count)
-        var ids = [CGDirectDisplayID](repeating: 0, count: Int(count))
-        CGGetOnlineDisplayList(count, &ids, &count)
         print("屏幕：")
-        for id in ids.prefix(Int(count)) {
-            let mine = CGDisplayVendorNumber(id) == PhoneScreenSpec.vendorID ? "（Snug 手机屏）" : ""
+        for id in Screens.online() ?? [] {
+            let mine = CGDisplayVendorNumber(id) == ScreenSpec.vendorID ? "（Snug 的屏）" : ""
             print("  #\(id) \(Screens.name(of: id))\(mine) \(DisplayMode.describe(id))")
         }
     }

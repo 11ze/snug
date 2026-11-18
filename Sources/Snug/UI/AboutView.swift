@@ -1,13 +1,9 @@
-// 设置窗口的「关于」页：名称、版本、软件更新、致谢与免责声明。和通用页同一套分组样式，只读 AppState，意图走 AppIntents
+// 「关于 Snug」：独立的小窗口，只放名称、版本、链接、致谢与免责声明（软件更新在设置的通用页）
 import AppKit
 import SwiftUI
 import SnugCore
 
 struct AboutView: View {
-    let state: AppState
-    let intents: any AppIntents
-    let navigation: any Navigation
-
     private struct Credit: Identifiable {
         let name, url, author, usage: String
         var id: String { name }
@@ -36,13 +32,12 @@ struct AboutView: View {
                             Text("Snug").font(.title2.bold())
                             Text(Updater.current?.description ?? "开发版").foregroundStyle(.secondary).monospacedDigit()
                         }
-                        Text("手机远程 Mac 的显示与触控增强")
+                        Text("远程 Mac 的显示与触控增强")
                         Link("github.com/zephyr4123/snug", destination: URL(string: "https://github.com/zephyr4123/snug")!)
                     }
                 }
                 .padding(.vertical, 4)
             }
-            UpdateSection(state: state, intents: intents, navigation: navigation)
             Section {
                 ForEach(credits) { c in
                     LabeledContent {
@@ -62,7 +57,24 @@ struct AboutView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: SettingsWindowController.width)
+        .frame(width: MacTokens.Size.aboutWidth)
         .fixedSize(horizontal: false, vertical: true)
+    }
+}
+
+@MainActor
+final class AboutWindowController {
+    private var window: NSWindow?
+
+    /// display：从哪块屏的菜单栏打开的（见 NSWindow.bring）
+    func show(on display: DisplayID? = nil, activating: Bool = true) {
+        if window == nil {
+            // 先定尺寸再居中（NSWindow(hosting:)），否则按 0×0 居中，窗口偏到右下
+            let w = NSWindow(hosting: AboutView(), title: "关于 Snug")
+            w.titlebarAppearsTransparent = true
+            window = w
+        }
+        window?.bring(to: display)
+        window?.present(activating: activating)
     }
 }
