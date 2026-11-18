@@ -441,6 +441,28 @@ struct DeskSetTests {
         #expect(!rig.journal.all.contains { $0.hasPrefix("arrange") })
     }
 
+    @Test("撤设成主屏的那块时摆不回去：它还是主屏，屏上剩下的窗口挪到原来的主屏上，不挪到这块马上要撤的屏上")
+    func clearsToHomeMainWhenRestoreFails() async throws {
+        let rig = try Rig()
+        let home = CGRect(x: -1512, y: 0, width: 1512, height: 982)
+        rig.displays.others[1] = ScreenMode(ioModeID: 1, width: 1512, height: 982, pixelWidth: 3024, pixelHeight: 1964, refreshRate: 120)
+        rig.displays.otherBounds[1] = home
+        var wish = rig.secondWish(computer)
+        wish.main = true
+        rig.set.setWishes([rig.desk.wish, wish])
+        await rig.set.idle()
+        rig.displays.mainOn = 102
+        let bounds = try #require(rig.displays.bounds(102))
+        let stray = WindowKey(pid: 33, id: 53)
+        rig.windows.add(stray, frame: CGRect(origin: bounds.origin, size: CGSize(width: 400, height: 300)))
+        rig.arrangement.fails = true
+        rig.timeline.advance(10)
+        rig.set.setWishes([rig.desk.wish])
+        await rig.set.idle()
+        let frame = try #require(rig.windows.window(stray)?.frame)
+        #expect(home.contains(CGPoint(x: frame.midX, y: frame.midY)))
+    }
+
     @Test("不再当主屏时摆不回去：原来的排布留着，再设主屏、再设回时摆回设主屏之前")
     func restoreFailsKeepsSavedOrigins() async throws {
         let rig = try Rig()

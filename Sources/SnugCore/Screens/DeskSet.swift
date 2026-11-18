@@ -183,11 +183,16 @@ public final class DeskSet {
     }
 
     /// 撤屏前清场（docs/multi-screen.md 3.3）：Snug 放上去的已经按账放回，屏上剩下的（用户在这块屏上直接开的、
-    /// 设主屏时跟过来的）挪到主屏，居中、大小不超过主屏。不挪的话，撤屏后它们停在所有屏的范围之外，系统不挪回来（实测）
+    /// 设主屏时跟过来的）挪到主屏，居中、大小不超过主屏。不挪的话，撤屏后它们停在所有屏的范围之外，系统不挪回来（实测）。
+    /// 设回原主屏没成功时，主屏还是要撤的这块：挪到原来的主屏上，撤掉后系统把它摆回主屏，窗口跟着走
     private func clear(_ id: ScreenID) async {
-        guard let bounds = screens.bounds(id), let main = screens.mainArea() else { return }
+        guard let bounds = screens.bounds(id), var main = screens.mainArea() else { return }
+        if main.intersects(bounds), let home = screens.homeMainArea() { main = home }
         let stranded = await windows.windows(in: bounds)
         guard !stranded.isEmpty else { return }
+        guard !main.intersects(bounds) else {
+            return Log.warn("撤屏（\(id)）前屏上还有 \(stranded.count) 个窗口，主屏就是这块、找不到原来的主屏，挪不走")
+        }
         for (key, frame) in stranded.sorted(by: { ($0.key.pid, $0.key.id) < ($1.key.pid, $1.key.id) }) {
             let target = main.centered(frame.size)
             if await windows.move(key, to: target) == nil { Log.warn("撤屏前挪不走 pid \(key.pid) 的窗口 \(key.id)（\(frame.short)）") }

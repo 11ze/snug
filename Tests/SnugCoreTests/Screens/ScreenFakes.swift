@@ -141,7 +141,9 @@ final class FakeDisplays: VirtualDisplays {
 
     /// 假主屏：左上角在原点，1512 宽，扣掉菜单栏
     nonisolated static let main = CGRect(x: 0, y: 25, width: 1512, height: 957)
-    func mainArea() -> CGRect? { Self.main }
+    /// 主屏是这块假屏（设主屏后）：可放区域在它上面
+    var mainOn: DisplayID?
+    func mainArea() -> CGRect? { mainOn.flatMap(bounds) ?? Self.main }
 
     func otherDisplays() -> [OtherDisplay] {
         others.sorted { $0.key < $1.key }.map { OtherDisplay(id: $0.key, name: "屏 \($0.key)", mode: $0.value, bounds: otherBounds[$0.key] ?? .zero, asleep: asleep.contains($0.key)) }
