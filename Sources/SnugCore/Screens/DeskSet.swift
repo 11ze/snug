@@ -166,7 +166,10 @@ public final class DeskSet {
             desks[wish.id]?.begin(.reshaping)
         }
         let reshaped = await screens.apply(target)
-        for id in desks.keys where !ids.contains(id) && screens.states[id] == nil {
+        // 收 Desk 按「此刻」要不要判断，不按开头拷下的 target：撤屏途中（清场、等最短在线时间、等系统摆好）
+        // setWishes 可能又把这块屏要了回来，它看 Desk 还在就不再建，这里删了，下一轮建出来的屏就没有 Desk
+        let wanted = Set(wishes.map(\.id))
+        for id in desks.keys where !wanted.contains(id) && screens.states[id] == nil {
             desks[id] = nil
             state.desks[id] = nil
         }

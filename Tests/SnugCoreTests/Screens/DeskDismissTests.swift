@@ -67,6 +67,23 @@ struct DeskDismissTests {
         #expect(rig.desk.state.screen == .ready(102))
     }
 
+    @Test("撤屏跑到一半又要回这块屏（关了马上又开、断线判结束后几秒内又连上）：重建出来的屏照样有 Desk")
+    func rewantedWhileRetiring() async throws {
+        let rig = try Rig()
+        await rig.ready()
+        rig.timeline.advance(10)
+        rig.desk.setWanted(false)
+        // 等撤屏真的开始（第一次撤屏的对账已经拷下「不要这块屏」的目标），再要回来
+        for _ in 0..<200 where !rig.journal.all.contains(where: { $0.hasPrefix("retire") }) { await Task.yield() }
+        #expect(rig.journal.all.contains(where: { $0.hasPrefix("retire") }))
+        rig.desk.setWanted(true)
+        await rig.desk.idle()
+        #expect(rig.desk.state.screen == .ready(102))
+        #expect(rig.set.state.desks[.phone] != nil)
+        await rig.pull(ghostty)
+        #expect(rig.desk.state.placed?.window == ghostty)
+    }
+
     @Test("没退出时同一拍里先「不要」再「要」：手机屏不撤也不重建，放着的窗口照旧")
     func falseThenTrueKeepsScreen() async throws {
         let rig = try Rig()
