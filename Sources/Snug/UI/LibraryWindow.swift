@@ -2,7 +2,7 @@
 // 电脑屏没有小横条；已经开在别的屏上的窗口不会自己过来，点程序坞只是把它在原来的屏上提到前面（V9），
 // 远端的人看不见别的屏、拖不了窗口，靠这里一键拉过来。
 // 左栏「运行中 / 全部 App」；每个窗口标出现在在哪块屏，「放到这块屏」交给这块屏的意图（电脑屏只挪过来居中，不铺满、不调字号）。
-// 数据和屏上的资源库共用 AppCatalog，窗口在哪块屏（WindowSpot）也从那里读
+// 数据和屏上的资源库共用 AppCatalog，窗口在哪块屏（WindowSpot）也从那里读；UU 在推这块屏、窗口没最小化时才要它刷新
 import AppKit
 import SnugCore
 import SnugSystem
@@ -191,7 +191,7 @@ private extension Desk.Work {
     }
 }
 
-/// 资源库窗口：一个，开在要放的那块屏上；关掉就停刷新
+/// 资源库窗口：一个，开在要放的那块屏上；从打开到关掉一直跟着那块屏
 @MainActor
 final class LibraryWindowController: NSObject, NSWindowDelegate {
     private let state: AppState
@@ -200,8 +200,8 @@ final class LibraryWindowController: NSObject, NSWindowDelegate {
     private let intents: (ScreenID) -> any PhoneIntents
     private let model = LibraryModel()
     private var window: NSWindow?
-    /// 正盯着要放的那块屏（露着时）
-    private var following = false
+    /// 每打开一次、关掉一次都换一个代号：跟踪用的观察登记触发时代号对不上就不再续，不用去猜窗口还开没开着
+    private var generation = 0
     private static let owner = "library"
 
     init(state: AppState, catalog: AppCatalog, intents: @escaping (ScreenID) -> any PhoneIntents) {
@@ -210,56 +210,88 @@ final class LibraryWindowController: NSObject, NSWindowDelegate {
         self.intents = intents
     }
 
-    /// clicked：点菜单栏图标时那块屏。是电脑屏就往它放，不然往 UU 正在推的那块电脑屏、再不然第一块就绪的电脑屏
+    /// clicked：点菜单栏图标时那块屏。是电脑屏就往它放，不然往 UU 正在推的那块电脑屏、再不然第一块就绪的电脑屏。
+    /// 一块都没有就不开：菜单项能不能点是展开那一刻算的，点下去之前远程可能刚好结束、电脑屏可能刚被关掉
     func show(on clicked: DisplayID?) {
         let ready = state.libraryScreens
-        let onClicked = ready.first { state.desks.desks[$0]?.display == clicked }
+        let onClicked = clicked.flatMap { state.screenID(on: $0) }.flatMap { ready.contains($0) ? $0 : nil }
         let watched = state.watchedScreen.flatMap { ready.contains($0) ? $0 : nil }
-        model.target = onClicked ?? watched ?? ready.first
-        if window == nil {
-            let view = LibraryView(state: state, catalog: catalog, model: model,
-                                   place: { [weak self] window in
-                                       guard let self, let target = model.target else { return }
-                                       intents(target).pull(window)
-                                   },
-                                   open: { [weak self] app in
-                                       guard let self, let target = model.target else { return }
-                                       intents(target).open(app)
-                                   })
-            let w = NSWindow(contentViewController: NSHostingController(rootView: view))
-            w.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
-            w.title = "App 资源库"
-            w.setContentSize(NSSize(width: MacTokens.Size.LibraryWindow.width, height: MacTokens.Size.LibraryWindow.height))
-            w.isReleasedWhenClosed = false
-            w.delegate = self
-            window = w
+        let name = { (id: ScreenID) in "「\(self.state.screen(id)?.name ?? id.rawValue)」" }
+        let from = clicked.map { "display \($0)" } ?? "认不出的屏"
+        guard let target = onClicked ?? watched ?? ready.first, let display = state.desks.desks[target]?.display else {
+            Log.info("App 资源库：在\(from)的菜单栏点的，没有就绪的电脑屏，不开窗口")
+            return
         }
+        Log.info("App 资源库：在\(from)的菜单栏点的，就绪的电脑屏 \(ready.map(name).joined(separator: "、"))，往\(name(target))（display \(display)）放")
+        model.target = target
+        let window = self.window ?? makeWindow()
         // 开在要放的那块屏上：远端的人看得见
-        if let display = model.target.flatMap({ state.desks.desks[$0]?.display }), let screen = Screens.screen(for: display), let window {
+        if let screen = Screens.screen(for: display) {
             let frame = window.frame
             window.setFrameOrigin(NSPoint(x: screen.visibleFrame.midX - frame.width / 2, y: screen.visibleFrame.midY - frame.height / 2))
         } else {
-            window?.center()
+            window.center()
         }
-        catalog.want(Self.owner, spots: true)
-        window?.present(activating: true)
-        if !following { followTarget() }
+        window.present(activating: true)
+        generation += 1
+        follow(generation)
     }
 
-    /// 露着时盯着要放的那块屏：它撤掉了（远程结束、关了开关），窗口会被系统挪到别的屏上，在那里用不到，跟着关掉
-    private func followTarget() {
-        guard let window, window.isVisible else { return following = false }
-        following = true
+    private func makeWindow() -> NSWindow {
+        let view = LibraryView(state: state, catalog: catalog, model: model,
+                               place: { [weak self] window in
+                                   guard let self, let target = model.target else { return }
+                                   intents(target).pull(window)
+                               },
+                               open: { [weak self] app in
+                                   guard let self, let target = model.target else { return }
+                                   intents(target).open(app)
+                               })
+        let window = NSWindow(contentViewController: NSHostingController(rootView: view))
+        window.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
+        window.title = "App 资源库"
+        window.setContentSize(NSSize(width: MacTokens.Size.LibraryWindow.width, height: MacTokens.Size.LibraryWindow.height))
+        window.isReleasedWhenClosed = false
+        window.delegate = self
+        self.window = window
+        return window
+    }
+
+    /// 从打开到关掉一直跟着要放的那块屏，最小化了也跟（见 update）
+    private func follow(_ generation: Int) {
+        guard generation == self.generation else { return }
         withObservationTracking {
-            guard let target = model.target, state.desks.desks[target]?.display == nil else { return }
-            Log.info("App 资源库要放的那块屏（\(target)）撤掉了，关掉资源库窗口")
-            DispatchQueue.main.async { window.close() }
+            update()
         } onChange: { [weak self] in
-            DispatchQueue.main.async { MainActor.assumeIsolated { self?.followTarget() } }
+            DispatchQueue.main.async { MainActor.assumeIsolated { self?.follow(generation) } }
+        }
+    }
+
+    /// 那块屏撤掉了（远程结束、关了开关）：窗口会被系统挪到别的屏上，在那里用不到，跟着关掉。
+    /// 还在就看要不要资源库的数据：UU 在推这块屏、窗口没最小化才要，不然不为它刷。
+    /// 不知道 UU 在推哪块屏（推流日志没读到）时当作在推，同屏上的面板
+    private func update() {
+        guard let target = model.target, state.desks.desks[target]?.display != nil else {
+            Log.info("App 资源库要放的那块屏（\(model.target.map { "\($0)" } ?? "没有")）撤掉了，关掉资源库窗口")
+            generation += 1
+            // 不在观察登记里关：关窗口会当场回调 windowWillClose
+            DispatchQueue.main.async { [weak self] in self?.window?.close() }
+            return
+        }
+        let watching = state.streamedDisplay == nil || state.watchedScreen == target
+        if watching, window?.isMiniaturized == false {
+            catalog.want(Self.owner, spots: true)
+        } else {
+            catalog.release(Self.owner)
         }
     }
 
     func windowWillClose(_ notification: Notification) {
+        generation += 1
         catalog.release(Self.owner)
     }
+
+    // 最小化、还原不经过 AppState，观察登记看不到，在这里补一次
+    func windowDidMiniaturize(_ notification: Notification) { update() }
+    func windowDidDeminiaturize(_ notification: Notification) { update() }
 }
