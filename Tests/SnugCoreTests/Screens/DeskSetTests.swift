@@ -245,6 +245,23 @@ struct DeskSetTests {
         #expect(RestoreRecord<ArrangementRecord>(url: rig.paths.arrangementRecord).pending() == nil)
     }
 
+    @Test("系统按这组屏幕记的排布已经把 Snug 的屏设成主屏（上次设了主屏没设回就崩了，同一次登录里再建）：账按 Snug 的屏出现前的主屏记，不再当主屏时还给它")
+    func claimsMainAlreadyMadeBySystem() async throws {
+        let rig = try Rig()
+        rig.displays.onCreate = { [unowned arrangement = rig.arrangement] in
+            arrangement.origins_ = [1: CGPoint(x: -1512, y: 0), 101: .zero]
+        }
+        var wish = rig.secondWish(computer)
+        wish.main = true
+        rig.set.setWishes([wish])
+        await rig.set.idle()
+        let record = try #require(RestoreRecord<ArrangementRecord>(url: rig.paths.arrangementRecord).pending())
+        #expect(record.origins == [1: .zero, 101: CGPoint(x: 1512, y: 0)])
+        rig.set.setWishes([rig.secondWish(computer)])
+        await rig.set.idle()
+        #expect(rig.arrangement.main == 1)
+    }
+
     @Test("屏留着、只是不再当主屏：设回原主屏，屏不撤")
     func unsetMainKeepsScreen() async throws {
         let rig = try Rig()

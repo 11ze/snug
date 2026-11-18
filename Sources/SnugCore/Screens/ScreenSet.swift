@@ -47,6 +47,8 @@ public final class ScreenSet {
     private let arrangementLedger: RestoreRecord<ArrangementRecord>
     /// 此刻被设成主屏的那块 Snug 屏
     private(set) var mainScreen: ScreenID?
+    /// Snug 的屏出现之前的主屏（建第一块屏前记下）：设主屏记账时按它算原来的排布
+    private var homeMain: DisplayID?
     /// 要的屏，按屏幕列表的顺序（建屏按这个顺序，UU 也按建屏顺序列出）
     private var wishes: [ScreenWish] = []
     private var live: [ScreenID: (display: DisplayID, bornAt: TimeInterval)] = [:]
@@ -105,6 +107,7 @@ public final class ScreenSet {
             retiring = nil
             Log.warn("撤掉的屏 \(old.displays.map { "#\($0)" }.joined(separator: "、")) 还没下线就又要加屏，不再等：它们下线时被挪动的窗口、被拨动的屏不会按撤屏前的样子放回")
         }
+        if live.isEmpty, !create.isEmpty { homeMain = arrangement.origins().first { $0.value == .zero }?.key }
         var before = await surroundings(before: change)
         onTopologyChange?()
 
@@ -285,7 +288,12 @@ public final class ScreenSet {
     /// 要设为主屏的那块建好了、还不是主屏：记下各屏的原点，再设。原主屏上的窗口跟着主屏搬过去（V11），不放回
     private func claimMain() async {
         guard mainScreen == nil, let wish = wishes.first(where: \.main), let display = live[wish.id]?.display else { return }
-        let before = arrangement.origins()
+        var before = arrangement.origins()
+        // 系统按这组屏幕记的排布已经把某块 Snug 屏设成了主屏（上次设了主屏没设回就退出了，同一次登录里再建这几块屏，11-17 实测）：
+        // 按 Snug 的屏出现前的主屏换算原来的排布，不然不再当主屏时摆回的还是这个样子
+        if let home = homeMain, let shift = before[home], shift != .zero {
+            before = before.mapValues { CGPoint(x: $0.x - shift.x, y: $0.y - shift.y) }
+        }
         do {
             // 已有没销的账（上次没设回）就留着最早的那份：那才是用户自己的排布
             if arrangementLedger.pending() == nil { try arrangementLedger.record(ArrangementRecord(origins: before)) }
