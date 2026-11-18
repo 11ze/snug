@@ -21,7 +21,7 @@ struct AddScreenSheet: View {
     private var chosen: DeviceChoice {
         if let device, device.kind == kind { return device }
         if kind == DeviceChoice.standard.kind { return state.devices.resolve(.standard) }
-        if let first = state.devices.brands(kind).first?.models.first { return DeviceChoice(first) }
+        if let first = state.devices.brands(in: [kind]).first?.models.first { return DeviceChoice(first) }
         return DeviceChoice(model: nil, screen: DeviceChoice.standard.screen, kind: kind)
     }
 
@@ -206,7 +206,7 @@ struct DeviceMenu: View {
     @State private var customizing = false
 
     var body: some View {
-        let brands = state.devices.search("", in: kinds)
+        let brands = state.devices.brands(in: kinds)
         Menu(current.customScreen.map { "\(current.displayName) \($0.sizeText)" } ?? current.displayName) {
             ForEach(brands) { brand in
                 Menu(brand.label(mixed: kinds.count > 1)) {

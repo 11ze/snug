@@ -41,7 +41,7 @@ struct DeviceCatalogTests {
         #expect(c.model(id: "华为 Mate 70 Pro")?.screen.points == nil)
         #expect(c.model(id: "Apple iPad（A16）")?.kind == .tablet)
         #expect(c.model(id: "Apple MacBook Air 13 英寸（M4）")?.screen.notch == 33)
-        #expect(c.brands(.computer).map(\.name) == ["Apple"])
+        #expect(c.brands(in: [.computer]).map(\.name) == ["Apple"])
         // 只有手机一段的也行
         #expect(try catalog(#"{"phone":[{"name":"A","models":[{"name":"X","screen":[1080,2400]}]}]}"#).models.count == 1)
     }
@@ -99,10 +99,10 @@ struct DeviceCatalogTests {
     @Test("随 App 发的机型库：读得出来，三类都有；#20 要的摩托罗拉、联想系都在")
     func bundledLoads() throws {
         let c = try DeviceCatalog(contentsOf: Self.bundled)
-        #expect(c.brands(.phone).count >= 10)
-        #expect(c.brands(.phone).flatMap(\.models).count >= 100)
-        #expect(c.brands(.tablet).flatMap(\.models).count >= 20)
-        #expect(c.brands(.computer).flatMap(\.models).count >= 10)
+        #expect(c.brands(in: [.phone]).count >= 10)
+        #expect(c.brands(in: [.phone]).flatMap(\.models).count >= 100)
+        #expect(c.brands(in: [.tablet]).flatMap(\.models).count >= 20)
+        #expect(c.brands(in: [.computer]).flatMap(\.models).count >= 10)
         #expect(!c.search("motorola", in: [.phone]).isEmpty)
         #expect(!c.search("拯救者", in: [.phone]).isEmpty)
         #expect(!c.search("拯救者", in: [.tablet]).isEmpty)
@@ -112,7 +112,7 @@ struct DeviceCatalogTests {
     func bundledTabletsOnlyInTabletSection() throws {
         let c = try DeviceCatalog(contentsOf: Self.bundled)
         let tabletWords = ["iPad", "Pad", "Tab", "平板"]
-        for model in c.brands(.phone).flatMap(\.models) {
+        for model in c.brands(in: [.phone]).flatMap(\.models) {
             #expect(!tabletWords.contains { model.name.contains($0) }, "\(model.id)")
         }
         #expect(c.search("ipad", in: [.tablet]).flatMap(\.models).count >= 20)

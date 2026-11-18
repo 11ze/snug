@@ -62,7 +62,8 @@ public struct DeviceCatalog: Equatable, Sendable {
 
     public var models: [DeviceModel] { brands.flatMap(\.models) }
 
-    public func brands(_ kind: DeviceKind) -> [Brand] { brands.filter { $0.kind == kind } }
+    /// 这几类的品牌，按机型库里的顺序
+    public func brands(in kinds: Set<DeviceKind>) -> [Brand] { brands.filter { kinds.contains($0.kind) } }
 
     public func model(id: String) -> DeviceModel? {
         models.first { $0.id == id }
@@ -78,7 +79,7 @@ public struct DeviceCatalog: Equatable, Sendable {
     /// kinds 给了就只在这几类里找
     public func search(_ query: String, in kinds: Set<DeviceKind> = Set(DeviceKind.allCases)) -> [Brand] {
         let q = Self.normalized(query)
-        let pool = brands.filter { kinds.contains($0.kind) }
+        let pool = brands(in: kinds)
         guard !q.isEmpty else { return pool }
         return pool.compactMap { brand in
             let names = ([brand.name] + brand.aliases).map(Self.normalized)

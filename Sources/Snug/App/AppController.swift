@@ -73,7 +73,7 @@ final class AppController: Sendable {
         }
         do {
             let devices = try DeviceCatalog(contentsOf: url)
-            let counts = DeviceKind.allCases.map { kind in "\(kind.rawValue) \(devices.brands(kind).flatMap(\.models).count)" }
+            let counts = DeviceKind.allCases.map { kind in "\(kind.rawValue) \(devices.brands(in: [kind]).flatMap(\.models).count)" }
             Log.info("机型库：\(devices.brands.count) 段品牌、\(devices.models.count) 款机型（\(counts.joined(separator: "、"))）")
             return devices
         } catch {
