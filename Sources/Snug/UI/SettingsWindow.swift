@@ -29,7 +29,7 @@ struct ScreensPage: View {
             Section {
                 ForEach(state.config.screens) { screen in
                     ScreenRow(screen: screen, watching: state.watchedScreen == screen.id,
-                              enabled: Binding(get: { state.screen(screen.id)?.enabled ?? false }, set: { intents.setScreenEnabled(screen.id, $0) }),
+                              enabled: Binding(get: { screen.enabled }, set: { intents.setScreenEnabled(screen.id, $0) }),
                               details: { sheet = .detail(screen.id) })
                 }
                 if state.config.screens.isEmpty {
