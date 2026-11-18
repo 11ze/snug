@@ -117,7 +117,10 @@ struct PhoneHomeView: View {
                     LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
                         header.id(Self.top)
                         SwiftUI.Section {
-                            page.padding(.horizontal, TouchTokens.Space.margin).padding(.top, TouchTokens.Space.xs).padding(.bottom, TouchTokens.Space.xxl)
+                            page
+                                .padding(.horizontal, TouchTokens.Space.margin)
+                                .padding(.top, TouchTokens.Space.xs)
+                                .padding(.bottom, TouchTokens.Space.xxl)
                         } header: {
                             TabPicker(selection: $tab)
                                 .padding(.horizontal, TouchTokens.Space.margin)
