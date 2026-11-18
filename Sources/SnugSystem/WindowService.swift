@@ -166,18 +166,28 @@ public final class WindowService: WindowControl {
         return Self.onScreenFrames().filter { $0.key.pid != me && area.contains(CGPoint(x: $0.value.midX, y: $0.value.midY)) }
     }
 
+    /// 这个进程的普通窗口，连不在当前桌面的（别的桌面、全屏空间、最小化）一起：位置，和此刻露不露在屏上。
+    /// 电脑屏的资源库要分清「在这块屏、露着」和「在这块屏的全屏空间里，被资源库所在的桌面盖住」
+    public func framesInAllSpaces(of pid: Int32) async -> [WindowKey: (frame: CGRect, shown: Bool)] {
+        Self.levelZeroWindows([.optionAll, .excludeDesktopElements]).filter { $0.key.pid == pid }
+    }
+
     /// 屏上普通窗口（第 0 层）此刻的位置，问窗口服务器
     private static func onScreenFrames() -> [WindowKey: CGRect] {
-        let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]]
-        var frames: [WindowKey: CGRect] = [:]
+        levelZeroWindows([.optionOnScreenOnly, .excludeDesktopElements]).mapValues(\.frame)
+    }
+
+    private static func levelZeroWindows(_ options: CGWindowListOption) -> [WindowKey: (frame: CGRect, shown: Bool)] {
+        let list = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]]
+        var windows: [WindowKey: (frame: CGRect, shown: Bool)] = [:]
         for info in list ?? [] where (info[kCGWindowLayer as String] as? NSNumber)?.intValue == 0 {
             guard let pid = (info[kCGWindowOwnerPID as String] as? NSNumber)?.int32Value,
                   let id = (info[kCGWindowNumber as String] as? NSNumber)?.uint32Value,
                   let bounds = info[kCGWindowBounds as String] as? NSDictionary,
                   let frame = CGRect(dictionaryRepresentation: bounds as CFDictionary) else { continue }
-            frames[WindowKey(pid: pid, id: id)] = frame
+            windows[WindowKey(pid: pid, id: id)] = (frame, (info[kCGWindowIsOnscreen as String] as? NSNumber)?.boolValue == true)
         }
-        return frames
+        return windows
     }
 
     public func closeButton(_ window: WindowKey) async -> CGRect? {
