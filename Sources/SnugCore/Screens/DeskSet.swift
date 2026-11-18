@@ -543,37 +543,11 @@ public final class DeskSet {
     /// 2.5 及以前的还原账先挪成那块手机屏的账
     public func recover() {
         lane.run {
-            self.migrateLegacyRecord()
-            for id in self.recordedScreens() {
+            let records = PlacedRecords(paths: self.env.paths)
+            records.migrateLegacy()
+            for id in records.screens() {
                 await (self.desks[id] ?? Desk(id: id, behavior: .touchScreen, env: self.env)).putBackLeftover()
             }
-        }
-    }
-
-    /// 手机屏已经有账（新版留了没放回的、降级回 2.5 又崩了一次）时，旧账单独存一份，和别的屏的账一样还，一笔不丢
-    private static let legacyScreen = ScreenID("phone-2.5")
-
-    private func migrateLegacyRecord() {
-        let fm = FileManager.default
-        let legacy = env.paths.legacyPlacedRecord
-        guard fm.fileExists(atPath: legacy.path) else { return }
-        let phone = env.paths.placedRecord(for: .phone)
-        let target = fm.fileExists(atPath: phone.path) ? env.paths.placedRecord(for: Self.legacyScreen) : phone
-        do {
-            try fm.createDirectory(at: env.paths.placedRecords, withIntermediateDirectories: true)
-            try fm.moveItem(at: legacy, to: target)
-            Log.info("旧版的还原账 phone-screen.json 挪成 placed/\(target.lastPathComponent)\(target == phone ? "" : "（手机屏已经有账，单独存一份一起还）")")
-        } catch {
-            Log.error("旧版的还原账挪不过去（\(legacy.path) → \(target.lastPathComponent)），留在原处下次再挪：\(error)")
-        }
-    }
-
-    /// 有还原账的屏（placed/ 下的 <屏 id>.json；隔离起来的坏文件不算）
-    private func recordedScreens() -> [ScreenID] {
-        let names = (try? FileManager.default.contentsOfDirectory(atPath: env.paths.placedRecords.path)) ?? []
-        return names.sorted().compactMap { name in
-            guard name.hasSuffix(".json"), !name.contains(".corrupt-") else { return nil }
-            return ScreenID(String(name.dropLast(".json".count)))
         }
     }
 
@@ -594,7 +568,7 @@ public final class DeskSet {
         await env.leftBehind.repayAppWideZoom()
         // 各屏还放着的、还原账上还欠着的窗口（放回时 App 卡住）归那本账还，别被别的账认走。
         // 屏撤了账还在（远程结束时 App 卡着）：按 placed/ 下的账算，不只看还在的屏
-        let owed = recordedScreens().compactMap { RestoreRecord<PlacedRecord>(url: env.paths.placedRecord(for: $0)).pending()?.window }
+        let owed = PlacedRecords(paths: env.paths).screens().compactMap { RestoreRecord<PlacedRecord>(url: env.paths.placedRecord(for: $0)).pending()?.window }
         let skip = Set(desks.values.compactMap(\.placedWindow) + owed)
         guard let back = await env.leftBehind.nextReturn(skip: skip) else { return }
         let center = CGPoint(x: back.frame.midX, y: back.frame.midY)
