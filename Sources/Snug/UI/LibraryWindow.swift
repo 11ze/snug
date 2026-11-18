@@ -280,7 +280,8 @@ final class LibraryWindowController: NSObject, NSWindowDelegate {
         }
         let watching = state.streamedDisplay == nil || state.watchedScreen == target
         if watching, window?.isMiniaturized == false {
-            catalog.want(Self.owner, spots: true)
+            // 这块屏正在放窗口、打开 App：同屏上的面板，这时不为它刷（和搬窗口排同一条队）
+            catalog.want(Self.owner, busy: state.desks.desks[target]?.work != nil, spots: true)
         } else {
             catalog.release(Self.owner)
         }
