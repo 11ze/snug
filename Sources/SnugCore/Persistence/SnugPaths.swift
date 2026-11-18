@@ -23,6 +23,11 @@ public struct SnugPaths: Equatable, Sendable {
     /// 每块屏一份还原账（placed/<屏 id>.json）：窗口放上去之前写，放回原位才删；崩溃后下次启动按它还原
     public var placedRecords: URL { dataDirectory.appendingPathComponent("placed", isDirectory: true) }
     public func placedRecord(for screen: ScreenID) -> URL { placedRecords.appendingPathComponent("\(screen.rawValue).json") }
+    /// 电脑屏上挪过来的窗口一个一份（placed/<屏 id>~<pid>-<窗口号>.json）：和触屏的账同一个目录、同一种格式，
+    /// 启动时按「目录里一个文件一笔账」逐笔还原（DeskSet.recover），降级回不认识它的版本也照样还
+    public func broughtRecord(for screen: ScreenID, window: WindowKey) -> URL {
+        placedRecord(for: ScreenID("\(screen.rawValue)~\(window.pid)-\(window.id)"))
+    }
     /// 2.5 及以前只有一块手机屏时的还原账。启动时还在就挪成那块屏的账（placed/phone.json），按它还原
     public var legacyPlacedRecord: URL { file("phone-screen.json") }
     /// 每个 App 在手机、平板屏上记住的字号级数

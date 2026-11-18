@@ -1,8 +1,8 @@
 // 一块屏上的事，每块屏一个：放着哪个窗口、App 资源库露没露、正在做什么、有什么提示，都是这块屏自己的。
 // 窗口怎么放上来、放回去，字号怎么改，屏用哪一档（ScreenFit）：手机、平板屏上窗口铺满、宽度跟着屏上显示的东西走，
-// 露着列表是基准宽度，放着窗口是那个窗口要的一档；电脑屏上窗口只挪过来居中，不铺满、不调字号、不换档。
+// 露着列表是基准宽度，放着窗口是那个窗口要的一档；电脑屏上窗口只挪过来居中，不铺满、不调字号、不换档，可以挪过来好几个。
 // 不建屏、不撤屏；换档经 ScreenSet。
-// 隔离：只动放上来的那一个窗口。每一处改动先记账（这块屏自己的还原账）再动手，还原成功才销账；
+// 隔离：只动放上来的窗口。每一处改动先记账再动手，还原成功才销账（触屏一块屏一份账，电脑屏挪过来的窗口一个一份）；
 // 没销的账（Snug 崩溃、App 卡住没放成）在下次启动（DeskSet.recover）、或下次在这块屏上放窗口之前按账还原，
 // 不会被新的记录盖掉。窗口在 Snug 之外没了，账转成留下的账（LeftBehind），它带着屏上的大小回来时再还。
 // 方法都在 DeskSet 的队里调用，一个做完再做下一个
@@ -17,6 +17,8 @@ public final class Desk {
         public var behavior = ScreenBehavior.touchScreen
         /// 屏上的窗口
         public var placed: Placed?
+        /// 电脑屏上 Snug 挪过来、还记着原处的窗口：资源库里可以一键还原
+        public var brought: Set<WindowKey> = []
         /// 屏上露着 App 资源库。没放窗口时总是露着
         public var listVisible = true
         /// 正在做的事，做完回到 nil
@@ -106,6 +108,10 @@ public final class Desk {
     private var windows: any WindowControl { env.windows }
     private var timeline: any Timeline { env.timeline }
     private let ledger: RestoreRecord<PlacedRecord>
+    /// 电脑屏上 Snug 挪过来的窗口和它们的账（一个窗口一份，见 SnugPaths.broughtRecord）
+    private var brought: [WindowKey: PlacedRecord] = [:] {
+        didSet { state.brought = Set(brought.keys) }
+    }
     private var placement: Placement? {
         didSet {
             state.placed = placement.map { Placed(window: $0.window, zoom: $0.record.zoom) }
@@ -216,7 +222,7 @@ public final class Desk {
     /// zoom 为 false：放的是在问用户的窗口（对话框、挂着 sheet 的文档），不调字号，按键会被对话框挡下。
     /// handover：从别的屏转过来（见 DeskSet.pull）
     func place(_ window: WindowInfo, zoom: Bool = true, from handover: Handover? = nil) async {
-        guard behavior.touch else { return await bring(window) }
+        guard behavior.touch else { return await bring(window, from: handover) }
         let started = timeline.now
         guard let display = readyDisplay(for: "放 \(window.label)") else {
             state.notice = .screenNotReady
@@ -313,20 +319,54 @@ public final class Desk {
         return got
     }
 
-    /// 电脑屏：把窗口挪到这块屏上居中，大小不超过这块屏。不铺满、不调字号、不记账：大小没改，远端的人自己拖得回去
-    private func bring(_ window: WindowInfo) async {
+    /// 电脑屏：把窗口挪到这块屏上居中，大小不超过这块屏；不铺满、不调字号。先记账再动手：远端的人看不见别的屏、拖不回去，
+    /// 靠资源库里的「还原」放回原处，撤屏、崩溃后也按账放回。还记着原处的（挪过来后又最小化、进了全屏）接着用原来那份，
+    /// 从别的屏转过来的用跟过来的那份；挪不过来就按账放回
+    private func bring(_ window: WindowInfo, from handover: Handover?) async {
         guard let area = screens.windowArea(id, withHomeBar: false) else { return state.notice = .screenNotReady }
         guard var look = await windows.look(window.key) else { return state.notice = await env.unreachable(window) }
+        let kept = handover?.record ?? brought[window.key]
+        var record = kept ?? PlacedRecord(
+            window: window.key, app: window.app, label: window.label, original: env.originalFrame(look.frame),
+            wasFullScreen: look.fullScreen, wasMinimized: look.minimized, bundleID: window.bundleID, title: window.title)
+        guard write(record) else { return state.notice = .recordUnwritable }
+        handover?.release()
+        brought[window.key] = record
         if look.minimized { await windows.setMinimized(window.key, false) }
         if look.fullScreen {
             await windows.setFullScreen(window.key, false)
             look = await windows.look(window.key) ?? look
+            // 退出全屏后的位置才是它平时的位置：放回时回到这里再进全屏
+            if kept == nil {
+                record.original = env.originalFrame(look.frame)
+                write(record)
+                brought[window.key] = record
+            }
         }
         guard let got = await windows.move(window.key, to: area.centered(look.frame.size)) else {
-            return state.notice = await env.unreachable(window)
+            let notice = await env.unreachable(window)
+            Log.warn("\(window.label) 挪不到屏（\(id)）上（\(Self.reason(notice, gone: "刚关了"))），按账放回")
+            brought[window.key] = await putBack(record)
+            return state.notice = notice
         }
         await windows.focus(window.key)
-        Log.info("\(window.label) 挪到屏（\(id)）：\(got.short)")
+        Log.info("\(window.label) 挪到屏（\(id)）：原位 \(record.original.short)，现在 \(got.short)")
+    }
+
+    /// 电脑屏上这个窗口的账：转到别的屏时跟着走
+    func broughtRecord(of window: WindowKey) -> PlacedRecord? { brought[window] }
+
+    /// 电脑屏上的这个窗口不归这块屏管了（转到了别的屏、在 Snug 之外关了、被用户挪走了）：销掉它的账，不动窗口
+    func release(_ window: WindowKey) {
+        guard brought.removeValue(forKey: window) != nil else { return }
+        settleRecord(ledger(for: window))
+    }
+
+    /// 电脑屏资源库里的「还原」：按账放回原处。放不回去（App 卡住）就留在屏上、账留着，提示一下，可以再点
+    func putBackBrought(_ window: WindowKey) async {
+        guard let record = brought[window] else { return }
+        brought[window] = await putBack(record)
+        if let left = brought[window] { state.notice = .windowUnresponsive(app: left.app) }
     }
 
     /// 把屏上的窗口交出去（接手的屏写下账的那一刻，见 Handover）：不还原，露出列表；这边的账等 transferred 再销
@@ -460,10 +500,16 @@ public final class Desk {
         await matchWidth()
     }
 
-    /// 屏要撤了：放回窗口，屏上不再算有窗口；放不回去的留着还原记录，下次放窗口或下次启动再放
+    /// 屏要撤了：放回窗口，屏上不再算有窗口；放不回去的留着还原记录，下次放窗口或下次启动再放。
+    /// 电脑屏上挪过来的还记着账的都放回（关了的 putBack 自己销账）。这时不按位置判断是不是被用户挪走了：
+    /// 撤之前先设回原主屏，系统会把新主屏上的窗口整体搬回原主屏，看上去像挪走了；用户自己挪走的，定期核对时已经销了
     func vacate() async {
         if let p = placement { await putBack(p.record) }
         placement = nil
+        for key in brought.keys.sorted(by: Self.order) {
+            if let record = brought[key] { await putBack(record) }
+        }
+        brought = [:]
         state.listVisible = true
         state.notice = nil
     }
@@ -491,7 +537,7 @@ public final class Desk {
         } else if restoringState, record.wasMinimized {
             await windows.setMinimized(record.window, true)
         }
-        settleRecord()
+        settleRecord(ledger(for: record.window))
         if got.matches(target) {
             let restored = !restoringState ? "" : record.wasFullScreen ? "并恢复全屏" : record.wasMinimized ? "并最小化" : ""
             Log.info("\(record.label) 已放回原位\(restored)\(zoom != 0 ? "，字号缩回 \(zoom) 级" : "")")
@@ -529,19 +575,21 @@ public final class Desk {
     /// 窗口在 Snug 之外没了：账不销，转成留下的账（见 LeftBehindLedger.add）。
     /// 先记下留下的账再销这块屏的账：中途崩溃最多多一笔账，不会丢账
     private func leaveBehind(_ record: PlacedRecord) async {
-        if let notice = await env.leftBehind.add(record) { state.notice = notice }
-        settleRecord()
+        // 没铺过、没调过字号（电脑屏挪过来的、还没铺上就没了的）：App 存下的就是原来的样子，没有要还的，直接销账
+        if record.filled != nil || record.zoom != 0, let notice = await env.leftBehind.add(record) { state.notice = notice }
+        settleRecord(ledger(for: record.window))
     }
 
     // MARK: 核对
 
-    /// 要不要核对：放着窗口、没在做别的
-    var needsVerify: Bool { placement != nil && state.work == nil }
+    /// 要不要核对：放着窗口（电脑屏是挪过来的还记着账）、没在做别的
+    var needsVerify: Bool { (placement != nil || !brought.isEmpty) && state.work == nil }
 
     /// 定期核对（DeskSet 排进队里调）：屏上的窗口被关掉了，就回到 App 资源库。只认窗口服务器的结论：App 一时没响应不算关了。
     /// 窗口还在却不在屏上（被最小化、App 被隐藏、关成了隐藏），屏上只剩空桌面：也回到列表，
     /// 但它照旧算放着、还原记录留着，可以返回它、还原或换一个
     func verify() async {
+        guard behavior.touch else { return await verifyBrought() }
         guard let p = placement else { return }
         guard await windows.exists(p.window.key) else {
             Log.info("屏上的 \(p.window.label) 在 Snug 之外关了，回到 App 资源库")
@@ -556,6 +604,24 @@ public final class Desk {
             Log.info("屏上的 \(p.window.label) 不在屏上了（最小化、隐藏或关成了隐藏），回到 App 资源库")
             state.listVisible = true
             await matchWidth()
+        }
+    }
+
+    /// 电脑屏：挪过来的窗口在 Snug 之外关了、或被挪去了别的屏，销掉它的账。关了没有要还的（大小没改、字号没调），
+    /// 挪走了是用户自己安排好了，不再拽回来。最小化的照旧算在这块屏上；读不到位置（App 一时没响应）的先不动
+    private func verifyBrought() async {
+        guard !brought.isEmpty, let bounds = screens.bounds(id) else { return }
+        for key in brought.keys.sorted(by: Self.order) {
+            guard let record = brought[key] else { continue }
+            guard await windows.exists(key) else {
+                Log.info("电脑屏上的 \(record.label) 在 Snug 之外关了，不再记着原处")
+                release(key)
+                continue
+            }
+            guard let look = await windows.look(key), !look.minimized,
+                  !bounds.contains(CGPoint(x: look.frame.midX, y: look.frame.midY)) else { continue }
+            Log.info("电脑屏上的 \(record.label) 被挪去了别的屏（\(look.frame.short)），不再拽回来")
+            release(key)
         }
     }
 
@@ -657,10 +723,18 @@ public final class Desk {
         if case .windowGone = notice { gone } else { "App 没响应或没有辅助功能权限" }
     }
 
+    /// 这笔账记在哪：触屏一块屏一份，电脑屏挪过来的窗口一个一份
+    private func ledger(for window: WindowKey) -> RestoreRecord<PlacedRecord> {
+        behavior.touch ? ledger : RestoreRecord(url: env.paths.broughtRecord(for: id, window: window))
+    }
+
+    /// 挪过来的几个窗口按固定的顺序处理，日志和测试都好对
+    private static func order(_ a: WindowKey, _ b: WindowKey) -> Bool { (a.pid, a.id) < (b.pid, b.id) }
+
     @discardableResult
     func write(_ record: PlacedRecord) -> Bool {
         do {
-            try ledger.record(record)
+            try ledger(for: record.window).record(record)
             return true
         } catch {
             Log.error("还原记录写不进去（\(record.label)）：\(error)")
@@ -668,9 +742,9 @@ public final class Desk {
         }
     }
 
-    private func settleRecord() {
+    private func settleRecord(_ ledger: RestoreRecord<PlacedRecord>? = nil) {
         do {
-            try ledger.settle()
+            try (ledger ?? self.ledger).settle()
         } catch {
             // 删不掉的记录下次启动会再还原一次：窗口已经在原位，再挪一次也是原位
             Log.error("还原记录删不掉：\(error)")

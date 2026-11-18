@@ -136,6 +136,8 @@ protocol TouchIntents: AnyObject, Sendable {
     func showList()
     func returnToPlaced()
     func putBack()
+    /// 电脑屏资源库里的「还原」：把 Snug 挪过来的这个窗口放回原处
+    func putBack(_ window: WindowKey)
     func zoom(by delta: Int)
     /// 换这块屏的型号
     func setDevice(_ device: DeviceChoice)

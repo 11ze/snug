@@ -207,6 +207,7 @@ final class ScreenIntents: TouchIntents {
     func showList() { desks.showList(on: id) }
     func returnToPlaced() { desks.returnToPlaced(on: id) }
     func putBack() { desks.putBack(on: id) }
+    func putBack(_ window: WindowKey) { desks.putBack(window, on: id) }
     func zoom(by delta: Int) { desks.zoom(by: delta, on: id) }
     func setDevice(_ device: DeviceChoice) { app.setScreenDevice(id, device) }
     func dismissScreen() { desks.dismissScreen(id) }
