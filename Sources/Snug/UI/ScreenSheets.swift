@@ -14,12 +14,14 @@ struct AddScreenSheet: View {
     @State private var orientation = Orientation.portrait
     @State private var device: DeviceChoice?
     @State private var name = ""
-    /// 用户自己改过名字：之后换型号、方向不再覆盖
+    /// 用户自己改过名字（和建议的不一样）：之后换型号、方向不再覆盖。文本框拿到焦点时会原样写回一次，不能一写就算改过
     @State private var named = false
 
-    /// 这一类第一台（机型库里新的在前）；机型库读不出来就用默认的那台换成这一类
+    /// 手机默认和新装时那块屏一样（机型库里排第一的是折叠屏的内屏，当默认不合适）；平板、电脑是这一类第一台（新的在前）；
+    /// 机型库读不出来就用默认的那台换成这一类
     private var chosen: DeviceChoice {
         if let device, device.kind == kind { return device }
+        if kind == .phone { return state.devices.resolve(.standard) }
         if let first = state.devices.brands(kind).first?.models.first { return DeviceChoice(first) }
         return DeviceChoice(model: nil, screen: DeviceChoice.standard.screen, kind: kind)
     }
@@ -56,7 +58,7 @@ struct AddScreenSheet: View {
                         DeviceMenu(state: state, kinds: [kind], current: chosen) { device = $0 }
                     }
                     LabeledContent {
-                        TextField("名字", text: Binding(get: { name }, set: { name = $0; named = true }), prompt: Text(suggested))
+                        TextField("名字", text: Binding(get: { name }, set: { name = $0; named = $0 != suggested }), prompt: Text(suggested))
                             .labelsHidden()
                             .textFieldStyle(.roundedBorder)
                             .multilineTextAlignment(.leading)
