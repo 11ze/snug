@@ -97,7 +97,7 @@ The home page of the phone screen (「App 资源库」), for managing your Mac's
 | Close a window | Tap the close button next to the window, then tap again to confirm |
 | Quit an app | Tap "Quit" on the app's card, then tap again to confirm; if it hasn't quit after 10 seconds, you can force quit it |
 | Save unsaved changes | The save prompt that appears when closing or quitting shows up on the phone screen, so you can answer it there |
-| Exit the phone screen | Tap "Exit Phone Screen" at the top right, then tap again to confirm; windows return to where they were and the phone screen is removed for the rest of this session. It comes back next session (reconnecting within 15 seconds of disconnecting still counts as this session) |
+| Exit this screen | Tap "Exit This Screen" at the top right, then tap again to confirm; windows return to where they were and this screen is removed for the rest of this session. It comes back next session (reconnecting within 15 seconds of disconnecting still counts as this session) |
 
 ## 📐 Fits Every App and Phone
 
