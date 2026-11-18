@@ -61,9 +61,8 @@ public struct ScreenConfig: Codable, Equatable, Sendable, Identifiable {
             case .computer: "Snug 电脑"
             }
         }
-        // 每类设备默认的方向不加后缀：手机竖、平板和电脑横
-        let usual: Orientation = device.kind == .phone ? .portrait : .landscape
-        guard orientation != usual else { return base }
+        // 这类设备平常的方向不加后缀
+        guard orientation != device.kind.usualOrientation else { return base }
         return base + (orientation == .portrait ? " 竖屏" : " 横屏")
     }
 }
