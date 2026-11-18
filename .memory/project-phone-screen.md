@@ -34,6 +34,14 @@ metadata:
 - 手动打开会弹设置窗口（「通用」），用辅助功能点它的关闭按钮：`click (first button of window "通用" whose subrole is "AXCloseButton")`
 - 主人可能正在用这台 Mac：别抢焦点（放窗口会激活那个 App），别切主屏的桌面空间（比如把窗口设成全屏）；写字用辅助功能设值或 `CGEvent.postToPid`，别发全局键盘事件。别的桌面空间（含主人的全屏空间）里的窗口辅助功能列不出来，要用远程令牌找。手机屏面板上的按钮用 `AXPress` 按，搜索框例外：按了面板拿不到键盘（手机上 UU 发的是真实点击，不受影响）
 
+**多屏自测的门道（11-17 晚）**
+- 测试版用 `env -i HOME=… PATH=/usr/bin:/bin /usr/bin/open -n -g build/Snug.app --args --preview-screens` 起：经 LaunchServices，辅助功能、录屏都按 Snug 自己的授权算，`env -i` 让 open 没有环境变量可传。屏幕列表直接写 config.json（新格式）再起，比在界面上点快
+- 草稿区 `selftest/` 下有小工具：`disp`（各屏原点、模式、序列号）、`ax`（界面树、按钮、设值；窗口用 `@横坐标` 选，窗口顺序跟着焦点变；`=文字` 精确匹配，`文字#n` 取第 n 个）、`click`（全局坐标点一下）、`arrange`（手动摆屏，兜底）
+- SwiftUI 设置页里的开关按 AXPress 没反应，要先把窗口提到前面再用 `click` 点；面板、菜单项、弹出菜单、表单按钮 AXPress 都行
+- 菜单栏图标会跟到点它的那块屏的菜单栏上（状态栏窗口换屏），在电脑屏的菜单栏点「App 资源库」就开在电脑屏
+- 每个新身份第一次上线都多一份 ICC（失败换备用身份的也算），测完列给主人清
+- 注意别把自己的终端窗口放上屏：撤屏后它不会回到原屏
+
 **ColorSync**：手机屏只用 3 个固定身份（`PhoneScreenSpec.serials`），实验屏用测试身份 serial 999_000_001，以后实验接着用它，不再产生新 ICC。colorsyncd 占 CPU 时，先数 `/Library/ColorSync/Profiles/Displays/` 下的 `Snug 手机屏-*` 有没有变多（变多说明固定身份失效）。删 `.icc` 只给清单和命令，由主人自己 sudo（11-14 已清到只剩当前身份的 `Snug 手机屏-D62419FC…`）
 
 **屏幕适配实测（11-14、11-15）**
