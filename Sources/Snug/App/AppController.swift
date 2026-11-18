@@ -97,7 +97,6 @@ final class AppController: Sendable {
         watcher.start()
         self.watcher = watcher
         sensor.start()
-        desks.recoverArrangement()
         if state.accessibilityTrusted { desks.recover() }
         let timer = Timer(timeInterval: Self.tickInterval, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.tick() }

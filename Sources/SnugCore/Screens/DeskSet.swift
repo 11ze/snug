@@ -85,8 +85,7 @@ public final class DeskSet {
 
     public init(displays: any VirtualDisplays, windows: any WindowControl, apps: any AppControl, arrangement: any DisplayArrangement,
                 timeline: any Timeline = SystemTimeline(), paths: SnugPaths, defaultZoom: Int = 2) {
-        screens = ScreenSet(displays: displays, windows: windows, arrangement: arrangement, timeline: timeline, lane: lane,
-                            arrangementLedger: paths.arrangementRecord)
+        screens = ScreenSet(displays: displays, windows: windows, arrangement: arrangement, timeline: timeline, lane: lane)
         env = DeskEnvironment(windows: windows, apps: apps, timeline: timeline, screens: screens, lane: lane,
                               paths: paths, defaultZoom: defaultZoom)
         // 弱引用：ScreenSet 的重试排在计时上，可能比 DeskSet 活得久
@@ -609,11 +608,6 @@ public final class DeskSet {
             defer { self.settling = false }
             await self.screens.settleDisplays()
         }
-    }
-
-    /// 启动时调用（不用辅助功能权限）：上次设了主屏没设回就退出了（崩溃），销掉那份账（系统已经摆好，见 ScreenSet）
-    public func recoverArrangement() {
-        lane.run { await self.screens.recoverArrangement() }
     }
 
     /// 有辅助功能权限后调用：上次 Snug 没来得及放回去的窗口，按各块屏的还原账放回去。账在队里轮到时才读，不会拿旧的放两遍。

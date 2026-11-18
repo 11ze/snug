@@ -214,7 +214,7 @@ struct DeskSetTests {
 
     // MARK: 设为主屏
 
-    @Test("设为主屏：建好、善后之后设主屏，先记还原账；原主屏上的窗口跟着搬过去，不放回")
+    @Test("设为主屏：建好、善后之后设主屏；原主屏上的窗口跟着搬过去，不放回")
     func claimsMain() async throws {
         let rig = try Rig()
         var wish = rig.secondWish(computer)
@@ -223,11 +223,9 @@ struct DeskSetTests {
         await rig.set.idle()
         #expect(rig.journal.all == ["snapshot", "create", "create", "restore", "main 102"])
         #expect(rig.arrangement.main == 102)
-        let record = try #require(RestoreRecord<ArrangementRecord>(url: rig.paths.arrangementRecord).pending())
-        #expect(record.origins[1] == .zero)
     }
 
-    @Test("撤设成主屏的那块：先设回原主屏（窗口跟着回去），再清场、再撤；还原账销掉")
+    @Test("撤设成主屏的那块：先设回原主屏（窗口跟着回去），再清场、再撤")
     func releasesMainBeforeClearing() async throws {
         let rig = try Rig()
         var wish = rig.secondWish(computer)
@@ -242,10 +240,9 @@ struct DeskSetTests {
         let retired = try #require(rig.journal.index(of: "retire 102"))
         #expect(arranged < retired)
         #expect(rig.arrangement.main == 1)
-        #expect(RestoreRecord<ArrangementRecord>(url: rig.paths.arrangementRecord).pending() == nil)
     }
 
-    @Test("系统按这组屏幕记的排布已经把 Snug 的屏设成主屏（上次设了主屏没设回就崩了，同一次登录里再建）：账按 Snug 的屏出现前的主屏记，不再当主屏时还给它")
+    @Test("系统按这组屏幕记的排布已经把 Snug 的屏设成主屏（上次设了主屏没设回就崩了，同一次登录里再建）：原来的排布按 Snug 的屏出现前的主屏记，不再当主屏时还给它")
     func claimsMainAlreadyMadeBySystem() async throws {
         let rig = try Rig()
         rig.displays.onCreate = { [unowned arrangement = rig.arrangement] in
@@ -255,11 +252,10 @@ struct DeskSetTests {
         wish.main = true
         rig.set.setWishes([wish])
         await rig.set.idle()
-        let record = try #require(RestoreRecord<ArrangementRecord>(url: rig.paths.arrangementRecord).pending())
-        #expect(record.origins == [1: .zero, 101: CGPoint(x: 1512, y: 0)])
         rig.set.setWishes([rig.secondWish(computer)])
         await rig.set.idle()
         #expect(rig.arrangement.main == 1)
+        #expect(rig.arrangement.origins()[101] == CGPoint(x: 1512, y: 0))
     }
 
     @Test("屏留着、只是不再当主屏：设回原主屏，屏不撤")
@@ -289,7 +285,7 @@ struct DeskSetTests {
         #expect(rig.journal.all.filter { $0.hasPrefix("main") }.count == 1)
     }
 
-    @Test("设主屏失败：账销掉，屏照常用")
+    @Test("设主屏失败：屏照常用，之后不再当主屏时不去摆排布")
     func mainFails() async throws {
         let rig = try Rig()
         rig.arrangement.fails = true
@@ -298,35 +294,32 @@ struct DeskSetTests {
         rig.set.setWishes([wish])
         await rig.set.idle()
         #expect(rig.set.state.desks[second]?.screen == .ready(101))
-        #expect(RestoreRecord<ArrangementRecord>(url: rig.paths.arrangementRecord).pending() == nil)
+        rig.arrangement.fails = false
+        rig.set.setWishes([rig.secondWish(computer)])
+        await rig.set.idle()
+        #expect(!rig.journal.all.contains { $0.hasPrefix("arrange") })
     }
 
-    @Test("崩溃后启动：不按账摆（Snug 的屏随上次的进程一起没了，macOS 已按剩下这组屏记的排布摆好，账里的位置是 Snug 的屏还在时的），只销账；没有账什么都不做")
-    func recoversArrangement() async throws {
-        let rig = try Rig()
-        rig.set.recoverArrangement()
-        await rig.set.idle()
-        #expect(rig.journal.all.isEmpty)
-        try RestoreRecord<ArrangementRecord>(url: rig.paths.arrangementRecord).record(ArrangementRecord(origins: [1: .zero, 7: CGPoint(x: -1920, y: 0)]))
-        rig.set.recoverArrangement()
-        await rig.set.idle()
-        #expect(rig.journal.all.isEmpty)
-        #expect(RestoreRecord<ArrangementRecord>(url: rig.paths.arrangementRecord).pending() == nil)
-    }
-
-    @Test("不再当主屏时摆不回去：账留着，下次再设主屏时照旧用最早的那份")
-    func restoreFailsKeepsLedger() async throws {
+    @Test("不再当主屏时摆不回去：原来的排布留着，再设主屏、再设回时摆回设主屏之前")
+    func restoreFailsKeepsSavedOrigins() async throws {
         let rig = try Rig()
         var wish = rig.secondWish(computer)
         wish.main = true
         rig.set.setWishes([wish])
         await rig.set.idle()
-        let recorded = RestoreRecord<ArrangementRecord>(url: rig.paths.arrangementRecord).pending()
-        #expect(recorded != nil)
         rig.arrangement.fails = true
         wish.main = false
         rig.set.setWishes([wish])
         await rig.set.idle()
-        #expect(RestoreRecord<ArrangementRecord>(url: rig.paths.arrangementRecord).pending() == recorded)
+        #expect(rig.arrangement.main == 101)
+        rig.arrangement.fails = false
+        wish.main = true
+        rig.set.setWishes([wish])
+        await rig.set.idle()
+        wish.main = false
+        rig.set.setWishes([wish])
+        await rig.set.idle()
+        #expect(rig.arrangement.main == 1)
+        #expect(rig.arrangement.origins()[1] == .zero)
     }
 }
