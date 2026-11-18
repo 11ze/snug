@@ -37,13 +37,9 @@ public final class DeskSet {
     /// 冷启动最多等多久出窗口（实测 ChatGPT 6.6 秒，更重的 App 更慢）；唤回、新建窗口实测都在 0.3 秒内，等 10 秒
     static let launchWait: TimeInterval = 30
     static let windowWait: TimeInterval = 10
-    /// 请 App 退出、请窗口关掉之后隔多久看一次结果
-    static let watchPoll: TimeInterval = 0.25
     /// 最多等多久才算没动静：退出给强制退出（实测 Electron 类 App 退出要五六秒），关窗口提示无响应
     static let quitWait: TimeInterval = 10
     static let closeWait: TimeInterval = 5
-    /// 对话框答完后再等这么久：App 还在、窗口还在，就是点了取消（存储要一点时间，不能一没对话框就下结论）
-    static let answerGrace: TimeInterval = 2
     /// 给了强制退出以后再看这么久、隔 stalledPoll 看一次：它自己退了（大型 App 退出要十几秒），提示就撤掉
     static let stalledFollow: TimeInterval = 60
     static let stalledPoll: TimeInterval = 1
@@ -72,12 +68,8 @@ public final class DeskSet {
     private var desks: [ScreenID: Desk] = [:]
     private var recheckGeneration = 0
     private var pendingRecheck: Task<Void, Never>?
-    /// 盯着的请求：请它退出的 App、请它关掉的窗口
-    private enum Watched: Hashable {
-        case quit(Int32)
-        case close(WindowKey)
-    }
-    private var watches: [Watched: Task<Void, Never>] = [:]
+    /// 盯着退出、关窗请求的结果
+    private let watcher: RequestWatcher
     /// 在手机上退出、换了型号时马上排上的号（见 Desk.Ticket），轮到 reconcile 时开始、撤完换完收掉
     private var dismissTickets: [ScreenID: Desk.Ticket] = [:]
     private var reshapeTickets: [ScreenID: Desk.Ticket] = [:]
@@ -85,6 +77,7 @@ public final class DeskSet {
     public init(displays: any VirtualDisplays, windows: any WindowControl, apps: any AppControl, arrangement: any DisplayArrangement,
                 timeline: any Timeline = SystemTimeline(), paths: SnugPaths, defaultZoom: Int = 2) {
         screens = ScreenSet(displays: displays, windows: windows, arrangement: arrangement, timeline: timeline, lane: lane)
+        watcher = RequestWatcher(windows: windows, timeline: timeline)
         env = DeskEnvironment(windows: windows, apps: apps, timeline: timeline, screens: screens,
                               paths: paths, defaultZoom: defaultZoom)
         // 弱引用：ScreenSet 的重试排在计时上，可能比 DeskSet 活得久
@@ -184,8 +177,7 @@ public final class DeskSet {
         for desk in busy { desk.end() }
         guard desks.isEmpty else { return }
         // 这次远程的提示、没盯完的退出和关窗不带到下一次（App 照样在退，只是不再盯）
-        watches.values.forEach { $0.cancel() }
-        watches = [:]
+        watcher.unwatchAll()
         state.quitting = []
         state.closing = []
     }
@@ -254,7 +246,7 @@ public final class DeskSet {
     /// 关掉这块屏上的提示（「稍后」）。没退出的那个就不再盯了
     public func dismissNotice(on id: ScreenID) {
         guard let desk = desks[id] else { return }
-        if case .quitStalled(_, let pid) = desk.state.notice { unwatch(.quit(pid)) }
+        if case .quitStalled(_, let pid) = desk.state.notice { watcher.unwatch(.quit(pid)) }
         desk.setNotice(nil)
     }
 
@@ -329,7 +321,7 @@ public final class DeskSet {
     /// 强制退出（提示里的按钮）：未存储的内容会丢
     public func forceQuit(pid: Int32, app: String, from id: ScreenID) {
         desks[id]?.setNotice(nil)
-        unwatch(.quit(pid))
+        watcher.unwatch(.quit(pid))
         Log.warn("强制退出 \(app)（pid \(pid)）")
         lane.run {
             if await !self.apps.forceQuit(pid: pid) { self.desks[id]?.setNotice(.windowUnresponsive(app: app)) }
@@ -341,7 +333,7 @@ public final class DeskSet {
     /// 不然按关闭按钮没反应（实测 11-14，不论在不在当前桌面空间）。之后另起一个盯着，同退出：
     /// 关掉了就好；问「要存储吗」或「还有进程在跑」就把它放上发起的那块屏；等满了还在、也没在问，提示无响应
     public func close(_ window: WindowInfo, from id: ScreenID) {
-        guard watches[.close(window.key)] == nil else { return }
+        guard !watcher.isWatching(.close(window.key)) else { return }
         desks[id]?.setNotice(nil)
         state.closing.insert(window.key)
         lane.run {
@@ -442,9 +434,10 @@ public final class DeskSet {
     /// 盯着请它退出的 App：退完了就好；在问就放上发起的那块屏等人答，答了取消就不再盯；
     /// 等满了还没退、也没在问，提示可以强制退出，之后再低频看一阵：它自己退了，提示就撤掉
     private func watchQuit(_ app: RunningApp, from id: ScreenID) {
-        watch(.quit(app.pid)) {
+        watcher.watch(.quit(app.pid)) {
             defer { self.state.quitting.remove(app.pid) }
-            let answer = await self.awaitAnswer(from: app.pid, within: Self.quitWait, on: id, done: { await !self.apps.isRunning(pid: app.pid) })
+            let answer = await self.watcher.awaitAnswer(from: app.pid, within: Self.quitWait, done: { await !self.apps.isRunning(pid: app.pid) },
+                                                        ask: self.asking(on: id))
             guard !Task.isCancelled else { return }
             switch answer {
             case .done:
@@ -471,13 +464,13 @@ public final class DeskSet {
     /// 盯着请它关掉的窗口，同退出；等满了还在、也没在问，提示无响应。
     /// hides：按关闭前它在屏上，那么不在屏上了（飞书、微信关成了隐藏）也算关上
     private func watchClose(_ window: WindowInfo, hides: Bool, from id: ScreenID) {
-        watch(.close(window.key)) {
+        watcher.watch(.close(window.key)) {
             defer { self.state.closing.remove(window.key) }
-            let answer = await self.awaitAnswer(from: window.key.pid, within: Self.closeWait, on: id) {
+            let answer = await self.watcher.awaitAnswer(from: window.key.pid, within: Self.closeWait, done: {
                 guard await self.windows.exists(window.key) else { return true }
                 guard hides else { return false }
                 return await !self.windows.isShown(window.key)
-            }
+            }, ask: self.asking(on: id))
             guard !Task.isCancelled else { return }
             switch answer {
             case .done:
@@ -491,50 +484,12 @@ public final class DeskSet {
         }
     }
 
-    /// 另起一个任务盯着，不占队。同一件事再盯一次（提示强制退出后又点了退出）先停掉旧的；屏都撤了时一起取消
-    private func watch(_ id: Watched, _ body: @escaping @MainActor () async -> Void) {
-        watches[id]?.cancel()
-        watches[id] = Task {
-            await body()
-            // 取消的已经被换掉或清掉了，别把新的那个删了
-            if !Task.isCancelled { watches[id] = nil }
+    /// App 在问用户：把问的那个窗口放上发起的那块屏，在手机上就能答
+    private func asking(on id: ScreenID) -> (WindowInfo) async -> Void {
+        { [self] window in
+            Log.info("\(window.app) 在问，把 \(window.label) 放上屏（\(id)）")
+            await placeAsking(window, on: id)
         }
-    }
-
-    private func unwatch(_ id: Watched) {
-        watches.removeValue(forKey: id)?.cancel()
-    }
-
-    private enum Answer {
-        case done, canceled, stalled
-    }
-
-    /// 发出退出、关窗请求之后等结果：done 为真就是成了；App 在问用户（「要存储吗」「还有进程在跑」，
-    /// 可能一连问好几次：多个未存储的文稿先问「要先检查吗」，再逐个问）就把问的窗口放上发起的那块屏，问着就一直等；
-    /// 问完了 done 还不成立，就是点了取消；一直没动静，等满 seconds 算卡住
-    private func awaitAnswer(from pid: Int32, within seconds: TimeInterval, on id: ScreenID, done: () async -> Bool) async -> Answer {
-        let deadline = timeline.now + seconds
-        var asked: WindowKey?
-        var answeredAt: TimeInterval?
-        while !Task.isCancelled {
-            if await done() { return .done }
-            if let asking = await windows.askingWindow(of: pid) {
-                answeredAt = nil
-                if asking.key != asked {
-                    asked = asking.key
-                    Log.info("\(asking.app) 在问，把 \(asking.label) 放上屏（\(id)）")
-                    await placeAsking(asking, on: id)
-                }
-            } else if asked != nil {
-                let at = answeredAt ?? timeline.now
-                answeredAt = at
-                if timeline.now - at >= Self.answerGrace { return .canceled }
-            } else if timeline.now >= deadline {
-                return .stalled
-            }
-            await timeline.sleep(Self.watchPoll)
-        }
-        return .canceled
     }
 
     /// 排进队里再放，轮到它时才显示「正在打开」
@@ -665,9 +620,9 @@ public final class DeskSet {
             retries = Set(screens.retries)
             await pendingRecheck?.value
             for retry in retries { await retry.value }
-            for watch in watches.values { await watch.value }
+            for watch in watcher.running { await watch.value }
             await lane.drain()
-        } while Set(screens.retries) != retries || !watches.isEmpty
+        } while Set(screens.retries) != retries || !watcher.running.isEmpty
     }
 
     /// 按屏幕列表的顺序
