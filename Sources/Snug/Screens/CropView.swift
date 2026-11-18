@@ -92,13 +92,13 @@ struct CropView: View {
 
     private func topBar(_ metrics: Metrics, done: @escaping () -> Void) -> some View {
         // 点按区域至少一个手指大（PressableStyle 按 label 的范围接点击）
-        let side = TouchStyle.touchTarget * metrics.scale
+        let side = TouchTokens.Size.touchTarget * metrics.scale
         return HStack {
             Button(action: onCancel) { Text("取消").frame(minWidth: side, minHeight: side) }
             Spacer()
             Button(action: done) { Text("完成").frame(minWidth: side, minHeight: side) }
         }
-        .font(.system(size: 18 * metrics.scale, weight: .semibold))
+        .font(.system(size: TouchTokens.Font.body.size * metrics.scale, weight: .semibold))
         .foregroundStyle(.white)
         .buttonStyle(PressableStyle())
         .padding(.horizontal, metrics.margin)

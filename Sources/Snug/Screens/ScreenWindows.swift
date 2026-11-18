@@ -240,7 +240,7 @@ final class PhonePanel: NSPanel {
         isReleasedWhenClosed = false
         hasShadow = false
         isOpaque = opaque
-        backgroundColor = opaque ? TouchStyle.backgroundNSColor : .clear
+        backgroundColor = opaque ? TouchTokens.Color.backgroundNSColor : .clear
         contentView = content
     }
 
@@ -312,7 +312,7 @@ final class HomeBarView: NSView {
     }
 
     /// 相机键的点击范围：左边整条高、一个手指宽（图标只有二十几点）。图标摆在它正中
-    private var cameraArea: NSRect { NSRect(x: 0, y: 0, width: TouchStyle.touchTarget * scale, height: bounds.height) }
+    private var cameraArea: NSRect { NSRect(x: 0, y: 0, width: TouchTokens.Size.touchTarget * scale, height: bounds.height) }
 
     override func layout() {
         super.layout()
@@ -328,7 +328,7 @@ final class HomeBarView: NSView {
     }
 
     override func draw(_ dirtyRect: NSRect) {
-        TouchStyle.backgroundNSColor.setFill()
+        TouchTokens.Color.backgroundNSColor.setFill()
         bounds.fill()
     }
 
