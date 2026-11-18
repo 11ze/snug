@@ -45,8 +45,8 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         if state.legacyAppRunning { menu.addItem(action("退出旧版 UU远程伴侣", #selector(quitLegacy), symbol: "xmark.circle")) }
         menu.addItem(.separator())
         let library = action("App 资源库", #selector(openLibrary), symbol: "square.grid.2x2")
-        // Snug 的屏都不在时没有地方放
-        library.isEnabled = state.desks.desks.values.contains { $0.display != nil }
+        // 电脑屏都不在时没有地方放
+        library.isEnabled = !state.libraryScreens.isEmpty
         menu.addItem(library)
         menu.addItem(.separator())
         let settings = action("设置…", #selector(openSettings), key: ",", symbol: "gearshape")

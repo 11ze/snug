@@ -67,6 +67,12 @@ final class AppState {
     }
 
     /// UU 此刻在推的那块 Snug 屏
+    /// 菜单栏「App 资源库」能往哪些屏放：就绪的电脑屏，按屏幕列表的顺序。手机、平板屏有自己的面板，
+    /// Mac 样式的窗口开在它们上面也放不下
+    var libraryScreens: [ScreenID] {
+        config.screens.map(\.id).filter { desks.desks[$0]?.display != nil && behavior(of: $0)?.touch == false }
+    }
+
     var watchedScreen: ScreenID? {
         guard let streamed = streamedDisplay else { return nil }
         return desks.desks.first { $0.value.display == streamed }?.key

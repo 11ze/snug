@@ -1,4 +1,4 @@
-// 电脑屏的 App 资源库：Mac 样式的窗口，从菜单栏的「App 资源库」打开，在哪块 Snug 屏的菜单栏点就在哪块屏上开、往哪块屏放。
+// 电脑屏的 App 资源库：Mac 样式的窗口，从菜单栏的「App 资源库」打开，在哪块电脑屏的菜单栏点就在哪块屏上开、往哪块屏放。
 // 电脑屏没有小横条；已经开在别的屏上的窗口不会自己过来，点程序坞只是把它在原来的屏上提到前面（V9），
 // 远端的人看不见别的屏、拖不了窗口，靠这里一键拉过来。
 // 左栏「运行中 / 全部 App」；每个窗口标出现在在哪块屏，「放到这块屏」交给 DeskSet（电脑屏只挪过来居中，不铺满、不调字号）。
@@ -88,7 +88,7 @@ struct LibraryView: View {
             }
             .safeAreaInset(edge: .top, spacing: 0) { banner }
             .navigationTitle("App 资源库")
-            .navigationSubtitle(targetName.map { "放到「\($0)」" } ?? "Snug 的屏都不在")
+            .navigationSubtitle(targetName.map { "放到「\($0)」" } ?? "电脑屏都不在")
         }
         .searchable(text: $model.query, placement: .toolbar, prompt: "搜索")
         .frame(minWidth: MacTokens.Size.LibraryWindow.width, minHeight: MacTokens.Size.LibraryWindow.height)
@@ -247,11 +247,12 @@ final class LibraryWindowController: NSObject, NSWindowDelegate {
         self.intents = intents
     }
 
-    /// clicked：点菜单栏图标时那块屏。是 Snug 的屏就往它放，不然往 UU 正在推的那块、再不然第一块就绪的
+    /// clicked：点菜单栏图标时那块屏。是电脑屏就往它放，不然往 UU 正在推的那块电脑屏、再不然第一块就绪的电脑屏
     func show(on clicked: DisplayID?) {
-        let ready = state.config.screens.map(\.id).filter { state.desks.desks[$0]?.display != nil }
+        let ready = state.libraryScreens
         let onClicked = ready.first { state.desks.desks[$0]?.display == clicked }
-        model.target = onClicked ?? state.watchedScreen ?? ready.first
+        let watched = state.watchedScreen.flatMap { ready.contains($0) ? $0 : nil }
+        model.target = onClicked ?? watched ?? ready.first
         if window == nil {
             let view = LibraryView(state: state, catalog: catalog, model: model, intents: intents,
                                    place: { [weak self] window in
