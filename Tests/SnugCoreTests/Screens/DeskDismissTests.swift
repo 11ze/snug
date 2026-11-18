@@ -2,9 +2,9 @@ import CoreGraphics
 import Testing
 @testable import SnugCore
 
-@Suite("手机屏调度：在手机上退出手机屏")
+@Suite("一块屏的调度：在手机上退出这块屏")
 @MainActor
-struct PhoneDeskDismissTests {
+struct DeskDismissTests {
     @Test("退出手机屏：窗口放回原位、字号缩回，再撤屏；这次远程不再加")
     func dismiss() async throws {
         let rig = try Rig()

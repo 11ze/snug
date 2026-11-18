@@ -20,9 +20,9 @@ private func recordWork(_ desk: OneScreen) -> () -> [Desk.Work?] {
     return { works }
 }
 
-@Suite("App 资源库的动作 PhoneDesk")
+@Suite("App 资源库的动作 DeskSet")
 @MainActor
-struct PhoneDeskAppTests {
+struct DeskAppTests {
     // MARK: 打开、新建窗口
 
     @Test("启动没在跑的 App：等它的窗口出现在屏上（1.2 秒后才画出来），放上手机屏；先是「正在打开」，窗口出来转成「正在放」")

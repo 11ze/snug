@@ -3,9 +3,9 @@ import Foundation
 import Testing
 @testable import SnugCore
 
-@Suite("手机屏调度 PhoneDesk")
+@Suite("一块屏的调度 Desk")
 @MainActor
-struct PhoneDeskTests {
+struct DeskTests {
     @Test("要手机屏：加屏前给窗口拍快照，加好后把被系统拉走的窗口放回去；露出 App 资源库")
     func addScreen() async throws {
         let rig = try Rig()

@@ -11,9 +11,9 @@ private let redmi30 = ScreenMode(ioModeID: 13, width: 2560, height: 1440, pixelW
 private let hp = ScreenMode(ioModeID: 5, width: 1080, height: 1920, pixelWidth: 1080, pixelHeight: 1920, refreshRate: 60)
 private let builtIn = ScreenMode(ioModeID: 54, width: 1512, height: 982, pixelWidth: 3024, pixelHeight: 1964, refreshRate: 120)
 
-@Suite("加屏、撤屏不动别的屏 PhoneDesk")
+@Suite("加屏、撤屏不动别的屏 ScreenSet")
 @MainActor
-struct PhoneDeskModeTests {
+struct ScreenSetModeTests {
     @Test("远程结束后撤屏，macOS 把别的屏拨回它给这组屏幕记的模式（远程期间临时改的 30Hz）：先设回撤屏前的样子、连永久配置一起写，再放回窗口；没被拨动的不碰")
     func retireKeepsOtherModes() async throws {
         let rig = try Rig()

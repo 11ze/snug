@@ -1,5 +1,5 @@
 // 一块屏的显示模式，和帮手进程要切到哪个模式。
-// 加屏、撤屏前记下别的屏的模式，换完把被 macOS 拨动的设回去（见 PhoneDesk 的 Surroundings）
+// 加屏、撤屏前记下别的屏的模式，换完把被 macOS 拨动的设回去（见 ScreenSet 的 Surroundings）
 import Foundation
 
 public struct ScreenMode: Equatable, Sendable, CustomStringConvertible {

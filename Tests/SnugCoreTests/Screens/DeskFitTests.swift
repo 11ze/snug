@@ -5,9 +5,9 @@ import Testing
 /// 换了手机型号（16:9 的 iPhone 8）：基准 620×802
 private let iPhone8 = ScreenFit(device: DeviceScreen(width: 750, height: 1334, points: 375), kind: .phone, orientation: .portrait)
 
-@Suite("手机屏调度：换手机型号")
+@Suite("一块屏的调度：换型号")
 @MainActor
-struct PhoneDeskFitTests {
+struct DeskFitTests {
     @Test("没有手机屏时换：不动屏，下次加屏按新比例建、切到它的基准宽度")
     func withoutScreen() async throws {
         let rig = try Rig()

@@ -40,8 +40,8 @@ extension Rig {
 }
 
 @MainActor
-@Suite("留下的账 PhoneDesk")
-struct PhoneDeskLeftBehindTests {
+@Suite("留下的账 DeskSet")
+struct DeskLeftBehindTests {
     @Test("放着的窗口在 Snug 之外关了：回到列表，主记录销掉、留下一笔账；VS Code 会按工作区记住字号，提示用户")
     func closedOutsideSnug() async throws {
         let rig = try Rig()
