@@ -622,17 +622,21 @@ public final class DeskSet {
         }
     }
 
+    /// 手机屏已经有账（新版留了没放回的、降级回 2.5 又崩了一次）时，旧账单独存一份，和别的屏的账一样还，一笔不丢
+    private static let legacyScreen = ScreenID("phone-2.5")
+
     private func migrateLegacyRecord() {
         let fm = FileManager.default
         let legacy = env.paths.legacyPlacedRecord
-        let target = env.paths.placedRecord(for: .phone)
         guard fm.fileExists(atPath: legacy.path) else { return }
+        let phone = env.paths.placedRecord(for: .phone)
+        let target = fm.fileExists(atPath: phone.path) ? env.paths.placedRecord(for: Self.legacyScreen) : phone
         do {
             try fm.createDirectory(at: env.paths.placedRecords, withIntermediateDirectories: true)
-            if fm.fileExists(atPath: target.path) { try fm.removeItem(at: legacy) } else { try fm.moveItem(at: legacy, to: target) }
-            Log.info("旧版的还原账 phone-screen.json 挪成手机屏的账（placed/phone.json）")
+            try fm.moveItem(at: legacy, to: target)
+            Log.info("旧版的还原账 phone-screen.json 挪成 placed/\(target.lastPathComponent)\(target == phone ? "" : "（手机屏已经有账，单独存一份一起还）")")
         } catch {
-            Log.error("旧版的还原账挪不过去（\(legacy.path)）：\(error)")
+            Log.error("旧版的还原账挪不过去（\(legacy.path) → \(target.lastPathComponent)），留在原处下次再挪：\(error)")
         }
     }
 

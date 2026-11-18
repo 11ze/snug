@@ -111,7 +111,7 @@ SNUG_WRITE_TOKENS=1 swift test --filter DesignTokensTests
 | 位置 | 内容 |
 | :--- | :--- |
 | `~/Library/Application Support/Snug/config.json` | 设置，含屏幕列表 `screens`、主屏 `mainScreen`；同时写旧的 `phoneScreen`、`phone`，降级回 2.5 照样能读 |
-| `~/Library/Application Support/Snug/placed/<屏 id>.json` | 各块屏上窗口的还原记录（2.5 的 `phone-screen.json` 启动时按它还原后删掉） |
+| `~/Library/Application Support/Snug/placed/<屏 id>.json` | 各块屏上窗口的还原记录。2.5 的 `phone-screen.json` 启动时挪成 `placed/phone.json` 再按它还原；手机屏已经有账时挪成 `placed/phone-2.5.json`，一样还 |
 | `~/Library/Application Support/Snug/zoom.json` | 各 App 记忆的字号级数 |
 | `~/Library/Application Support/Snug/left-behind.json` | 在 Snug 之外关闭的窗口待还原的位置与字号（保留两周） |
 | `~/Library/Logs/Snug.log` | 日志 |

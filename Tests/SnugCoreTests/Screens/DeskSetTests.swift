@@ -250,6 +250,26 @@ struct DeskSetTests {
         #expect(rig.record(of: .phone) == nil)
     }
 
+    @Test("2.5 的 phone-screen.json 和 placed/phone.json 都在（新版留了账、降级回 2.5 又崩了一次）：两笔账都还，一笔不丢")
+    func migratesLegacyRecordBesideNewOne() async throws {
+        let rig = try Rig()
+        let stuck = PlacedRecord(window: finder.key, app: finder.app, label: finder.label, original: finderHome,
+                                 bundleID: finder.bundleID, title: finder.title, filled: phoneArea)
+        let crashed = PlacedRecord(window: ghostty.key, app: ghostty.app, label: ghostty.label, original: ghosttyHome, zoom: 2,
+                                   bundleID: ghostty.bundleID, title: ghostty.title, filled: phoneArea)
+        try RestoreRecord<PlacedRecord>(url: rig.paths.placedRecord(for: .phone)).record(stuck)
+        try RestoreRecord<PlacedRecord>(url: rig.paths.legacyPlacedRecord).record(crashed)
+        rig.windows.setFrame(finder.key, phoneArea)
+        rig.windows.setFrame(ghostty.key, phoneArea)
+        rig.set.recover()
+        await rig.set.idle()
+        #expect(rig.windows.window(finder.key)?.frame == finderHome)
+        #expect(rig.windows.window(ghostty.key)?.frame == ghosttyHome)
+        #expect(rig.windows.window(ghostty.key)?.zoom == -2)
+        #expect(!FileManager.default.fileExists(atPath: rig.paths.legacyPlacedRecord.path))
+        #expect((try? FileManager.default.contentsOfDirectory(atPath: rig.paths.placedRecords.path))?.isEmpty != false)
+    }
+
     @Test("加屏失败、等着重试时改了别的设置（又走一次差量）：不当场再建失败的那块，三次重试照样按点来")
     func failedWaitsForRetry() async throws {
         let rig = try Rig()
