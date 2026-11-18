@@ -1,5 +1,5 @@
 // 菜单栏：顶上一行说清此刻的状态（远程中 · 设备 · 正在看哪块屏）；「App 资源库」给电脑屏用，在哪块屏的菜单栏点就在哪块屏打开；
-// 设置、关于、退出。手机、平板屏上的操作都在屏上的面板里。每次展开都按 AppState 现做，和设置窗口永远一致
+// 设置、关于（同样摆到点的那块屏）、退出。手机、平板屏上的操作都在屏上的面板里。每次展开都按 AppState 现做，和设置窗口永远一致
 import AppKit
 import Observation
 import SnugCore
@@ -76,17 +76,20 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     }
 
     @objc private func quitLegacy() { intents.quitLegacyApp() }
-    @objc private func openSettings() { navigation.openSettings() }
-    @objc private func openAbout() { navigation.openAbout() }
+    @objc private func openSettings() { navigation.openSettings(on: clickedScreen?.displayID) }
+    @objc private func openAbout() { navigation.openAbout(on: clickedScreen?.displayID) }
     /// 在哪块屏的菜单栏点，就在哪块屏打开
     @objc private func openLibrary() {
-        let screen = item.button?.window?.screen
+        let screen = clickedScreen
         let display = screen?.displayID
         // 认不出是哪块屏的菜单栏时，资源库按 UU 在推的电脑屏选，开错屏时从这里查
         Log.info("菜单栏：点了「App 资源库」，在\(screen.map { "「\($0.localizedName)」（display \(display.map { "\($0)" } ?? "?")）" } ?? "认不出的屏")的菜单栏")
         navigation.openLibrary(on: display)
     }
     @objc private func quit() { intents.quit() }
+
+    /// 点的是哪块屏的菜单栏：菜单栏图标跟着活动的那块屏走
+    private var clickedScreen: NSScreen? { item.button?.window?.screen }
 }
 
 struct MenuStatusView: View {

@@ -366,7 +366,8 @@ final class SettingsWindowController {
         self.navigation = navigation
     }
 
-    func show(_ tab: Tab = .screens, activating: Bool = true) {
+    /// display：从哪块屏的菜单栏打开的（见 NSWindow.bring）
+    func show(_ tab: Tab = .screens, on display: DisplayID? = nil, activating: Bool = true) {
         if window == nil, let navigation {
             let tabs = NSTabViewController()
             tabs.tabStyle = .toolbar
@@ -391,6 +392,7 @@ final class SettingsWindowController {
         } else {
             tabs?.selectedTabViewItemIndex = tab.rawValue
         }
+        window?.bring(to: display)
         window?.present(activating: activating)
     }
 

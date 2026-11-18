@@ -227,8 +227,7 @@ final class LibraryWindowController: NSObject, NSWindowDelegate {
         let window = self.window ?? makeWindow()
         // 开在要放的那块屏上：远端的人看得见
         if let screen = Screens.screen(for: display) {
-            let frame = window.frame
-            window.setFrameOrigin(NSPoint(x: screen.visibleFrame.midX - frame.width / 2, y: screen.visibleFrame.midY - frame.height / 2))
+            window.center(on: screen)
         } else {
             window.center()
         }

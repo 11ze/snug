@@ -66,7 +66,8 @@ struct AboutView: View {
 final class AboutWindowController {
     private var window: NSWindow?
 
-    func show(activating: Bool = true) {
+    /// display：从哪块屏的菜单栏打开的（见 NSWindow.bring）
+    func show(on display: DisplayID? = nil, activating: Bool = true) {
         if window == nil {
             let hosting = NSHostingController(rootView: AboutView())
             hosting.sizingOptions = [.preferredContentSize]
@@ -78,6 +79,7 @@ final class AboutWindowController {
             w.center()
             window = w
         }
+        window?.bring(to: display)
         window?.present(activating: activating)
     }
 }

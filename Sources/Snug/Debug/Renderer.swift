@@ -97,9 +97,9 @@ final class RenderStub: AppIntents, TouchIntents, Navigation {
     func openCrop() {}
     func cancelCrop() {}
     func finishCrop(_ selection: CGRect) {}
-    func openSettings() {}
+    func openSettings(on display: DisplayID?) {}
     func openWelcome() {}
-    func openAbout() {}
+    func openAbout(on display: DisplayID?) {}
     func openUpdate() {}
     func openLibrary(on display: DisplayID?) {}
 }

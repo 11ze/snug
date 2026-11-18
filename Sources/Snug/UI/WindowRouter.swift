@@ -16,10 +16,10 @@ final class WindowRouter: Navigation {
 
     init(controller: AppController) { self.controller = controller }
 
-    func openSettings() { settings.show() }
+    func openSettings(on display: DisplayID? = nil) { settings.show(on: display) }
 
     func openWelcome() { welcome.show() }
-    func openAbout() { about.show() }
+    func openAbout(on display: DisplayID? = nil) { about.show(on: display) }
     func openLibrary(on display: DisplayID?) { library.show(on: display) }
     func openUpdate() { showUpdate(activating: true) }
 

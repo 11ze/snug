@@ -152,9 +152,10 @@ protocol TouchIntents: AnyObject, Sendable {
 /// 打开各个窗口
 @MainActor
 protocol Navigation: AnyObject, Sendable {
-    func openSettings()
+    /// 设置、关于：从菜单栏打开时摆到点的那块屏上（display 为点的那块屏，不是从菜单栏打开的给 nil）
+    func openSettings(on display: DisplayID?)
     func openWelcome()
-    func openAbout()
+    func openAbout(on display: DisplayID?)
     func openUpdate()
     /// 电脑屏的 App 资源库：在哪块屏的菜单栏点，就在哪块屏打开
     func openLibrary(on display: DisplayID?)
