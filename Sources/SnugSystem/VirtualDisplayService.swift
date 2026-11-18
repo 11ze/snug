@@ -1,9 +1,9 @@
-// 手机屏的建、撤、换档、换比例（CGVirtualDisplay 私有接口）。实测过的做法（见记忆 project-phone-screen）：
-// - 建屏时把 ScreenFit 的每一档都登记成模式，hiDPI 打开，maxPixels 框住所有比例：每一档都有 2 倍模式
+// Snug 的屏的建、撤、换档、换比例（CGVirtualDisplay 私有接口）。实测过的做法（见记忆 project-phone-screen）：
+// - 建屏时把 ScreenFit 的每一档都登记成模式，hiDPI 打开，像素上限（ScreenSpec.maxPixels）框住所有档位：每一档都有 2 倍模式
 // - 换比例在线换模式表（约 0.2 秒，屏不掉线、编号不变），系统随即跳到最宽一档，再切回基准宽度
 // - 系统上线时用它记着的那一档（第一次是最宽的），所以上线后切回基准宽度
 // - 换档交给帮手进程（主程序亲自切会让释放拖 40 秒以上）；把被 macOS 拨动的别的屏设回去也交给它
-// - 释放后通常 0.1 秒下线；显示器睡着（Mac 锁屏）时要等唤醒才下线，撤屏后的善后由 PhoneDesk 等它真下线再做
+// - 释放后通常 0.1 秒下线；显示器睡着（Mac 锁屏）时要等唤醒才下线，撤屏后的善后由 ScreenSet 等它真下线再做
 // - 建好不上线就换备用身份
 // - 在主线程建和释放；释放时不能留局部强引用，否则不会真正释放
 import AppKit
@@ -11,7 +11,7 @@ import CGVirtualDisplayBridge
 import SnugCore
 
 @MainActor
-public final class PhoneDisplayService: PhoneDisplays {
+public final class VirtualDisplayService: VirtualDisplays {
     static let onlineTimeout: TimeInterval = 6
     static let offlineTimeout: TimeInterval = 10
     /// 帮手切模式最多等这么久（正常不到一秒）
@@ -29,11 +29,11 @@ public final class PhoneDisplayService: PhoneDisplays {
 
     public init(helper: URL) { self.helper = helper }
 
-    public func create(_ fit: ScreenFit) async throws -> DisplayID {
+    public func create(_ spec: ScreenSpec, _ fit: ScreenFit) async throws -> DisplayID {
         var madeAny = false
-        for serial in PhoneScreenSpec.serials {
-            guard let display = make(serial: serial, fit: fit) else {
-                Log.warn("手机屏（serial=\(serial)）建不出来，换备用身份")
+        for serial in spec.serials {
+            guard let display = make(spec, serial: serial, fit: fit) else {
+                Log.warn("「\(spec.name)」（serial=\(serial)）建不出来，换备用身份")
                 continue
             }
             madeAny = true
@@ -41,7 +41,7 @@ public final class PhoneDisplayService: PhoneDisplays {
             displays[id] = display
             fits[id] = fit
             guard await wait(id, online: true, timeout: Self.onlineTimeout) else {
-                Log.warn("手机屏 #\(id)（serial=\(serial)）建好 \(Int(Self.onlineTimeout)) 秒没上线，换备用身份")
+                Log.warn("「\(spec.name)」#\(id)（serial=\(serial)）建好 \(Int(Self.onlineTimeout)) 秒没上线，换备用身份")
                 _ = await retire(id)   // 没上线的屏，下没下线都换下一个身份
                 continue
             }
@@ -50,18 +50,18 @@ public final class PhoneDisplayService: PhoneDisplays {
             if width(id) != fit.baseWidth { await setWidth(id, fit.baseWidth) }
             return id
         }
-        throw madeAny ? PhoneScreenError.neverOnline : PhoneScreenError.createFailed
+        throw madeAny ? ScreenError.neverOnline : ScreenError.createFailed
     }
 
     public func retire(_ id: DisplayID) async -> Bool {
         guard displays[id] != nil else {
-            Log.warn("要撤的手机屏 #\(id) 不是本进程建的")
+            Log.warn("要撤的屏 #\(id) 不是本进程建的")
             return !Self.isOnline(id)
         }
         autoreleasepool { displays[id] = nil }
         fits[id] = nil
         guard await wait(id, online: false, timeout: Self.offlineTimeout) else {
-            Log.warn("手机屏 #\(id) 释放 \(Int(Self.offlineTimeout)) 秒后仍在线")
+            Log.warn("屏 #\(id) 释放 \(Int(Self.offlineTimeout)) 秒后仍在线")
             return false
         }
         return true
@@ -71,12 +71,12 @@ public final class PhoneDisplayService: PhoneDisplays {
 
     public func reshape(_ id: DisplayID, to fit: ScreenFit) async -> Bool {
         guard let display = displays[id] else {
-            Log.warn("要换比例的手机屏 #\(id) 不是本进程建的")
+            Log.warn("要换比例的屏 #\(id) 不是本进程建的")
             return false
         }
         let from = DisplayMode.describe(id)
         guard autoreleasepool(invoking: { display.apply(Self.settings(fit)) }) else {
-            Log.warn("手机屏 #\(id) 换比例时 apply 失败，还是原来的档位（\(from)）")
+            Log.warn("屏 #\(id) 换比例时 apply 失败，还是原来的档位（\(from)）")
             return false
         }
         fits[id] = fit
@@ -87,11 +87,11 @@ public final class PhoneDisplayService: PhoneDisplays {
             DisplayMode.hasHiDPI(id, width: Int(base.width), height: Int(base.height))
         }
         if !listed {
-            Log.warn("手机屏 #\(id) 换了模式表，\(Int(Self.modesTimeout)) 秒内系统没列出 \(fit) 的 2 倍模式，照样去切")
+            Log.warn("屏 #\(id) 换了模式表，\(Int(Self.modesTimeout)) 秒内系统没列出 \(fit) 的 2 倍模式，照样去切")
         }
         await setWidth(id, fit.baseWidth)
         let took = String(format: "%.1f", ProcessInfo.processInfo.systemUptime - started)
-        Log.info("手机屏 #\(id) 换成 \(fit) 的档位（\(took)s，原来 \(from)），现在 \(DisplayMode.describe(id))")
+        Log.info("屏 #\(id) 换成 \(fit) 的档位（\(took)s，原来 \(from)），现在 \(DisplayMode.describe(id))")
         return true
     }
 
@@ -103,23 +103,23 @@ public final class PhoneDisplayService: PhoneDisplays {
 
     public func setWidth(_ id: DisplayID, _ width: Int) async {
         guard let fit = fits[id] else {
-            Log.warn("要换档的手机屏 #\(id) 不是本进程建的")
+            Log.warn("要换档的屏 #\(id) 不是本进程建的")
             return
         }
         let from = DisplayMode.describe(id)
         let size = fit.size(width: width)
         let status = await runHelper(id, .hiDPI(width: width, height: Int(size.height)))
         guard status == 0 else {
-            Log.warn("手机屏 #\(id) 换不到 \(width) 宽（帮手退出码 \(status.map(String.init) ?? "启动失败")），现在 \(DisplayMode.describe(id))")
+            Log.warn("屏 #\(id) 换不到 \(width) 宽（帮手退出码 \(status.map(String.init) ?? "启动失败")），现在 \(DisplayMode.describe(id))")
             return
         }
         let switched = await poll(timeout: Self.screenUpdateTimeout, every: 0.05) {
             self.width(id) == width && Screens.screen(for: id)?.frame.width == CGFloat(width)
         }
         if switched {
-            Log.info("手机屏 #\(id) 换到 \(width) 宽（原来 \(from)）")
+            Log.info("屏 #\(id) 换到 \(width) 宽（原来 \(from)）")
         } else {
-            Log.warn("手机屏 #\(id) 帮手说换到了 \(width) 宽，\(Int(Self.screenUpdateTimeout)) 秒内界面没认到，现在 \(DisplayMode.describe(id))")
+            Log.warn("屏 #\(id) 帮手说换到了 \(width) 宽，\(Int(Self.screenUpdateTimeout)) 秒内界面没认到，现在 \(DisplayMode.describe(id))")
         }
     }
 
@@ -129,10 +129,10 @@ public final class PhoneDisplayService: PhoneDisplays {
         return rect.isEmpty ? nil : rect
     }
 
-    public func windowArea(_ id: DisplayID) -> CGRect? {
+    public func windowArea(_ id: DisplayID, withHomeBar: Bool) -> CGRect? {
         guard let screen = Screens.screen(for: id) else { return nil }
         var area = Screens.axRect(fromAppKit: screen.visibleFrame)
-        area.size.height -= ScreenFit.homeBarHeight(screenWidth: screen.frame.width)
+        if withHomeBar { area.size.height -= ScreenFit.homeBarHeight(screen: screen.frame.size) }
         return area
     }
 
@@ -156,18 +156,18 @@ public final class PhoneDisplayService: PhoneDisplays {
 
     // MARK: 内部
 
-    private func make(serial: UInt32, fit: ScreenFit) -> CGVirtualDisplay? {
+    private func make(_ spec: ScreenSpec, serial: UInt32, fit: ScreenFit) -> CGVirtualDisplay? {
         let descriptor = CGVirtualDisplayDescriptor()
-        descriptor.name = PhoneScreenSpec.name
-        descriptor.maxPixelsWide = UInt32(ScreenFit.maxPixels.width)
-        descriptor.maxPixelsHigh = UInt32(ScreenFit.maxPixels.height)
-        descriptor.sizeInMillimeters = CGSize(width: PhoneScreenSpec.millimeters.width, height: PhoneScreenSpec.millimeters.height)
-        descriptor.vendorID = PhoneScreenSpec.vendorID
-        descriptor.productID = PhoneScreenSpec.productID
+        descriptor.name = spec.name
+        descriptor.maxPixelsWide = UInt32(spec.maxPixels.width)
+        descriptor.maxPixelsHigh = UInt32(spec.maxPixels.height)
+        descriptor.sizeInMillimeters = spec.millimeters
+        descriptor.vendorID = ScreenSpec.vendorID
+        descriptor.productID = spec.productID
         descriptor.serialNum = serial
         guard let display = autoreleasepool(invoking: { CGVirtualDisplay(descriptor: descriptor) }) else { return nil }
         guard autoreleasepool(invoking: { display.apply(Self.settings(fit)) }) else {
-            Log.warn("手机屏（serial=\(serial)）apply 失败")
+            Log.warn("「\(spec.name)」（serial=\(serial)）apply 失败")
             return nil
         }
         return display

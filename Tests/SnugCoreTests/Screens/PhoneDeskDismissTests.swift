@@ -80,7 +80,7 @@ struct PhoneDeskDismissTests {
         #expect(rig.desk.state.placed?.window == ghostty)
     }
 
-    @Test("撤屏后才轮到的动作留下的提示（这里是排在退出后面的放窗口）：不带到下一次加的屏上")
+    @Test("排在退出后面的放窗口：屏已经撤了，什么都不做；下一次加的屏上没有旧提示")
     func staleNoticeClearedOnNewScreen() async throws {
         let rig = try Rig()
         await rig.ready()
@@ -88,7 +88,7 @@ struct PhoneDeskDismissTests {
         rig.desk.dismissScreen()
         rig.desk.pull(ghostty)
         await rig.desk.idle()
-        #expect(rig.desk.state.notice == .screenNotReady)
+        #expect(rig.set.state.desks[.phone] == nil)
         rig.desk.setWanted(false)
         rig.desk.setWanted(true)
         await rig.desk.idle()

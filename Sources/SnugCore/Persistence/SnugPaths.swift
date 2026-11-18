@@ -20,11 +20,16 @@ public struct SnugPaths: Equatable, Sendable {
 
     /// 用户设置
     public var config: URL { file("config.json") }
-    /// 手机屏上那个窗口的还原记录：放上去之前写，放回原位才删；崩溃后下次启动按它还原
-    public var phoneRecord: URL { file("phone-screen.json") }
-    /// 每个 App 在手机屏上记住的字号级数
+    /// 每块屏一份还原账（placed/<屏 id>.json）：窗口放上去之前写，放回原位才删；崩溃后下次启动按它还原
+    public var placedRecords: URL { dataDirectory.appendingPathComponent("placed", isDirectory: true) }
+    public func placedRecord(for screen: ScreenID) -> URL { placedRecords.appendingPathComponent("\(screen.rawValue).json") }
+    /// 2.5 及以前只有一块手机屏时的还原账。启动时还在就挪成那块屏的账（placed/phone.json），按它还原
+    public var legacyPlacedRecord: URL { file("phone-screen.json") }
+    /// 设主屏的还原账：设主屏之前记下各屏的原点，设回才删；崩溃后下次启动按它摆回去
+    public var arrangementRecord: URL { file("arrangement.json") }
+    /// 每个 App 在手机、平板屏上记住的字号级数
     public var zoomBook: URL { file("zoom.json") }
-    /// 留下的账：在手机屏上被 Snug 之外关掉的窗口，等它回来时按账放回原位、缩回字号
+    /// 留下的账：在 Snug 屏上被 Snug 之外关掉的窗口，等它回来时按账放回原位、缩回字号
     public var leftBehind: URL { file("left-behind.json") }
 
     private func file(_ name: String) -> URL { dataDirectory.appendingPathComponent(name) }

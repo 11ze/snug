@@ -198,7 +198,7 @@ struct PhoneDeskLeftBehindTests {
         #expect(alone.desk.state.notice == nil)
         #expect(alone.leftBehind.first?.record.zoom == 2)
         alone.journal.clear()
-        alone.timeline.advance(PhoneDesk.replaceWait + 1)   // 过了跟随换窗口的时间，单看缩回
+        alone.timeline.advance(Desk.replaceWait + 1)   // 过了跟随换窗口的时间，单看缩回
         alone.windows.add(zedOther.key, frame: clashHome, info: zedOther)
         await alone.checkReturns()
         #expect(alone.journal.all == ["zoom 33 -2 ∅"])
@@ -221,7 +221,7 @@ struct PhoneDeskLeftBehindTests {
         await rig.ready()
         await rig.pull(finder)
         rig.desk.closePlaced(window: finder.key.id)
-        rig.timeline.advance(PhoneDesk.closeWait + 1)
+        rig.timeline.advance(DeskSet.closeWait + 1)
         await rig.desk.idle()
         #expect(rig.desk.state.notice == nil)
         #expect(rig.desk.state.closing.isEmpty)
@@ -285,7 +285,7 @@ struct PhoneDeskLeftBehindTests {
         await rig.ready()
         await rig.pull(chat)
         await rig.vanishPlaced(chat)
-        rig.timeline.advance(PhoneDesk.replaceWait + 1)
+        rig.timeline.advance(Desk.replaceWait + 1)
         let next = WindowInfo(key: WindowKey(pid: 23, id: 51), app: chat.app, bundleID: chat.bundleID, title: "ChatGPT")
         rig.windows.add(next.key, frame: CGRect(x: 486, y: 33, width: 540, height: 886), info: next)
         await rig.checkReturns()
@@ -312,8 +312,8 @@ struct PhoneDeskLeftBehindTests {
     func crashLeftoverGone() async throws {
         let rig = try Rig()
         rig.windows.vanish(ghostty.key)
-        try RestoreRecord<PhoneRecord>(url: rig.paths.phoneRecord).record(
-            PhoneRecord(window: ghostty.key, app: ghostty.app, label: ghostty.label, original: ghosttyHome, zoom: 2,
+        try RestoreRecord<PlacedRecord>(url: rig.paths.placedRecord(for: .phone)).record(
+            PlacedRecord(window: ghostty.key, app: ghostty.app, label: ghostty.label, original: ghosttyHome, zoom: 2,
                         bundleID: ghostty.bundleID, title: ghostty.title, filled: phoneArea))
         rig.desk.recover()
         await rig.desk.idle()
@@ -322,8 +322,8 @@ struct PhoneDeskLeftBehindTests {
 
         let old = try Rig()
         old.windows.vanish(ghostty.key)
-        try RestoreRecord<PhoneRecord>(url: old.paths.phoneRecord).record(
-            PhoneRecord(window: ghostty.key, app: ghostty.app, label: ghostty.label, original: ghosttyHome, zoom: 2))
+        try RestoreRecord<PlacedRecord>(url: old.paths.placedRecord(for: .phone)).record(
+            PlacedRecord(window: ghostty.key, app: ghostty.app, label: ghostty.label, original: ghosttyHome, zoom: 2))
         old.desk.recover()
         await old.desk.idle()
         #expect(old.record == nil)

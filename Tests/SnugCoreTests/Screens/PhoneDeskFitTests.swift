@@ -3,7 +3,7 @@ import Testing
 @testable import SnugCore
 
 /// 换了手机型号（16:9 的 iPhone 8）：基准 620×802
-private let iPhone8 = ScreenFit(phone: PhoneScreen(width: 750, height: 1334, points: 375))
+private let iPhone8 = ScreenFit(device: DeviceScreen(width: 750, height: 1334, points: 375), kind: .phone, orientation: .portrait)
 
 @Suite("手机屏调度：换手机型号")
 @MainActor
@@ -116,7 +116,7 @@ struct PhoneDeskFitTests {
     func whileBusy() async throws {
         let rig = try Rig()
         await rig.ready()
-        var works: [PhoneDesk.Work?] = []
+        var works: [Desk.Work?] = []
         rig.desk.onChange = { works.append($0.work) }
         rig.desk.pull(finder)
         rig.desk.setFit(iPhone8)

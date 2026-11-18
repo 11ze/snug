@@ -1,14 +1,14 @@
-// PhoneDesk 要用到的系统能力：建屏换档（PhoneDisplays）、搬窗口（WindowControl）、开关 App（AppControl）。
+// 屏幕调度要用到的系统能力：建屏换档（VirtualDisplays）、搬窗口（WindowControl）、开关 App（AppControl）。
 // 实现在 SnugSystem（CGVirtualDisplay、辅助功能、按键、NSWorkspace），测试里换成假的
 import CoreGraphics
 import Foundation
 
 /// 建屏、撤屏、换档。CGVirtualDisplay 要在主线程建和释放
 @MainActor
-public protocol PhoneDisplays: AnyObject {
-    /// 按 fit 建一块手机屏（登记它的每一档），等它上线，尽量切到基准宽度（切不成只记日志、照样返回）。
+public protocol VirtualDisplays: AnyObject {
+    /// 按身份和 fit 建一块屏（登记它的每一档），等它上线，尽量切到基准宽度（切不成只记日志、照样返回）。
     /// 上线不了就换备用身份，都不行就抛错
-    func create(_ fit: ScreenFit) async throws -> DisplayID
+    func create(_ spec: ScreenSpec, _ fit: ScreenFit) async throws -> DisplayID
     /// 换比例：在线换成 fit 的档位（屏不掉线、编号不变，UU 里选中的屏不丢），再切到基准宽度。换不成返回 false，屏还是原来的档位
     func reshape(_ id: DisplayID, to fit: ScreenFit) async -> Bool
     /// 这块屏登记的是哪个比例的档位（建屏或换比例时登记的）；不是这里建的返回 nil。选档只能在它的档位里选
@@ -23,11 +23,12 @@ public protocol PhoneDisplays: AnyObject {
     func setWidth(_ id: DisplayID, _ width: Int) async
     /// 整块屏的范围（辅助功能坐标，左上原点）。撤屏前用它认出原本就在这块屏上的窗口
     func bounds(_ id: DisplayID) -> CGRect?
-    /// 窗口该铺满的区域（辅助功能坐标，左上原点）：这块屏扣掉菜单栏和底部小横条
-    func windowArea(_ id: DisplayID) -> CGRect?
-    /// 主屏的可放区域（辅助功能坐标）：原位落在手机屏上的窗口（App 记得上次在手机屏上），原位改记成在这里居中
+    /// 窗口该铺满的区域（辅助功能坐标，左上原点）：这块屏扣掉菜单栏；withHomeBar 时再扣掉底部小横条（手机、平板屏）
+    func windowArea(_ id: DisplayID, withHomeBar: Bool) -> CGRect?
+    /// 主屏的可放区域（辅助功能坐标）：原位落在 Snug 屏上的窗口（App 记得上次在那块屏上），原位改记成在这里居中；
+    /// 撤屏前清场，屏上的窗口也挪到这里
     func mainArea() -> CGRect?
-    /// 别的屏（手机屏以外的）此刻的样子。加屏、撤屏前记下：macOS 一换屏幕组合，就把别的屏拨回它给新组合记的模式
+    /// 别的屏（Snug 建的屏以外的）此刻的样子。加屏、撤屏前记下：macOS 一换屏幕组合，就把别的屏拨回它给新组合记的模式
     func otherDisplays() -> [OtherDisplay]
     /// 把一块别的屏设回这个模式（交给帮手进程），permanently 时连永久配置一起写。设不成只记日志
     func setMode(_ id: DisplayID, _ mode: ScreenMode, permanently: Bool) async
@@ -79,10 +80,12 @@ public protocol WindowControl: Sendable {
     func closeButton(_ window: WindowKey) async -> CGRect?
     /// 这个进程此刻在屏上的普通窗口的位置：问窗口服务器，不经过 App，App 卡住、没有权限都不影响
     func frames(of pid: Int32) async -> [WindowKey: CGRect]
+    /// 中点落在这块区域里的普通窗口（别的 App 的，不含 Snug 自己的面板）。问窗口服务器，App 卡住不影响。撤屏前清场用
+    func windows(in area: CGRect) async -> [WindowKey: CGRect]
     /// 当前桌面空间里普通窗口此刻的位置。加屏、撤屏前拍一张：macOS 会把窗口挪来挪去
     func snapshot() async -> [WindowKey: CGRect]
-    /// 把位置变了的窗口放回快照里的位置（except 那个除外）
-    func restore(_ snapshot: [WindowKey: CGRect], except: WindowKey?) async
+    /// 把位置变了的窗口放回快照里的位置（except 里的除外：放在 Snug 屏上的窗口）
+    func restore(_ snapshot: [WindowKey: CGRect], except: Set<WindowKey>) async
 }
 
 /// 启动、唤回、新建窗口、退出 App
@@ -103,7 +106,7 @@ public protocol AppControl: Sendable {
     func isRunning(pid: Int32) async -> Bool
 }
 
-/// 时间：PhoneDesk 只认这个，测试里换成不真等的
+/// 时间：屏幕调度只认这个，测试里换成不真等的
 public protocol Timeline: Sendable {
     /// 单调时间（秒）
     var now: TimeInterval { get }
@@ -118,7 +121,7 @@ public struct SystemTimeline: Timeline {
     }
 }
 
-public enum PhoneScreenError: Error, CustomStringConvertible {
+public enum ScreenError: Error, CustomStringConvertible {
     /// 每个身份都建不出来（CGVirtualDisplay 返回 nil 或 apply 失败）
     case createFailed
     /// 建出来了却一直不上线（备用身份也都试过）
@@ -127,7 +130,18 @@ public enum PhoneScreenError: Error, CustomStringConvertible {
     public var description: String {
         switch self {
         case .createFailed: "CGVirtualDisplay 建不出来，备用身份也都试过了"
-        case .neverOnline: "手机屏建好了但一直不上线，备用身份也都试过了"
+        case .neverOnline: "屏建好了但一直不上线，备用身份也都试过了"
         }
     }
+}
+
+/// 屏幕排布：设主屏、按记下的原点摆回去。主屏就是原点在 (0, 0) 的那块屏；只对本次登录生效
+@MainActor
+public protocol DisplayArrangement: AnyObject {
+    /// 每块在线屏此刻的原点（全局坐标，左上原点）
+    func origins() -> [DisplayID: CGPoint]
+    /// 把这块屏设成主屏：挪到原点，别的屏跟着平移，相对位置不变
+    func makeMain(_ id: DisplayID) async -> Bool
+    /// 按记下的原点摆回去；记下之后才出现、或已经不在的屏不动
+    func restore(_ origins: [DisplayID: CGPoint]) async -> Bool
 }

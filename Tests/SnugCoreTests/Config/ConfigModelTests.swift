@@ -4,30 +4,106 @@ import Testing
 
 @Suite("配置 AppConfig")
 struct ConfigModelTests {
-    @Test("默认值：手机屏和手势都开着，截图键关着，字号默认放大 2 级，还没看过欢迎页，从腾讯云更新")
+    @Test("默认值：只有一块开着的竖屏手机屏（17 Pro Max），不改主屏；手势开着，截图键关着，字号默认放大 2 级，还没看过欢迎页，从腾讯云更新")
     func defaults() {
         let c = AppConfig()
-        #expect(c.phoneScreen)
+        #expect(c.screens == [.legacyPhone(.standard, enabled: true)])
+        #expect(c.mainScreen == nil)
         #expect(c.gestures)
         #expect(!c.screenshot)
         #expect(c.zoomSteps == 2)
         #expect(!c.welcomed)
         #expect(c.updateSource == .tencent)
         #expect(c.lastVersion == nil)
-        #expect(c.phone == .standard)
     }
 
-    @Test("手机型号：老配置里没有就用默认（iPhone 17 Pro Max）；手改坏了（横着写、不是正数、缺字段）用默认，不连累别的设置")
-    func phone() throws {
-        let decode = { (json: String) in try JSONDecoder().decode(AppConfig.self, from: Data(json.utf8)) }
-        #expect(try decode(#"{"zoomSteps":3}"#).phone == .standard)
-        let custom = try decode(#"{"phone":{"screen":{"width":1080,"height":2400}}}"#)
-        #expect(custom.phone == PhoneChoice(model: nil, screen: PhoneScreen(width: 1080, height: 2400)))
+    private func decode(_ json: String) throws -> AppConfig {
+        try JSONDecoder().decode(AppConfig.self, from: Data(json.utf8))
+    }
+
+    @Test("2.5 的配置迁成一块竖屏手机屏：名字、身份不变，开关沿用总开关，型号沿用（没写类别的都是手机）")
+    func migratesLegacyPhone() throws {
+        let c = try decode(#"{"phoneScreen":false,"phone":{"model":"华为 Mate 70 Pro","screen":{"width":1260,"height":2832}},"zoomSteps":3}"#)
+        let phone = DeviceChoice(model: "华为 Mate 70 Pro", screen: DeviceScreen(width: 1260, height: 2832))
+        #expect(c.screens == [.legacyPhone(phone, enabled: false)])
+        #expect(c.screens[0].id == .phone)
+        #expect(c.screens[0].name == "Snug 手机屏")
+        #expect(c.screens[0].serials == [200_000_108, 200_000_118, 200_000_128])
+        #expect(c.screens[0].device.kind == .phone)
+        #expect(c.zoomSteps == 3)
+        // 再早的配置连型号都没有：默认 17 Pro Max、开着
+        #expect(try decode(#"{"zoomSteps":3}"#).screens == [.legacyPhone(.standard, enabled: true)])
+    }
+
+    @Test("旧配置的型号手改坏了（横着写、不是正数、缺字段）：迁成默认型号，不连累别的设置")
+    func migratesBrokenPhone() throws {
         for bad in [#"{"width":2400,"height":1080}"#, #"{"width":0,"height":2400}"#, #"{"width":1080}"#] {
             let c = try decode(#"{"zoomSteps":3,"phone":{"screen":\#(bad)}}"#)
-            #expect(c.phone == .standard)
+            #expect(c.screens == [.legacyPhone(.standard, enabled: true)])
             #expect(c.zoomSteps == 3)
         }
+    }
+
+    @Test("新版写出的配置：2.5 读得出该读的两项（取第一块竖屏手机屏），新字段原样读回")
+    func writesLegacyFields() throws {
+        var c = AppConfig()
+        let tablet = DeviceChoice(model: "Apple iPad Pro 11 英寸（M5）", screen: DeviceScreen(width: 1668, height: 2420, points: 834), kind: .tablet)
+        _ = c.addScreen(orientation: .landscape, device: tablet)
+        c.screens.swapAt(0, 1)
+        c.screens[1].enabled = false
+        c.screens[1].device = DeviceChoice(model: nil, screen: DeviceScreen(width: 1080, height: 2400))
+        let json = try JSONSerialization.jsonObject(with: JSONEncoder().encode(c)) as? [String: Any]
+        #expect(json?["phoneScreen"] as? Bool == false)
+        let phone = try #require(json?["phone"] as? [String: Any])
+        #expect((phone["screen"] as? [String: Int])?["width"] == 1080)
+        #expect(try JSONDecoder().decode(AppConfig.self, from: JSONEncoder().encode(c)) == c)
+    }
+
+    @Test("没有竖屏手机屏时，旧字段写成关着的默认手机：降级回 2.5 不会凭空多出一块屏")
+    func legacyFieldsWithoutPhone() throws {
+        var c = AppConfig()
+        c.removeScreen(.phone)
+        let json = try JSONSerialization.jsonObject(with: JSONEncoder().encode(c)) as? [String: Any]
+        #expect(json?["phoneScreen"] as? Bool == false)
+        #expect(try decode(String(decoding: JSONEncoder().encode(c), as: UTF8.self)).screens.isEmpty)
+    }
+
+    @Test("加屏：序列号一段一段往后分，删掉的不回收；名字按型号和方向起")
+    func addScreen() throws {
+        var c = AppConfig()
+        let ipad = DeviceChoice(model: "Apple iPad（A16）", screen: DeviceScreen(width: 1640, height: 2360, points: 820), kind: .tablet)
+        let a = c.addScreen(orientation: .landscape, device: ipad)
+        let b = c.addScreen(orientation: .landscape, device: .standard)
+        #expect(a.serials == [200_100_000, 200_100_001, 200_100_002])
+        #expect(b.serials == [200_100_010, 200_100_011, 200_100_012])
+        #expect(a.name == "Snug iPad")
+        #expect(b.name == "Snug iPhone 17 Pro Max 横屏")
+        #expect(a.id != b.id)
+        c.removeScreen(a.id)
+        let d = c.addScreen(orientation: .portrait, device: .standard, name: "我的手机")
+        #expect(d.serials.first == 200_100_020)
+        #expect(d.name == "我的手机")
+        #expect(c.screens.map(\.id) == [.phone, b.id, d.id])
+    }
+
+    @Test("删掉设为主屏的那块：主屏回到「不改」")
+    func removeMainScreen() {
+        var c = AppConfig()
+        c.mainScreen = .phone
+        c.removeScreen(.phone)
+        #expect(c.mainScreen == nil)
+    }
+
+    @Test("手改坏了的屏幕列表：分辨率不对、没有序列号、id 重复的那一项丢掉；主屏指向没有的屏当作不改")
+    func sanitizesScreens() throws {
+        let good = #"{"id":"a","orientation":"landscape","device":{"screen":{"width":1080,"height":1920},"kind":"computer"},"enabled":true,"name":"A","serials":[1,2,3]}"#
+        let badSize = #"{"id":"b","orientation":"landscape","device":{"screen":{"width":1920,"height":1080}},"enabled":true,"name":"B","serials":[4]}"#
+        let noSerial = #"{"id":"c","orientation":"portrait","device":{"screen":{"width":9,"height":20}},"enabled":true,"name":"C","serials":[]}"#
+        let c = try decode(#"{"screens":[\#(good),\#(badSize),\#(noSerial),\#(good)],"mainScreen":"zzz","nextSerialBlock":5}"#)
+        #expect(c.screens.map(\.id.rawValue) == ["a"])
+        #expect(c.screens[0].device.kind == .computer)
+        #expect(c.mainScreen == nil)
+        #expect(c.nextSerialBlock == 5)
     }
 
     @Test("不认识的更新源（比如更新的版本写的）用默认值，不把整份配置判为损坏")
@@ -42,7 +118,7 @@ struct ConfigModelTests {
         let json = #"{"gestures":false,"devices":[{"name":"iPad"}],"keepOnlyVirtual":true}"#
         let c = try JSONDecoder().decode(AppConfig.self, from: Data(json.utf8))
         #expect(c.gestures == false)
-        #expect(c.phoneScreen)
+        #expect(c.screens == [.legacyPhone(.standard, enabled: true)])
         #expect(!c.screenshot)
         #expect(c.zoomSteps == 2)
     }
@@ -58,13 +134,15 @@ struct ConfigModelTests {
     @Test("编码再解码保持不变")
     func roundTrip() throws {
         var c = AppConfig()
-        c.phoneScreen = false
+        c.screens[0].enabled = false
+        c.mainScreen = .phone
         c.screenshot = true
         c.zoomSteps = 3
         c.welcomed = true
         c.updateSource = .github
         c.lastVersion = Version(major: 2, minor: 1, patch: 0)
-        c.phone = PhoneChoice(model: "华为 Mate 70 Pro", screen: PhoneScreen(width: 1260, height: 2832))
+        c.screens[0].device = DeviceChoice(model: "华为 Mate 70 Pro", screen: DeviceScreen(width: 1260, height: 2832))
+        _ = c.addScreen(orientation: .landscape, device: DeviceChoice(model: nil, screen: DeviceScreen(width: 1600, height: 2560, notch: 30), kind: .computer))
         #expect(try JSONDecoder().decode(AppConfig.self, from: JSONEncoder().encode(c)) == c)
     }
 }

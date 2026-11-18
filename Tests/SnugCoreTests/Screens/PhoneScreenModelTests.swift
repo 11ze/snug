@@ -3,57 +3,16 @@ import Foundation
 import Testing
 @testable import SnugCore
 
-@Suite("手机屏的规格")
-struct PhoneScreenSpecTests {
-    @Test("物理尺寸按像素上限（框住所有比例）、220ppi 折算（不是手机的 460ppi）")
+@Suite("屏的身份 ScreenSpec")
+struct ScreenSpecTests {
+    @Test("物理尺寸按像素上限（框住所有档位）、220ppi 折算（不是手机的 460ppi）")
     func millimeters() {
-        let mm = PhoneScreenSpec.millimeters
+        let mm = phoneSpec.millimeters
         #expect(abs(mm.width - 2160.0 / 220 * 25.4) < 0.001)
         #expect(abs(mm.height - 4320.0 / 220 * 25.4) < 0.001)
     }
-
-    @Test("一个固定身份，外加两个备用，互不重复")
-    func serials() {
-        #expect(PhoneScreenSpec.serials == [200_000_108, 200_000_118, 200_000_128])
-    }
 }
 
-@Suite("控制端类型")
-struct ControllerKindTests {
-    @Test("手机、平板加手机屏")
-    func mobile() {
-        for name in ["iPhone 17 Pro Max", "张三的iPhone", "iPad Air", "OPPO Pad 3", "HUAWEI MatePad Pro", "Android 设备", "我的手机", "华为平板"] {
-            #expect(ControllerKind(name: name) == .mobile, "\(name)")
-        }
-    }
-
-    @Test("电脑不加")
-    func computer() {
-        for name in ["MacBook Air", "张三的Mac mini", "iMac", "DESKTOP-7Q2K1LM", "LAPTOP-AB12", "ThinkPad-X1", "办公室电脑", "Windows 11",
-                     "HUAWEI MateBook X Pro", "HONOR MagicBook 14", "RedmiBook Pro 15", "Xiaomi Book Air", "Galaxy Book4",
-                     "Surface Laptop 5", "Surface Pro 9"] {
-            #expect(ControllerKind(name: name) == .computer, "\(name)")
-            #expect(!ControllerKind(name: name).wantsPhoneScreen)
-        }
-    }
-
-    @Test("读不到名字或认不出：按手机处理，照样加手机屏")
-    func unknownGetsScreen() {
-        #expect(ControllerKind(name: nil) == .unknown)
-        #expect(ControllerKind(name: "") == .unknown)
-        #expect(ControllerKind(name: "Xiaomi 15") == .unknown)
-        #expect(ControllerKind(name: nil).wantsPhoneScreen)
-        #expect(ControllerKind(name: "Xiaomi 15").wantsPhoneScreen)
-    }
-
-    @Test("几台同时连着：有一台不是电脑就加，全是电脑不加；一台都没读到和读不到名字一样，照样加")
-    func several() {
-        #expect(ControllerKind.wantsPhoneScreen(["markzhang的MacBook Pro", "iPhone 18 Pro"]))
-        #expect(ControllerKind.wantsPhoneScreen(["DESKTOP-7Q2K1LM", "Xiaomi 15"]))
-        #expect(!ControllerKind.wantsPhoneScreen(["MacBook Air", "DESKTOP-7Q2K1LM"]))
-        #expect(ControllerKind.wantsPhoneScreen([]))
-    }
-}
 
 @Suite("窗口信息")
 struct WindowInfoTests {

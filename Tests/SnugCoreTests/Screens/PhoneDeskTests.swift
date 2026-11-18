@@ -39,7 +39,7 @@ struct PhoneDeskTests {
         #expect(rig.desk.state.placed?.zoom == 2)
         #expect(rig.desk.state.listVisible == false)
         #expect(rig.desk.state.work == nil)
-        #expect(rig.record == PhoneRecord(window: ghostty.key, app: ghostty.app, label: ghostty.label, original: ghosttyHome, wasFullScreen: false, zoom: 2,
+        #expect(rig.record == PlacedRecord(window: ghostty.key, app: ghostty.app, label: ghostty.label, original: ghosttyHome, wasFullScreen: false, zoom: 2,
                                           bundleID: ghostty.bundleID, title: ghostty.title, filled: phoneArea))
         #expect(rig.desk.state.closeButton == CloseButton(frame: CGRect(x: phoneArea.minX + 8, y: phoneArea.minY + 8, width: 14, height: 14),
                                                           window: ghostty.key.id, windowFrame: phoneArea))
@@ -93,7 +93,7 @@ struct PhoneDeskTests {
     func workDuringPull() async throws {
         let rig = try Rig()
         await rig.ready()
-        var works: [PhoneDesk.Work?] = []
+        var works: [Desk.Work?] = []
         rig.desk.onChange = { state in
             if works.last != .some(state.work) { works.append(state.work) }
         }
@@ -110,7 +110,7 @@ struct PhoneDeskTests {
         rig.windows.blockMoves()
         rig.desk.putBack()
         await rig.desk.idle()
-        #expect(rig.desk.state.placed == PhoneDesk.Placed(window: ghostty, zoom: 0))
+        #expect(rig.desk.state.placed == Desk.Placed(window: ghostty, zoom: 0))
         #expect(rig.desk.state.notice == .windowUnresponsive(app: "Ghostty"))
         #expect(rig.desk.state.listVisible)
         #expect(rig.record?.zoom == 0)
@@ -189,7 +189,7 @@ struct PhoneDeskTests {
         rig.desk.putBack()
         await rig.desk.idle()
         #expect(rig.journal.all.isEmpty)
-        #expect(rig.desk.state.placed == PhoneDesk.Placed(window: ghostty, zoom: 2))
+        #expect(rig.desk.state.placed == Desk.Placed(window: ghostty, zoom: 2))
         #expect(rig.desk.state.notice == .windowUnresponsive(app: "Ghostty"))
         #expect(rig.record?.zoom == 2)
     }
@@ -203,7 +203,7 @@ struct PhoneDeskTests {
         rig.journal.clear()
         await rig.pull(finder)
         #expect(rig.journal.all.isEmpty)
-        #expect(rig.desk.state.placed == PhoneDesk.Placed(window: ghostty, zoom: 2))
+        #expect(rig.desk.state.placed == Desk.Placed(window: ghostty, zoom: 2))
         #expect(rig.desk.state.notice == .windowGone(app: "Finder"))
     }
 
@@ -244,7 +244,7 @@ struct PhoneDeskTests {
         await rig.desk.idle()
         #expect(rig.desk.state.placed?.zoom == ZoomBook.range.upperBound)
         rig.journal.clear()
-        var works: [PhoneDesk.Work?] = []
+        var works: [Desk.Work?] = []
         rig.desk.onChange = { works.append($0.work) }
         rig.desk.zoom(by: 1)
         await rig.desk.idle()
@@ -272,7 +272,7 @@ struct PhoneDeskTests {
         await rig.desk.idle()
         let created = try #require(rig.displays.createdAt[101])
         let retired = try #require(rig.displays.retiredAt[101])
-        #expect(retired - created >= PhoneScreenSpec.minimumLifetime)
+        #expect(retired - created >= ScreenSpec.minimumLifetime)
     }
 
     @Test("不要手机屏了（会话结束）：窗口放回原位、字号缩回，再撤屏；记录销账")
@@ -412,7 +412,7 @@ struct PhoneDeskTests {
         rig.timeline.advance(10)
         rig.desk.setWanted(false)
         await rig.desk.idle()
-        #expect(rig.record == PhoneRecord(window: ghostty.key, app: ghostty.app, label: ghostty.label, original: ghosttyHome, zoom: 2,
+        #expect(rig.record == PlacedRecord(window: ghostty.key, app: ghostty.app, label: ghostty.label, original: ghosttyHome, zoom: 2,
                                           bundleID: ghostty.bundleID, title: ghostty.title, filled: phoneArea))
         rig.desk.recover()
         await rig.desk.idle()
@@ -450,9 +450,9 @@ struct PhoneDeskTests {
         await rig.ready()
         await rig.pull(ghostty)
         let seen = Locked<[Int]>([])
-        let ledger = rig.paths.phoneRecord
+        let ledger = rig.paths.placedRecord(for: .phone)
         rig.windows.onMove { _ in
-            if let zoom = RestoreRecord<PhoneRecord>(url: ledger).pending()?.zoom { seen.withLock { $0.append(zoom) } }
+            if let zoom = RestoreRecord<PlacedRecord>(url: ledger).pending()?.zoom { seen.withLock { $0.append(zoom) } }
         }
         rig.desk.putBack()
         await rig.desk.idle()
@@ -496,8 +496,8 @@ struct PhoneDeskTests {
         #expect(rig.desk.state.work == nil)
     }
 
-    @Test("撤屏：原本就在手机屏上的窗口（手机上新开的）交给系统安置，不放回已经没了的屏")
-    func retireLeavesPhoneWindowsToSystem() async throws {
+    @Test("撤屏：原本就在手机屏上的窗口（手机上新开的）先清场挪到主屏居中；撤屏时系统再挪它，也放回清场后的位置")
+    func retireClearsPhoneWindows() async throws {
         let rig = try Rig()
         await rig.ready()
         rig.windows.setFrame(finder.key, phoneArea)          // 手机上新开的窗口
@@ -509,7 +509,7 @@ struct PhoneDeskTests {
         rig.timeline.advance(10)
         rig.desk.setWanted(false)
         await rig.desk.idle()
-        #expect(rig.windows.window(finder.key)?.frame == mainSpot)
+        #expect(rig.windows.window(finder.key)?.frame == FakeDisplays.main.centered(phoneArea.size))
         #expect(rig.windows.window(ghostty.key)?.frame == ghosttyHome)
     }
 
@@ -739,7 +739,7 @@ struct PhoneDeskTests {
         await rig.pull(finder)
         rig.desk.showList()
         await rig.desk.idle()
-        var works: [PhoneDesk.Work?] = []
+        var works: [Desk.Work?] = []
         rig.desk.onChange = { state in
             if works.last != .some(state.work) { works.append(state.work) }
         }
@@ -788,8 +788,8 @@ struct PhoneDeskTests {
     func recover() async throws {
         let rig = try Rig()
         rig.windows.setFrame(safari.key, CGRect(x: 0, y: 25, width: 540, height: 897))
-        try RestoreRecord<PhoneRecord>(url: rig.paths.phoneRecord).record(
-            PhoneRecord(window: safari.key, app: safari.app, label: safari.label, original: safariHome, wasFullScreen: true, zoom: 2))
+        try RestoreRecord<PlacedRecord>(url: rig.paths.placedRecord(for: .phone)).record(
+            PlacedRecord(window: safari.key, app: safari.app, label: safari.label, original: safariHome, wasFullScreen: true, zoom: 2))
         rig.desk.recover()
         rig.desk.recover()   // 连着两次：第二次轮到时记录已经销了，不会再放一遍
         await rig.desk.idle()
@@ -801,8 +801,8 @@ struct PhoneDeskTests {
     func recoverGoneWindow() async throws {
         let rig = try Rig()
         rig.windows.vanish(safari.key)
-        try RestoreRecord<PhoneRecord>(url: rig.paths.phoneRecord).record(
-            PhoneRecord(window: safari.key, app: safari.app, label: safari.label, original: safariHome, wasFullScreen: true, zoom: 2))
+        try RestoreRecord<PlacedRecord>(url: rig.paths.placedRecord(for: .phone)).record(
+            PlacedRecord(window: safari.key, app: safari.app, label: safari.label, original: safariHome, wasFullScreen: true, zoom: 2))
         rig.desk.recover()
         await rig.desk.idle()
         #expect(rig.journal.all.isEmpty)
@@ -824,7 +824,7 @@ struct PhoneDeskTests {
     @Test("状态变化推给界面")
     func publishesState() async throws {
         let rig = try Rig()
-        var screens: [PhoneDesk.State.Screen] = []
+        var screens: [ScreenSet.State] = []
         rig.desk.onChange = { state in
             if screens.last != state.screen { screens.append(state.screen) }
         }

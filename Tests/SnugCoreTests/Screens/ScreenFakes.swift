@@ -12,7 +12,7 @@ final class Journal: Sendable {
 }
 
 @MainActor
-final class FakeDisplays: PhoneDisplays {
+final class FakeDisplays: VirtualDisplays {
     /// 假屏的左上角（辅助功能坐标）和菜单栏高度：可放区域 = 这一档扣掉菜单栏和底部小横条
     nonisolated static let origin = CGPoint(x: 2000, y: 0)
     nonisolated static let menuBar: CGFloat = 25
@@ -53,17 +53,21 @@ final class FakeDisplays: PhoneDisplays {
     /// 这一档的可放区域，和真的一样：整屏扣掉菜单栏和（跟着缩放的）底部小横条
     nonisolated static func area(width: Int, fit: ScreenFit = .standard) -> CGRect {
         let size = fit.size(width: width)
-        let bar = ScreenFit.homeBarHeight(screenWidth: size.width)
+        let bar = ScreenFit.homeBarHeight(screen: size)
         return CGRect(x: origin.x, y: origin.y + menuBar, width: size.width, height: size.height - menuBar - bar)
     }
 
-    func create(_ fit: ScreenFit) async throws -> DisplayID {
+    /// 每块屏建的时候用的身份
+    private(set) var specs: [DisplayID: ScreenSpec] = [:]
+
+    func create(_ spec: ScreenSpec, _ fit: ScreenFit) async throws -> DisplayID {
         journal.add("create")
         if failuresLeft > 0 {
             failuresLeft -= 1
-            throw PhoneScreenError.neverOnline
+            throw ScreenError.neverOnline
         }
         nextID += 1
+        specs[nextID] = spec
         createdAt[nextID] = clock?()
         widths[nextID] = fit.baseWidth
         fits[nextID] = fit
@@ -111,14 +115,23 @@ final class FakeDisplays: PhoneDisplays {
         widths[id] = width
     }
 
-    func bounds(_ id: DisplayID) -> CGRect? {
-        guard let width = widths[id], let fit = fits[id] else { return nil }
-        return CGRect(origin: Self.origin, size: fit.size(width: width))
+    /// 第几块屏（按编号）往右排：第一块在 origin，后面的接着往右放，各不重叠
+    private func origin(of id: DisplayID) -> CGPoint {
+        let before = widths.keys.filter { $0 < id }.count
+        return CGPoint(x: Self.origin.x + CGFloat(before) * 4000, y: Self.origin.y)
     }
 
-    func windowArea(_ id: DisplayID) -> CGRect? {
+    func bounds(_ id: DisplayID) -> CGRect? {
+        guard let width = widths[id], let fit = fits[id] else { return nil }
+        return CGRect(origin: origin(of: id), size: fit.size(width: width))
+    }
+
+    func windowArea(_ id: DisplayID, withHomeBar: Bool) -> CGRect? {
         guard !areaUnavailable, let width = widths[id], let fit = fits[id] else { return nil }
-        return Self.area(width: width, fit: fit)
+        var area = Self.area(width: width, fit: fit)
+        area.origin.x = origin(of: id).x
+        if !withHomeBar { area.size.height += ScreenFit.homeBarHeight(screen: fit.size(width: width)) }
+        return area
     }
 
     /// 假主屏：左上角在原点，1512 宽，扣掉菜单栏
@@ -348,17 +361,67 @@ final class FakeWindows: WindowControl {
         return true
     }
 
+    /// 和真的一样只问窗口服务器：最小化、藏起来的不在屏上，不算
+    func windows(in area: CGRect) async -> [WindowKey: CGRect] {
+        state.withLock { all in
+            all.filter { !$0.value.minimized && !$0.value.hidden && area.contains(CGPoint(x: $0.value.frame.midX, y: $0.value.frame.midY)) }
+                .mapValues(\.frame)
+        }
+    }
+
     func snapshot() async -> [WindowKey: CGRect] {
         journal.add("snapshot")
         return state.withLock { $0.mapValues(\.frame) }
     }
 
-    func restore(_ snapshot: [WindowKey: CGRect], except: WindowKey?) async {
-        journal.add("restore" + (except.map { " except \($0.id)" } ?? ""))
-        for (key, frame) in snapshot where key != except && self.window(key)?.frame != frame {
+    func restore(_ snapshot: [WindowKey: CGRect], except: Set<WindowKey>) async {
+        journal.add("restore" + except.map { " except \($0.id)" }.sorted().joined())
+        for (key, frame) in snapshot where !except.contains(key) && self.window(key)?.frame != frame {
             setFrame(key, frame)
         }
     }
+}
+
+/// 假的屏幕排布：每块屏的原点。设主屏 = 把它挪到原点、别的跟着平移
+@MainActor
+final class FakeArrangement: DisplayArrangement {
+    let journal: Journal
+    /// 内建屏（#1）在原点；建出来的假屏在 displays 里，原点按 FakeDisplays 的排法
+    var origins_: [DisplayID: CGPoint] = [1: .zero]
+    weak var displays: FakeDisplays?
+    var fails = false
+    /// 设主屏、摆回去时系统的副作用（原主屏上的窗口跟着主屏走）
+    var onChange: (() -> Void)?
+
+    init(journal: Journal) { self.journal = journal }
+
+    func origins() -> [DisplayID: CGPoint] {
+        var all = origins_
+        for id in displays.map({ Array($0.widths.keys) }) ?? [] where all[id] == nil {
+            all[id] = displays?.bounds(id)?.origin
+        }
+        return all
+    }
+
+    func makeMain(_ id: DisplayID) async -> Bool {
+        journal.add("main \(id)")
+        guard !fails, let shift = origins()[id] else { return false }
+        origins_ = origins().mapValues { CGPoint(x: $0.x - shift.x, y: $0.y - shift.y) }
+        onChange?()
+        return true
+    }
+
+    func restore(_ saved: [DisplayID: CGPoint]) async -> Bool {
+        journal.add("arrange \(saved.keys.sorted().map { "#\($0)" }.joined(separator: ","))")
+        guard !fails else { return false }
+        let online = origins()
+        for (id, origin) in saved where online[id] != nil { origins_[id] = origin }
+        onChange?()
+        return true
+    }
+
+    /// 此刻的主屏
+    var main: DisplayID? { origins().first { $0.value == .zero }?.key }
 }
 
 /// 假 App：启动、唤回、新建窗口时按事先登记的样子开出窗口（可以晚一会儿才出现在屏上），退出时按登记的反应来

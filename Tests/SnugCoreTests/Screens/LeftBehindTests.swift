@@ -9,8 +9,8 @@ private let vscode = "com.microsoft.VSCode"
 private let filled = CGRect(x: -757, y: 30, width: 540, height: 892)
 
 private func record(_ title: String = "README.md — snug", key: WindowKey = WindowKey(pid: 20, id: 300),
-                    bundleID: String? = vscode, zoom: Int = 2) -> PhoneRecord {
-    PhoneRecord(window: key, app: "Visual Studio Code", label: "Visual Studio Code「\(title)」",
+                    bundleID: String? = vscode, zoom: Int = 2) -> PlacedRecord {
+    PlacedRecord(window: key, app: "Visual Studio Code", label: "Visual Studio Code「\(title)」",
                 original: CGRect(x: 100, y: 80, width: 1200, height: 800), zoom: zoom,
                 bundleID: bundleID, title: title, filled: filled)
 }
@@ -39,7 +39,7 @@ struct LeftBehindTests {
     @Test("旧版的还原记录（没有 App、标题、铺成的样子）照样读得出来")
     func oldRecordDecodes() throws {
         let old = #"{"window":{"pid":10,"id":7},"app":"Ghostty","label":"Ghostty","original":[[100,100],[1200,800]],"wasFullScreen":false,"wasMinimized":false,"zoom":2}"#
-        let r = try JSONDecoder().decode(PhoneRecord.self, from: Data(old.utf8))
+        let r = try JSONDecoder().decode(PlacedRecord.self, from: Data(old.utf8))
         #expect(r.zoom == 2)
         #expect(r.bundleID == nil && r.title == nil && r.filled == nil)
     }

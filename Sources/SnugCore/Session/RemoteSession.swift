@@ -1,5 +1,7 @@
 // 会话层的组合：连接判定 + 会话生命周期，把每拍观测变成功能模块要处理的会话变化。
-// 功能模块（手机屏）只消费会话状态，会话层不知道有哪些功能
+// 功能模块（屏幕调度）只消费会话状态，会话层不知道有哪些功能。
+// UU 同一时刻只让一台设备控制一台 Mac（实测 V12）：第二台只能「接管设备」，前一台的推流停掉 0.6～0.7 秒后新的一台起推流，
+// 落在重连等待期里，算同一次远程。控制端表格的读取保留，只当作「有人在远程」的证据之一，不拿来判断设备类型
 import Foundation
 
 public enum SessionTransition: Equatable, Sendable {
@@ -17,11 +19,6 @@ public enum SessionTransition: Equatable, Sendable {
 public struct RemoteSession: Sendable {
     public private(set) var tracker = ConnectionTracker()
     public private(set) var episode = SessionEpisode()
-    /// 这次远程最后读到的那组控制端。断开那一拍 tracker 会清空，这里在重连窗口里照样记着
-    private var group: [String] = []
-    /// 几台同时连着时先离开的控制端和离开的时刻。别的控制端还连着，整次远程就不算断开、进不了重连窗口，
-    /// 这里给离开的那台补上同样的窗口：表格漏读一拍（issue #3 的日志里有过）、手机短暂断网，手机屏和上面的窗口都还在
-    private var departed: [String: Date] = [:]
     /// 这次远程从什么时候开始；不在远程里是 nil
     public private(set) var episodeBeganAt: Date?
 
@@ -32,33 +29,21 @@ public struct RemoteSession: Sendable {
     public var controllers: [String] { tracker.controllers }
     public var inEpisode: Bool { episode.isActive }
 
-    /// 这次远程算在内的控制端：最后读到的那组，加上离开还不到重连窗口的
-    public func episodeControllers(at now: Date) -> [String] {
-        let lingering = departed.filter { now.timeIntervalSince($0.value) <= SessionEpisode.reconnectWindow }
-        return group + lingering.keys.sorted()
-    }
-
     public mutating func update(_ signals: UUSignals, now: Date) -> [SessionTransition] {
         var out: [SessionTransition] = []
         if episode.advance(to: now) == .ended {
             out.append(.ended)
-            group = []
-            departed = [:]
             episodeBeganAt = nil
         }
         switch tracker.update(signals, now: now) {
         case .connected(let names)?:
             if episode.connected(at: now) == .began {
                 episodeBeganAt = now
-                group = names
-                departed = [:]
                 out.append(.began(controllers: names))
             } else {
-                if !names.isEmpty { regroup(names, at: now) }
                 out.append(.resumed(controllers: names))
             }
         case .controllersChanged(let names)?:
-            regroup(names, at: now)
             out.append(.controllersChanged(names))
         case .disconnected?:
             if episode.disconnected(at: now) == .interrupted { out.append(.interrupted) }
@@ -66,13 +51,6 @@ public struct RemoteSession: Sendable {
             break
         }
         return out
-    }
-
-    /// 换成新的一组：不在新组里的记下离开时刻，回来的不再算离开
-    private mutating func regroup(_ names: [String], at now: Date) {
-        for name in group where !names.contains(name) { departed[name] = now }
-        for name in names { departed[name] = nil }
-        group = names
     }
 
     public mutating func noteSelfInducedChange(at date: Date) {

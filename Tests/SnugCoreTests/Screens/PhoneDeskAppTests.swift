@@ -14,8 +14,8 @@ private let ghosttyNewWindowed = CGRect(x: 0, y: 350, width: 800, height: 632)
 
 /// 只留下状态里「正在做什么」的变化，连续相同的算一次
 @MainActor
-private func recordWork(_ desk: PhoneDesk) -> () -> [PhoneDesk.Work?] {
-    var works: [PhoneDesk.Work?] = []
+private func recordWork(_ desk: OneScreen) -> () -> [Desk.Work?] {
+    var works: [Desk.Work?] = []
     desk.onChange = { state in if works.last != .some(state.work) { works.append(state.work) } }
     return { works }
 }
@@ -151,14 +151,14 @@ struct PhoneDeskAppTests {
         rig.desk.open(chat)
         await rig.desk.idle()
         #expect(rig.desk.state.notice == .noWindow(app: "ChatGPT"))
-        #expect(rig.timeline.now - started >= PhoneDesk.launchWait)
-        #expect(rig.timeline.now - started < PhoneDesk.launchWait + 1)
+        #expect(rig.timeline.now - started >= DeskSet.launchWait)
+        #expect(rig.timeline.now - started < DeskSet.launchWait + 1)
         // 现在它在跑了：再点是唤回，只等 10 秒
         started = rig.timeline.now
         rig.desk.open(chat)
         await rig.desk.idle()
-        #expect(rig.timeline.now - started >= PhoneDesk.windowWait)
-        #expect(rig.timeline.now - started < PhoneDesk.windowWait + 1)
+        #expect(rig.timeline.now - started >= DeskSet.windowWait)
+        #expect(rig.timeline.now - started < DeskSet.windowWait + 1)
         #expect(rig.journal.all == ["open com.openai.codex", "open com.openai.codex"])
     }
 
@@ -172,16 +172,30 @@ struct PhoneDeskAppTests {
         await rig.desk.idle()
         #expect(rig.desk.state.screen == .off)
         #expect(rig.desk.state.notice == nil)
-        #expect(rig.timeline.now - started < PhoneDesk.windowWait)
+        #expect(rig.timeline.now - started < DeskSet.windowWait)
     }
 
-    @Test("手机屏还没好：不打开，提示手机屏未就绪")
+    @Test("屏要了但没建成（加屏失败、等重试）：不打开，提示屏未就绪")
     func openWithoutScreen() async throws {
         let rig = try Rig()
+        rig.displays.failuresLeft = 9
+        rig.desk.setWanted(true)
+        await rig.desk.idle()
+        rig.journal.clear()
         rig.desk.open(chat)
         await rig.desk.idle()
         #expect(rig.journal.all.isEmpty)
         #expect(rig.desk.state.notice == .screenNotReady)
+    }
+
+    @Test("没有这块屏（不在远程、或这块关着）：它的意图什么都不做，也不留提示（没有面板可显示）")
+    func openOnMissingScreen() async throws {
+        let rig = try Rig()
+        rig.desk.open(chat)
+        rig.desk.pull(ghostty)
+        await rig.desk.idle()
+        #expect(rig.journal.all.isEmpty)
+        #expect(rig.set.state.desks.isEmpty)
     }
 
     // MARK: 退出 App
@@ -256,7 +270,7 @@ struct PhoneDeskAppTests {
         rig.desk.quit(app)
         await rig.desk.idle()
         #expect(rig.desk.state.notice == .quitStalled(app: "ChatGPT", pid: 600))
-        #expect(rig.timeline.now - started >= PhoneDesk.quitWait)
+        #expect(rig.timeline.now - started >= DeskSet.quitWait)
         #expect(rig.desk.state.quitting.isEmpty)
         rig.desk.forceQuit(pid: 600, app: "ChatGPT")
         await rig.desk.idle()
@@ -276,7 +290,7 @@ struct PhoneDeskAppTests {
         await rig.desk.idle()
         #expect(rig.desk.state.notice == .windowUnresponsive(app: "ChatGPT"))
         #expect(rig.desk.state.quitting.isEmpty)
-        #expect(rig.timeline.now - started < PhoneDesk.quitWait)
+        #expect(rig.timeline.now - started < DeskSet.quitWait)
     }
 
     @Test("强制退出请求没送到：提示无响应，不悄悄算了")
@@ -297,7 +311,7 @@ struct PhoneDeskAppTests {
         await rig.ready()
         let app = rig.apps.run(chat, pid: 600)
         rig.apps.onQuit(chat, .slow(after: 15))
-        var notices: [PhoneDesk.Notice?] = []
+        var notices: [Desk.Notice?] = []
         rig.desk.onChange = { if notices.last != .some($0.notice) { notices.append($0.notice) } }
         rig.desk.quit(app)
         await rig.desk.idle()
@@ -440,7 +454,7 @@ struct PhoneDeskAppTests {
         rig.desk.close(finder)
         await rig.desk.idle()
         #expect(rig.desk.state.notice == .windowUnresponsive(app: "Finder"))
-        #expect(rig.timeline.now - started >= PhoneDesk.closeWait)
+        #expect(rig.timeline.now - started >= DeskSet.closeWait)
         #expect(rig.desk.state.closing.isEmpty)
     }
 
@@ -463,8 +477,8 @@ struct PhoneDeskAppTests {
         await rig.ready()
         let notesRunning = rig.apps.run(notesApp, pid: 13, windows: [notes])
         rig.apps.onQuit(notesApp, .slow(after: 3))
-        var gone: [PhoneDesk.Gone] = []
-        var goneWhenSettled: [[PhoneDesk.Gone]] = []
+        var gone: [DeskSet.Gone] = []
+        var goneWhenSettled: [[DeskSet.Gone]] = []
         var busy = false
         rig.desk.onGone = { gone.append($0) }
         rig.desk.onChange = { state in
@@ -486,7 +500,7 @@ struct PhoneDeskAppTests {
         let notesRunning = rig.apps.run(notesApp, pid: 13, windows: [notes])
         rig.apps.onQuit(notesApp, .asks(notes.key.id, answer: .cancel(after: 2)))
         rig.windows.onClose(finder.key, .stalls)
-        var gone: [PhoneDesk.Gone] = []
+        var gone: [DeskSet.Gone] = []
         rig.desk.onGone = { gone.append($0) }
         rig.desk.quit(notesRunning)
         rig.desk.close(finder)

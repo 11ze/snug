@@ -10,7 +10,8 @@ struct PersistenceTests {
     func pathNames() {
         let p = SnugPaths(dataDirectory: URL(fileURLWithPath: "/d"), logFile: URL(fileURLWithPath: "/l/Snug.log"))
         #expect(p.config.path == "/d/config.json")
-        #expect(p.phoneRecord.path == "/d/phone-screen.json")
+        #expect(p.placedRecord(for: ScreenID("abc")).path == "/d/placed/abc.json")
+        #expect(p.legacyPlacedRecord.path == "/d/phone-screen.json")
         #expect(p.zoomBook.path == "/d/zoom.json")
         #expect(SnugPaths.standard.dataDirectory.path.hasSuffix("Library/Application Support/Snug"))
         #expect(SnugPaths.standard.logFile.path.hasSuffix("Library/Logs/Snug.log"))

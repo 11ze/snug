@@ -116,9 +116,9 @@ public final class WindowService: WindowControl {
         }
     }
 
-    public func restore(_ snapshot: [WindowKey: CGRect], except: WindowKey?) async {
+    public func restore(_ snapshot: [WindowKey: CGRect], except: Set<WindowKey>) async {
         await run {
-            for (window, saved) in snapshot where window != except {
+            for (window, saved) in snapshot where !except.contains(window) {
                 guard let element = AX.element(for: window), let now = AX.frame(element), !now.matches(saved) else { continue }
                 let got = Self.move(element, to: saved)
                 Log.info("系统挪了 pid \(window.pid) 的窗口 \(now.short)，已放回 \(saved.short)"
@@ -158,11 +158,21 @@ public final class WindowService: WindowControl {
     }
 
     public func frames(of pid: Int32) async -> [WindowKey: CGRect] {
+        Self.onScreenFrames().filter { $0.key.pid == pid }
+    }
+
+    public func windows(in area: CGRect) async -> [WindowKey: CGRect] {
+        let me = ProcessInfo.processInfo.processIdentifier
+        return Self.onScreenFrames().filter { $0.key.pid != me && area.contains(CGPoint(x: $0.value.midX, y: $0.value.midY)) }
+    }
+
+    /// 屏上普通窗口（第 0 层）此刻的位置，问窗口服务器
+    private static func onScreenFrames() -> [WindowKey: CGRect] {
         let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]]
         var frames: [WindowKey: CGRect] = [:]
-        for info in list ?? [] where (info[kCGWindowOwnerPID as String] as? NSNumber)?.int32Value == pid
-            && (info[kCGWindowLayer as String] as? NSNumber)?.intValue == 0 {
-            guard let id = (info[kCGWindowNumber as String] as? NSNumber)?.uint32Value,
+        for info in list ?? [] where (info[kCGWindowLayer as String] as? NSNumber)?.intValue == 0 {
+            guard let pid = (info[kCGWindowOwnerPID as String] as? NSNumber)?.int32Value,
+                  let id = (info[kCGWindowNumber as String] as? NSNumber)?.uint32Value,
                   let bounds = info[kCGWindowBounds as String] as? NSDictionary,
                   let frame = CGRect(dictionaryRepresentation: bounds as CFDictionary) else { continue }
             frames[WindowKey(pid: pid, id: id)] = frame

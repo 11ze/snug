@@ -4,7 +4,7 @@
 import CoreGraphics
 import Foundation
 
-public struct PhoneRecord: Codable, Equatable, Sendable {
+public struct PlacedRecord: Codable, Equatable, Sendable {
     public var window: WindowKey
     /// 提示里用（「Ghostty 无响应」）
     public var app: String

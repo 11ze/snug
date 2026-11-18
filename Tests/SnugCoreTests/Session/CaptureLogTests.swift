@@ -193,6 +193,23 @@ struct CaptureLogTests {
         #expect(s.streamingDisplay(at: d.addingTimeInterval(6)) == 5)
     }
 
+    @Test("换手接管（V12）：前一台的两路停掉 0.6～0.7 秒后新的一台起推流，一直算推流中；新的一台推的是它开推前描述的屏（主屏）")
+    func takeoverKeepsStreaming() {
+        var s = CaptureSessionState()
+        let d = ts("21:00:00.000")
+        s.apply(CaptureLogRecord(date: d, event: .displayDescribed(79)))
+        s.apply(CaptureLogRecord(date: d.addingTimeInterval(0.1), event: .captureStarted))
+        s.apply(CaptureLogRecord(date: d.addingTimeInterval(0.2), event: .displayDescribed(1)))
+        s.apply(CaptureLogRecord(date: d.addingTimeInterval(0.3), event: .captureStarted))
+        s.apply(CaptureLogRecord(date: d.addingTimeInterval(30), event: .captureStopped))
+        s.apply(CaptureLogRecord(date: d.addingTimeInterval(30.002), event: .captureStopped))
+        #expect(s.isActive(at: d.addingTimeInterval(30.4)))
+        s.apply(CaptureLogRecord(date: d.addingTimeInterval(30.69), event: .displayDescribed(1)))
+        s.apply(CaptureLogRecord(date: d.addingTimeInterval(30.7), event: .captureStarted))
+        #expect(s.isActive(at: d.addingTimeInterval(40)))
+        #expect(s.streamingDisplay(at: d.addingTimeInterval(40)) == 1)
+    }
+
     @Test("监听中途启动：回放启动前的日志再接上实时日志，认得出正在推、推的是哪块屏")
     func resumedFromHistory() {
         let d = ts("22:00:00.000")

@@ -10,11 +10,11 @@ import Foundation
 
 public struct LeftBehind: Codable, Equatable, Sendable {
     /// 没还的那份还原记录：原位、还欠几级字号、App、标题、Snug 铺成的样子
-    public var record: PhoneRecord
+    public var record: PlacedRecord
     /// 什么时候留下的（墙钟）：过期就不等了
     public var since: Date
 
-    public init(record: PhoneRecord, since: Date) {
+    public init(record: PlacedRecord, since: Date) {
         self.record = record
         self.since = since
     }
@@ -23,7 +23,7 @@ public struct LeftBehind: Codable, Equatable, Sendable {
     var zoomScope: ZoomScope? { ZoomBook.scope(of: record.bundleID) }
 
     /// 窗口回来了（编号可能换了）：按回来的窗口改写还原记录，字号只算随窗口一起回来的那几级
-    public func returned(as key: WindowKey) -> PhoneRecord {
+    public func returned(as key: WindowKey) -> PlacedRecord {
         var r = record
         r.window = key
         if !carriesZoom(returnedIn: key.pid) { r.zoom = 0 }
