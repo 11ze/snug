@@ -63,24 +63,18 @@ public struct ScreenSpec: Equatable, Sendable {
     }
 }
 
-/// 一块屏上的行为，ScreenPlan 按型号的类别给
+/// 一块屏上的行为，ScreenPlan 按型号的类别给；下游只认它，不认类别
 public struct ScreenBehavior: Equatable, Sendable {
-    /// 触屏用的屏（手机、平板）：屏上有 App 资源库和小横条，放上来的窗口铺满整块屏、按窗口换档。
-    /// 电脑屏没有面板，App 资源库从菜单栏打开，窗口只挪过来，大小不动
+    /// 触屏用的屏（手机、平板）：屏上有 App 资源库和小横条，翻译手势（设置里开着时），放上来的窗口铺满整块屏、
+    /// 按窗口换档、放大字号。电脑屏没有面板，App 资源库从菜单栏打开，窗口只挪过来，大小、字号不动
     public var touch: Bool
-    /// 这块屏上翻不翻译手势
-    public var gestures: Bool
-    /// 放上来时放大字号（按 App 记住的级数，没记过用设置里的默认级数）
-    public var zooms: Bool
 
-    public init(touch: Bool, gestures: Bool, zooms: Bool) {
+    public init(touch: Bool) {
         self.touch = touch
-        self.gestures = gestures
-        self.zooms = zooms
     }
 
-    /// 手机屏一直以来的样子
-    public static let phone = ScreenBehavior(touch: true, gestures: true, zooms: true)
+    public static let touchScreen = ScreenBehavior(touch: true)
+    public static let computer = ScreenBehavior(touch: false)
 }
 
 public struct ScreenWish: Equatable, Sendable {

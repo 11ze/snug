@@ -33,7 +33,7 @@ final class ScreenPanels {
     }
 
     private func update() {
-        let touch = Set(state.desks.desks.keys.filter { state.behavior(of: $0)?.touch == true })
+        let touch = Set(state.desks.desks.filter { $0.value.behavior.touch }.keys)
         for id in panels.keys where !touch.contains(id) {
             panels.removeValue(forKey: id)?.close()
         }

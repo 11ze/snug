@@ -617,7 +617,7 @@ public final class DeskSet {
         lane.run {
             self.migrateLegacyRecord()
             for id in self.recordedScreens() {
-                await (self.desks[id] ?? Desk(id: id, behavior: .phone, env: self.env)).putBackLeftover()
+                await (self.desks[id] ?? Desk(id: id, behavior: .touchScreen, env: self.env)).putBackLeftover()
             }
         }
     }

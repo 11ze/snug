@@ -195,7 +195,7 @@ final class AppController: Sendable {
     func syncGestures() {
         let cropping = state.screenshotOverlay?.isCropping == true ? state.screenshotScreen : nil
         let covered: [(id: ScreenID, region: TouchRegion)] = store.config.gestures ? state.desks.desks.compactMap { id, desk in
-            guard id != cropping, let display = desk.display, state.behavior(of: id)?.gestures == true else { return nil }
+            guard id != cropping, desk.behavior.touch, let display = desk.display else { return nil }
             // 窗口露着时才拦它的关闭按钮：列表盖着时那个位置是列表
             return (id, TouchRegion(screen: CGDisplayBounds(display), closeButton: desk.listVisible ? nil : desk.closeButton))
         } : []

@@ -12,6 +12,8 @@ import Foundation
 public final class Desk {
     public struct State: Equatable, Sendable {
         public var screen = ScreenSet.State.off
+        /// 这块屏的行为（ScreenPlan 按型号的类别给）：界面按它决定有没有面板、手势翻不翻译
+        public var behavior = ScreenBehavior.touchScreen
         /// 屏上的窗口
         public var placed: Placed?
         /// 屏上露着 App 资源库。没放窗口时总是露着
@@ -87,7 +89,10 @@ public final class Desk {
     static let replaceWait: TimeInterval = 10
 
     let id: ScreenID
-    var behavior: ScreenBehavior
+    var behavior: ScreenBehavior {
+        get { state.behavior }
+        set { state.behavior = newValue }
+    }
     private(set) var state = State() {
         didSet { if state != oldValue { onChange?() } }
     }
@@ -112,9 +117,9 @@ public final class Desk {
 
     init(id: ScreenID, behavior: ScreenBehavior, env: DeskEnvironment) {
         self.id = id
-        self.behavior = behavior
         self.env = env
         ledger = RestoreRecord(url: env.paths.placedRecord(for: id))
+        state.behavior = behavior
     }
 
     /// 放在这块屏上的窗口
@@ -228,7 +233,7 @@ public final class Desk {
         Log.info("\(window.label) 放上屏 #\(display)（\(took)s）：原位 \(next.record.original.short)\(was)，\(fill)")
 
         // 带着字号回来的不重复放大，只补差的那几级；不放大字号的屏（电脑屏）缩回原样
-        let target = behavior.zooms ? env.zoomBook.steps(for: window.bundleID, default: env.defaultZoom) : 0
+        let target = env.zoomBook.steps(for: window.bundleID, default: env.defaultZoom)
         let steps = target - next.record.zoom
         guard zoom, steps != 0 else { return }
         // 窗口已经在屏上了，剩下的只是调字号

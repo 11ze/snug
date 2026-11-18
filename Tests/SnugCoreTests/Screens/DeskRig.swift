@@ -122,7 +122,7 @@ final class OneScreen {
                      quitting: s.quitting, closing: s.closing, dismissed: s.dismissed.contains(id), closeButton: d.closeButton)
     }
 
-    var wish: ScreenWish { ScreenWish(id: id, spec: phoneSpec, fit: fit, behavior: .phone) }
+    var wish: ScreenWish { ScreenWish(id: id, spec: phoneSpec, fit: fit, behavior: .touchScreen) }
 
     func setWanted(_ on: Bool) {
         wanted = on

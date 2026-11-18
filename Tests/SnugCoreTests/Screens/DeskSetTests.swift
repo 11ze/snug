@@ -7,16 +7,16 @@ import Testing
 private let second = ScreenID("second")
 private let secondSpec = ScreenSpec(name: "Snug 第二块", productID: ScreenSpec.portraitProductID,
                                     serials: [200_100_000, 200_100_001, 200_100_002], maxPixels: ScreenFit.portraitPixels)
-private let computer = ScreenBehavior(touch: false, gestures: false, zooms: false)
+private let computer = ScreenBehavior.computer
 
 @MainActor
 private extension Rig {
-    func secondWish(_ behavior: ScreenBehavior = .phone) -> ScreenWish {
+    func secondWish(_ behavior: ScreenBehavior = .touchScreen) -> ScreenWish {
         ScreenWish(id: second, spec: secondSpec, fit: .standard, behavior: behavior)
     }
 
     /// 两块屏都建好，流水账清空
-    func readyTwo(_ behavior: ScreenBehavior = .phone) async {
+    func readyTwo(_ behavior: ScreenBehavior = .touchScreen) async {
         set.setWishes([desk.wish, secondWish(behavior)])
         await set.idle()
         journal.clear()

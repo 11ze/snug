@@ -49,11 +49,6 @@ final class AppState {
     /// 配置里的这块屏
     func screen(_ id: ScreenID) -> ScreenConfig? { config.screens.first { $0.id == id } }
 
-    /// 这块屏的行为（按配置里的型号类别）
-    func behavior(of id: ScreenID) -> ScreenBehavior? {
-        screen(id).map { ScreenPlan.behavior($0.device.kind, gestures: config.gestures) }
-    }
-
     /// 这块屏上的面板看到的状态
     func panel(_ id: ScreenID) -> PanelState {
         PanelState(desk: desks.desks[id] ?? Desk.State(), quitting: desks.quitting, closing: desks.closing,
@@ -71,7 +66,7 @@ final class AppState {
     /// 菜单栏「App 资源库」能往哪些屏放：就绪的电脑屏，按屏幕列表的顺序。手机、平板屏有自己的面板，
     /// Mac 样式的窗口开在它们上面也放不下
     var libraryScreens: [ScreenID] {
-        config.screens.map(\.id).filter { desks.desks[$0]?.display != nil && behavior(of: $0)?.touch == false }
+        config.screens.map(\.id).filter { id in desks.desks[id].map { $0.display != nil && !$0.behavior.touch } == true }
     }
 
     /// 只在值真的变了时才写，免得每拍都让界面重算

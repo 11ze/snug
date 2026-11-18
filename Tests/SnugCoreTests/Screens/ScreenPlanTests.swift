@@ -43,18 +43,17 @@ struct ScreenPlanTests {
         #expect(a == b)
     }
 
-    @Test("类别 → 行为：手机、平板翻译手势、调字号；电脑都不要；手势总开关关掉时哪块都不翻译")
+    @Test("类别 → 行为：手机、平板是触屏，电脑不是；手势总开关不改行为（翻不翻译由界面层按开关定）")
     func behavior() {
-        #expect(ScreenPlan.behavior(.phone, gestures: true) == ScreenBehavior(touch: true, gestures: true, zooms: true))
-        #expect(ScreenPlan.behavior(.tablet, gestures: true) == ScreenBehavior(touch: true, gestures: true, zooms: true))
-        #expect(ScreenPlan.behavior(.computer, gestures: true) == ScreenBehavior(touch: false, gestures: false, zooms: false))
-        #expect(ScreenPlan.behavior(.phone, gestures: false) == ScreenBehavior(touch: true, gestures: false, zooms: true))
+        #expect(ScreenPlan.behavior(.phone) == .touchScreen)
+        #expect(ScreenPlan.behavior(.tablet) == .touchScreen)
+        #expect(ScreenPlan.behavior(.computer) == .computer)
         var c = config()
         c.screens[2].enabled = true
+        let on = ScreenPlan.wishes(config: c, remote: remote, trusted: true)
         c.gestures = false
-        let wishes = ScreenPlan.wishes(config: c, remote: remote, trusted: true)
-        #expect(wishes.map(\.behavior.gestures) == [false, false, false])
-        #expect(wishes.map(\.behavior.zooms) == [true, true, false])
+        #expect(ScreenPlan.wishes(config: c, remote: remote, trusted: true) == on)
+        #expect(on.map(\.behavior.touch) == [true, true, false])
     }
 
     @Test("身份按方向：竖屏 0xF0、横屏 0xF1，像素上限跟着方向；迁移来的那块沿用老身份")

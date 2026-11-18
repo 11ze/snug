@@ -57,7 +57,6 @@ extension AppController: AppIntents {
 
     func setGestures(_ on: Bool) {
         guard changeConfig("手势 → \(on ? "开" : "关")", { $0.gestures = on }) else { return }
-        applyPlan()
         syncGestures()
     }
 
