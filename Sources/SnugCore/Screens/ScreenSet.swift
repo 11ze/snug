@@ -377,16 +377,40 @@ public final class ScreenSet {
 
     func mainArea() -> CGRect? { displays.mainArea() }
 
-    /// 窗口原位按没设主屏时的坐标记：设回、撤屏后放回都准；Snug 崩溃后系统已经摆回，账也照样对得上
+    /// 窗口原位按没设主屏时的坐标记：设回、撤屏后放回都准；Snug 崩溃后系统已经摆回，账也照样对得上。
+    /// 设了主屏时 macOS 在原主屏和新主屏之间整体互换窗口（V11、11-18 真机实测）：设主屏时原主屏上的窗口搬到新主屏同一处，
+    /// 还原排布时新主屏上的窗口搬回原主屏，原主屏上的反倒被换到 Snug 的屏上。所以新主屏上的窗口，没设主屏时就在原主屏同一处；
+    /// 别的屏上的窗口跟着自己的屏整体平移
     func homeFrame(_ frame: CGRect) -> CGRect {
-        guard let shift = claimed?.shift else { return frame }
-        return frame.offsetBy(dx: shift.dx, dy: shift.dy)
+        guard let claimed else { return frame }
+        if let main = claimedBounds, main.contains(CGPoint(x: frame.midX, y: frame.midY)) {
+            return frame.offsetBy(dx: -main.minX, dy: -main.minY)
+        }
+        return frame.offsetBy(dx: claimed.shift.dx, dy: claimed.shift.dy)
     }
 
-    /// 按原位账放回时，换成此刻的坐标
+    /// 按原位账放回时，换成此刻的坐标（homeFrame 反过来）：原位在原主屏上的放到新主屏同一处，还原排布时系统把它带回原主屏
     func currentFrame(_ home: CGRect) -> CGRect {
-        guard let shift = claimed?.shift else { return home }
-        return home.offsetBy(dx: -shift.dx, dy: -shift.dy)
+        guard let claimed else { return home }
+        if let main = claimedBounds, let size = homeMainSize,
+           CGRect(origin: .zero, size: size).contains(CGPoint(x: home.midX, y: home.midY)) {
+            return home.offsetBy(dx: main.minX, dy: main.minY)
+        }
+        return home.offsetBy(dx: -claimed.shift.dx, dy: -claimed.shift.dy)
+    }
+
+    /// 设了主屏时，这个点在不在设成主屏的那块屏上：在上面的窗口还原排布时会被系统搬回原主屏，原位不按落在 Snug 屏上处理
+    func onClaimedScreen(_ point: CGPoint) -> Bool {
+        claimedBounds?.contains(point) == true
+    }
+
+    /// 设成主屏的那块屏此刻的范围（真机上原点就是 0,0）
+    private var claimedBounds: CGRect? { claimed.flatMap { displays.bounds($0.display) } }
+
+    /// 原来那块主屏的大小：它在没设主屏时的坐标里原点是 0,0（找不到就按别的屏整体平移算）
+    private var homeMainSize: CGSize? {
+        guard let home = homeMain else { return nil }
+        return displays.otherDisplays().first(where: { $0.id == home })?.bounds.size
     }
 
     /// 原来那块主屏此刻的范围：设了主屏时，此刻的主屏是 Snug 的屏，原位不能落在它上面

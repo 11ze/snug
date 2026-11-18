@@ -31,10 +31,11 @@ final class DeskEnvironment {
         leftBehind = LeftBehindLedger(url: paths.leftBehind, windows: windows, apps: apps)
     }
 
-    /// 原位，按没设主屏时的坐标记（见 ScreenSet.homeFrame）。落在 Snug 屏上的（App 按上次记住的位置把窗口开在了那块屏上，
-    /// 或设主屏时跟了过去）改成原来那块主屏居中，屏一撤那个位置就不存在了
+    /// 原位，按没设主屏时的坐标记（见 ScreenSet.homeFrame）。落在 Snug 屏上的（App 按上次记住的位置把窗口开在了那块屏上）
+    /// 改成原来那块主屏居中，屏一撤那个位置就不存在了。设成主屏的那块除外：上面的窗口还原排布时系统会搬回原主屏同一处
     func originalFrame(_ frame: CGRect) -> CGRect {
-        guard screens.screen(at: CGPoint(x: frame.midX, y: frame.midY)) != nil, let home = screens.homeMainArea() else {
+        let center = CGPoint(x: frame.midX, y: frame.midY)
+        guard !screens.onClaimedScreen(center), screens.screen(at: center) != nil, let home = screens.homeMainArea() else {
             return screens.homeFrame(frame)
         }
         return screens.homeFrame(home.centered(frame.size))

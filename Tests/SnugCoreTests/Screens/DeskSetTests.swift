@@ -399,6 +399,29 @@ struct DeskSetTests {
         #expect(rig.windows.window(xcode.key)?.frame == home)
     }
 
+    @Test("设着主屏时在屏上换窗口：原主屏上的窗口原位按原主屏记，换下来时放到设成主屏的那块屏上同一处（系统还原排布时把它带回原主屏，11-18 真机实测）")
+    func swapWhileMainKeepsHomeMainWindowsOnMain() async throws {
+        let rig = try Rig()
+        rig.displays.others[1] = ScreenMode(ioModeID: 1, width: 1512, height: 982, pixelWidth: 3024, pixelHeight: 1964, refreshRate: 120)
+        var wish = rig.secondWish(computer)
+        wish.main = true
+        rig.set.setWishes([rig.desk.wish, wish])
+        await rig.set.idle()
+        // 设成主屏的那块此刻的原点（真机上是 0,0）；原主屏跟着别的屏一起让开
+        let main = try #require(rig.displays.bounds(102)).origin
+        rig.displays.otherBounds[1] = CGRect(x: -main.x, y: -main.y, width: 1512, height: 982)
+        // 原主屏 (152,73) 处的窗口，设主屏时被系统搬到新主屏的同一处
+        let home = CGRect(x: 152, y: 73, width: 656, height: 422)
+        let notes = WindowInfo(key: WindowKey(pid: 34, id: 54), app: "备忘录", bundleID: "com.apple.Notes", title: "清单")
+        rig.windows.add(notes.key, frame: home.offsetBy(dx: main.x, dy: main.y), info: notes)
+        await rig.pull(notes)
+        #expect(rig.record(of: rig.desk.id)?.original == home)
+        let memo = WindowInfo(key: WindowKey(pid: 35, id: 55), app: "文本编辑", bundleID: "com.apple.TextEdit", title: "t2")
+        rig.windows.add(memo.key, frame: CGRect(x: main.x + 300, y: main.y + 300, width: 500, height: 300), info: memo)
+        await rig.pull(memo)
+        #expect(rig.windows.window(notes.key)?.frame == home.offsetBy(dx: main.x, dy: main.y))
+    }
+
     @Test("屏留着、只是不再当主屏：设回原主屏，屏不撤")
     func unsetMainKeepsScreen() async throws {
         let rig = try Rig()
