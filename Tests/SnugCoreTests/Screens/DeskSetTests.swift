@@ -306,6 +306,30 @@ struct DeskSetTests {
         #expect(rig.windows.window(safari.key)?.frame == frame.offsetBy(dx: 1180, dy: 0))
     }
 
+    @Test("显示器睡着时先后撤了两块屏（都还没下线）：等两块都下线了再放回窗口，不在先下线的那块之后就收工")
+    func twoRetiresWhileAsleep() async throws {
+        let rig = try Rig()
+        await rig.readyTwo()
+        rig.timeline.advance(10)
+        let memo = WindowInfo(key: WindowKey(pid: 32, id: 52), app: "备忘录", bundleID: "com.apple.Notes", title: "清单")
+        let home = CGRect(x: 200, y: 200, width: 500, height: 400)
+        rig.windows.add(memo.key, frame: home, info: memo)
+        rig.displays.staysOnline = true
+        rig.set.setWishes([rig.desk.wish])
+        await rig.set.idle()
+        rig.set.setWishes([])
+        await rig.set.idle()
+        rig.displays.goOffline(101)
+        rig.set.settleDisplays()
+        await rig.set.idle()
+        // 后下线的那块下线时系统又把窗口挪乱了
+        rig.displays.onRetire = { [windows = rig.windows] in windows.setFrame(memo.key, FakeDisplays.main) }
+        rig.displays.goOffline(102)
+        rig.set.settleDisplays()
+        await rig.set.idle()
+        #expect(rig.windows.window(memo.key)?.frame == home)
+    }
+
     // MARK: 设为主屏
 
     @Test("设为主屏：建好、善后之后设主屏；原主屏上的窗口跟着搬过去，不放回")

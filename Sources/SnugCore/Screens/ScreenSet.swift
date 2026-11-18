@@ -151,8 +151,10 @@ public final class ScreenSet {
         // 只设回本次登录，磁盘上那组屏幕记的还是旧模式（实测），所以连永久配置一起写回。
         // 加屏、远程中撤屏，之前可能是远程用的临时模式：只设回本次登录，远程结束后再写永久配置
         if !retire.isEmpty, remote { persistOwed = true }
-        let pending = Retiring(displays: gone, before: before, permanently: create.isEmpty && !remote)
-        if offline {
+        let batch = Retiring(displays: gone, before: before, permanently: create.isEmpty && !remote)
+        let pending = retiring.map { $0.joined(batch) } ?? batch
+        retiring = nil
+        if offline, !pending.displays.contains(where: displays.isOnline) {
             await settle(pending.before, after: change, permanently: pending.permanently)
         } else {
             retiring = pending
@@ -215,6 +217,14 @@ public final class ScreenSet {
         var displays: [DisplayID]
         var before: Surroundings
         var permanently: Bool
+
+        /// 上一批还没下线又撤了一批：一起等，都下线了按第一批之前的样子放回（屏没下线前系统不挪窗口，显示器睡着时也没人动）；
+        /// 后一批撤掉的屏上的窗口不在后一份里，交给系统
+        func joined(_ later: Retiring) -> Retiring {
+            var before = before
+            before.windows = before.windows.filter { later.before.windows[$0.key] != nil }
+            return Retiring(displays: displays + later.displays, before: before, permanently: permanently && later.permanently)
+        }
     }
 
     /// 记下来，别的屏的模式也写进日志：出了问题能分清是换屏幕组合时被拨动的，还是之前就是这样
