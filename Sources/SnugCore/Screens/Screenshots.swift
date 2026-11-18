@@ -43,11 +43,11 @@ public protocol ScreenshotControl: AnyObject {
     func copy(_ image: CapturedImage) -> Bool
 }
 
-/// 手机屏上此刻浮着的截图界面
+/// 屏上此刻浮着的截图界面
 public enum ScreenshotOverlay: Equatable, Sendable {
     /// 刚截好：底部浮缩略图，点它进裁剪
     case preview(CapturedImage)
-    /// 正在裁剪：盖满手机屏，手势翻译要停掉（拖动是在画选区）
+    /// 正在裁剪：盖满这块屏，手势翻译要停掉（拖动是在画选区）
     case cropping(CapturedImage)
     /// 一句话的结果
     case notice(ScreenshotNotice)

@@ -197,14 +197,14 @@ final class LibraryWindowController: NSObject, NSWindowDelegate {
     private let state: AppState
     private let catalog: AppCatalog
     /// 往哪块屏放就交给哪块屏的意图，和屏上的面板走同一个入口
-    private let intents: (ScreenID) -> any PhoneIntents
+    private let intents: (ScreenID) -> any TouchIntents
     private let model = LibraryModel()
     private var window: NSWindow?
     /// 每打开一次、关掉一次都换一个代号：跟踪用的观察登记触发时代号对不上就不再续，不用去猜窗口还开没开着
     private var generation = 0
     private static let owner = "library"
 
-    init(state: AppState, catalog: AppCatalog, intents: @escaping (ScreenID) -> any PhoneIntents) {
+    init(state: AppState, catalog: AppCatalog, intents: @escaping (ScreenID) -> any TouchIntents) {
         self.state = state
         self.catalog = catalog
         self.intents = intents

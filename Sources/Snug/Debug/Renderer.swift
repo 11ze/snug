@@ -61,7 +61,7 @@ enum Renderer {
 
 /// 渲染用的意图替身：什么都不做
 @MainActor
-final class RenderStub: AppIntents, PhoneIntents, Navigation {
+final class RenderStub: AppIntents, TouchIntents, Navigation {
     func setScreenEnabled(_ id: ScreenID, _ on: Bool) {}
     func addScreen(orientation: Orientation, device: DeviceChoice, name: String) {}
     func removeScreen(_ id: ScreenID) {}

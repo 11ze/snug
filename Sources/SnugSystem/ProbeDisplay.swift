@@ -1,5 +1,5 @@
-// 实测用的实验屏（--probe-screens）：照规格建、释放，不经过手机屏的调度。
-// 厂商、产品号和手机屏一样，序列号用实验身份（见 ProbeScreen）；物理尺寸照手机屏的办法按像素上限、约 220ppi 折算，
+// 实测用的实验屏（--probe-screens）：照规格建、释放，不经过屏幕调度。
+// 厂商、产品号和 Snug 的竖屏一样，序列号用实验身份（见 ProbeScreen）；物理尺寸照 Snug 的屏的办法按像素上限、约 220ppi 折算，
 // 按真实密度折算的全新身份不会上线（见 ScreenSpec）。在主线程建和释放，释放时不能留别的强引用
 import CGVirtualDisplayBridge
 import CoreGraphics

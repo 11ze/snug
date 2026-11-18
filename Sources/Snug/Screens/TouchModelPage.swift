@@ -4,11 +4,11 @@
 import SnugCore
 import SwiftUI
 
-struct PhoneModelPage: View {
+struct TouchModelPage: View {
     let screen: ScreenID
     let state: AppState
-    @Bindable var pages: PhonePages
-    let intents: any PhoneIntents
+    @Bindable var pages: TouchPages
+    let intents: any TouchIntents
     @Environment(\.topTrailingClear) private var topTrailingClear
 
     private var query: String { pages.trimmedQuery }

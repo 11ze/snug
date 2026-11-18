@@ -180,7 +180,7 @@ extension AppController: AppIntents {
 
 /// 一块屏上的面板发起的意图：带上是哪块屏，交给 AppController
 @MainActor
-final class ScreenIntents: PhoneIntents {
+final class ScreenIntents: TouchIntents {
     let id: ScreenID
     private unowned let app: AppController
     private var desks: DeskSet { app.desks }

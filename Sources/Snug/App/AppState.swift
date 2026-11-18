@@ -124,7 +124,7 @@ protocol AppIntents: AnyObject, Sendable {
 
 /// 一块屏上的 App 资源库和小横条能发起的意图（每块屏一份，见 ScreenIntents）
 @MainActor
-protocol PhoneIntents: AnyObject, Sendable {
+protocol TouchIntents: AnyObject, Sendable {
     func pull(_ window: WindowInfo)
     /// 点一个 App：在跑且有窗口就放最近用过的那个，否则打开它、等新窗口出来再放（见 AppList.action）
     func open(_ app: AppInfo)

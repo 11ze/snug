@@ -37,7 +37,7 @@ public struct ScreenMode: Equatable, Sendable, CustomStringConvertible {
 
 /// 帮手进程（Snug --set-mode / --restore-mode）要把屏切到哪个模式
 public enum ModeTarget: Equatable, Sendable, CustomStringConvertible {
-    /// 手机屏换档：width × height（点）的 2 倍模式，只对本次登录生效
+    /// Snug 的屏换档：width × height（点）的 2 倍模式，只对本次登录生效
     case hiDPI(width: Int, height: Int)
     /// 别的屏：设回这个模式。permanently 时连永久配置一起写，否则只对本次登录生效
     case exact(ScreenMode, permanently: Bool)
@@ -65,7 +65,7 @@ public enum ModeTarget: Equatable, Sendable, CustomStringConvertible {
     }
 }
 
-/// 手机屏以外的一块屏此刻的样子
+/// Snug 的屏以外的一块屏此刻的样子
 public struct OtherDisplay: Equatable, Sendable {
     public var id: DisplayID
     /// 在「显示器」设置里的名字，日志用

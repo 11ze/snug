@@ -6,9 +6,9 @@ import SwiftUI
 
 struct SearchPage: View {
     let catalog: AppCatalog
-    @Bindable var search: PhonePages
-    let phone: PanelState
-    let intents: any PhoneIntents
+    @Bindable var search: TouchPages
+    let panel: PanelState
+    let intents: any TouchIntents
     @FocusState private var focused: Bool
     @Environment(\.topTrailingClear) private var topTrailingClear
 
@@ -72,7 +72,7 @@ struct SearchPage: View {
 
     private func appRow(_ app: AppInfo) -> some View {
         let running = catalog.running(app)
-        let quitting = running.map { phone.quitting.contains($0.pid) } ?? false
+        let quitting = running.map { panel.quitting.contains($0.pid) } ?? false
         let subtitle = quitting ? "正在退出" : running?.windowSummary ?? "未打开"
         return ResultRow(icon: catalog.icon(for: app), title: app.name, subtitle: subtitle) {
             search.close()
@@ -86,7 +86,7 @@ struct SearchPage: View {
             search.close()
             intents.pull(window)
         }
-        .disabled(phone.quitting.contains(window.key.pid) || phone.closing.contains(window.key))
+        .disabled(panel.quitting.contains(window.key.pid) || panel.closing.contains(window.key))
     }
 }
 

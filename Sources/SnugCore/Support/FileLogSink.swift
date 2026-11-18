@@ -2,7 +2,7 @@
 // - 只用 O_APPEND 打开一次并持有句柄：每次 write 由内核原子追加到末尾，两个进程不会互相覆盖行
 //   （旧版每行重新打开、seek 到末尾再写，两个写入者会定位到同一处，后写的盖掉先写的）
 // - 写入在私有串行队列上，调用方不阻塞；用会 throw 的 write(contentsOf:)，失败只记到 os.Logger，不崩溃
-//   （FileHandle.write(_:) 遇到磁盘满会抛 ObjC 异常让进程崩溃，手机屏上的窗口就没人放回去了）
+//   （FileHandle.write(_:) 遇到磁盘满会抛 ObjC 异常让进程崩溃，Snug 的屏上的窗口就没人放回去了）
 // - 超过上限滚动一份 .1。滚动前比对 inode：别的进程已经滚动过，就只重新打开，不再滚第二次
 import Foundation
 import os

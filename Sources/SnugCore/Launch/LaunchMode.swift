@@ -25,8 +25,8 @@ public enum LaunchMode: Equatable, Sendable {
     case render(RenderTarget, output: URL)
     /// 打印从 UU远程 读到的控制端与屏幕
     case dumpUU
-    /// 帮手模式：把一块屏切到 target 后立即退出（手机屏换档，或把加屏、撤屏时被 macOS 拨动的屏设回去）。
-    /// 目标由主程序算好传来，帮手不读配置。主程序亲自切模式，手机屏释放时会拖 40 秒以上才下线；交给短命的子进程切就没有这个问题
+    /// 帮手模式：把一块屏切到 target 后立即退出（Snug 的屏换档，或把加屏、撤屏时被 macOS 拨动的屏设回去）。
+    /// 目标由主程序算好传来，帮手不读配置。主程序亲自切模式，Snug 的屏释放时会拖 40 秒以上才下线；交给短命的子进程切就没有这个问题
     case setMode(display: DisplayID, to: ModeTarget)
     /// 实测：按规格建几块实验屏，打印它们的模式，按 Ctrl-C 撤掉（见 ProbeScreen）
     case probeScreens([ProbeScreen])

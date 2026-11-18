@@ -155,7 +155,7 @@ private final class TapSession: @unchecked Sendable {
             if let button = region?.closeButton, button.isFrontmost(at: point, onScreen: Self.onScreen()) {
                 closeWindow(button.window)
             } else {
-                Log.info("点在手机屏上窗口原来的关闭按钮处，但那里已经不是它的关闭按钮（挪走、被盖住或全屏了），照常点击")
+                Log.info("点在屏上那个窗口原来的关闭按钮处，但那里已经不是它的关闭按钮（挪走、被盖住或全屏了），照常点击")
                 perform(.replayPress, current: current, region: region)
                 perform(.replayCurrent, current: current, region: region)
             }

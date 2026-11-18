@@ -1,5 +1,5 @@
-// 留下的账：放在手机屏上的窗口在 Snug 之外没了（用户在手机上关掉、App 自己换了窗口、App 退出），
-// Snug 改过的大小、字号还没还。macOS 不让别的 App 拦关窗，Snug 知道时 App 往往已经把手机屏上的样子存下了：
+// 留下的账：放在屏上的窗口在 Snug 之外没了（用户在手机上关掉、App 自己换了窗口、App 退出），
+// Snug 改过的大小、字号还没还。macOS 不让别的 App 拦关窗，Snug 知道时 App 往往已经把屏上的样子存下了：
 // Clash Verge 再打开还是 540 宽的竖条，VS Code 重开工作区字号还大两级（issue #14，11-16 实测）。
 // 所以账不跟着窗口一起销：先挂着，等它回来再还。
 // 认它回来只认看得见的证据：同一个 App 的窗口带着 Snug 铺成的大小出现，说明 App 原样存下、原样带回来了，
@@ -51,7 +51,7 @@ public struct LeftBehindBook: Codable, Equatable, Sendable {
 
     public init(entries: [LeftBehind] = []) { self.entries = entries }
 
-    /// 没铺成过（还没挪上手机屏就没了）的不记：大小没被改过，也认不出它回来没有
+    /// 没铺成过（还没挪上屏就没了）的不记：大小没被改过，也认不出它回来没有
     public mutating func add(_ entry: LeftBehind) {
         guard entry.record.filled != nil else { return }
         entries.append(entry)

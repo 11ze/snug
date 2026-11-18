@@ -1,6 +1,6 @@
 // 「运行中」页的一张 App 卡片：头上是 App（点它同点 Dock 图标；右边新建窗口、退出），下面是它的各个窗口
 // （点一下放上这块屏，右边关掉）。放在这块屏上的那个窗口排第一、写明在这块屏上，紧跟一行字号和还原。
-// 退出、关窗口都要再点一下确认，同一时刻只有一处在等确认（见 PhoneHomeView.Confirm）
+// 退出、关窗口都要再点一下确认，同一时刻只有一处在等确认（见 TouchHomeView.Confirm）
 import AppKit
 import SnugCore
 import SwiftUI
@@ -19,27 +19,27 @@ struct OnScreen {
 struct AppCard: View {
     /// 窗口按要显示的顺序（放在这块屏上的排第一，见 AppCatalog.app(of:)）
     let app: RunningApp
-    let phone: PanelState
+    let panel: PanelState
     let onScreen: OnScreen
-    @Binding var confirming: PhoneHomeView.Confirm?
+    @Binding var confirming: TouchHomeView.Confirm?
     let icon: NSImage
-    let intents: any PhoneIntents
+    let intents: any TouchIntents
 
-    private var quitting: Bool { phone.quitting.contains(app.pid) }
+    private var quitting: Bool { panel.quitting.contains(app.pid) }
     private var askingQuit: Bool { confirming == .quit(app.pid) }
     /// 这个 App 放在这块屏上的窗口
-    private var placed: Desk.Placed? { phone.placed.flatMap { $0.window.key.pid == app.pid ? $0 : nil } }
+    private var placed: Desk.Placed? { panel.placed.flatMap { $0.window.key.pid == app.pid ? $0 : nil } }
 
     var body: some View {
         VStack(spacing: 0) {
             header
             ForEach(app.windows) { window in
-                let onPhone = window.key == placed?.window.key
+                let isPlaced = window.key == placed?.window.key
                 Divider().padding(.leading, AppRowLabel.textInset)
-                WindowRow(window: window, onPhone: onPhone, onScreen: onScreen, closing: phone.closing.contains(window.key),
+                WindowRow(window: window, isPlaced: isPlaced, onScreen: onScreen, closing: panel.closing.contains(window.key),
                           confirming: $confirming, intents: intents)
-                if onPhone, let placed {
-                    PlacedControls(placed: placed, work: phone.work, intents: intents)
+                if isPlaced, let placed {
+                    PlacedControls(placed: placed, work: panel.work, intents: intents)
                 }
             }
             .disabled(quitting)
@@ -86,21 +86,21 @@ struct AppCard: View {
 /// App 卡片里的一个窗口：点一下放上这块屏，已经在这块屏上的就回到它；右边关掉它
 private struct WindowRow: View {
     let window: WindowInfo
-    let onPhone: Bool
+    let isPlaced: Bool
     let onScreen: OnScreen
     let closing: Bool
-    @Binding var confirming: PhoneHomeView.Confirm?
-    let intents: any PhoneIntents
+    @Binding var confirming: TouchHomeView.Confirm?
+    let intents: any TouchIntents
 
     private var askingClose: Bool { confirming == .close(window.key) }
 
     var body: some View {
         HStack(spacing: TouchTokens.Space.s) {
-            Button { onPhone ? intents.returnToPlaced() : intents.pull(window) } label: {
+            Button { isPlaced ? intents.returnToPlaced() : intents.pull(window) } label: {
                 HStack(spacing: TouchTokens.Space.l) {
-                    Image(systemName: onPhone ? onScreen.symbol : "macwindow")
+                    Image(systemName: isPlaced ? onScreen.symbol : "macwindow")
                         .font(TouchTokens.Font.headline.font.weight(.regular))
-                        .foregroundStyle(onPhone ? TouchTokens.Color.tint : .secondary)
+                        .foregroundStyle(isPlaced ? TouchTokens.Color.tint : .secondary)
                         .frame(width: TouchTokens.Size.listIcon)
                     Text(askingClose ? "关闭此窗口？" : window.displayTitle)
                         .font(TouchTokens.Font.body.font)
@@ -108,7 +108,7 @@ private struct WindowRow: View {
                         .lineLimit(1)
                     Spacer(minLength: 0)
                     if !askingClose {
-                        if onPhone { Tag(text: onScreen.text, color: TouchTokens.Color.tint) }
+                        if isPlaced { Tag(text: onScreen.text, color: TouchTokens.Color.tint) }
                         if window.minimized { Tag(text: "已最小化", color: .secondary) }
                     }
                 }
@@ -164,7 +164,7 @@ private struct Tag: View {
 private struct PlacedControls: View {
     let placed: Desk.Placed
     let work: Desk.Work?
-    let intents: any PhoneIntents
+    let intents: any TouchIntents
 
     var body: some View {
         HStack(spacing: TouchTokens.Space.m) {

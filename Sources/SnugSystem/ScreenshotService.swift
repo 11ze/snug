@@ -14,7 +14,7 @@ public final class ScreenshotService: ScreenshotControl {
         guard trusted else { throw .noPermission }
         let content: SCShareableContent
         do {
-            // 不限在屏上的窗口：刚铺满手机屏、还没画完的也找得到，按编号认
+            // 不限在屏上的窗口：刚铺满屏、还没画完的也找得到，按编号认
             content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: false)
         } catch {
             // 没权限时这里也会失败（SCStreamErrorDomain -3801），和别的原因分开报

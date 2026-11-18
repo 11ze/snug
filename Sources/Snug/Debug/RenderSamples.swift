@@ -64,7 +64,7 @@ enum RenderSamples {
         return s
     }
 
-    /// 远程中，开着的屏都建好了；手机在看手机屏
+    /// 远程中，开着的屏都建好了；手机在看第一块屏
     private static func connected(_ s: AppState) {
         s.connection = .connected
         s.controllers = ["iPhone 17 Pro Max"]
@@ -339,17 +339,17 @@ enum RenderSamples {
                 pages.open(.search)
                 pages.query = "xyz"
             },
-            panel("phone-model") { _, pages in pages.open(.phoneModel) },
+            panel("phone-model") { _, pages in pages.open(.model) },
             panel("phone-model-custom-dark", dark: true) { s, pages in
                 s.config.screens[0].device = DeviceChoice(model: nil, screen: DeviceScreen(width: 1080, height: 2400))
-                pages.open(.phoneModel)
+                pages.open(.model)
             },
             panel("phone-model-search") { _, pages in
-                pages.open(.phoneModel)
+                pages.open(.model)
                 pages.query = "17 pro"
             },
             panel("phone-model-none-dark", dark: true) { _, pages in
-                pages.open(.phoneModel)
+                pages.open(.model)
                 pages.query = "nokia"
             },
             panel("phone-reshaping") { s, _ in
@@ -367,7 +367,7 @@ enum RenderSamples {
             panel("tablet-landscape", on: tabletID, tab: .all, selected: 3) { _, _ in },
             panel("tablet-landscape-placed", on: tabletID) { s, _ in s.desks.desks[tabletID]?.placed = placed },
             panel("tablet-landscape-dark", on: tabletID, dark: true) { _, _ in },
-            panel("tablet-landscape-model", on: tabletID) { _, pages in pages.open(.phoneModel) },
+            panel("tablet-landscape-model", on: tabletID) { _, pages in pages.open(.model) },
             panel("tablet-portrait", on: tabletPortraitID) { s, _ in s.desks.desks[tabletPortraitID]?.placed = placed },
         ]
         return portrait + others + screenshot
@@ -415,9 +415,9 @@ enum RenderSamples {
         return true
     }
 
-    private static func panel(_ name: String, on id: ScreenID = .phone, dark: Bool = false, tab: PhoneHomeView.Tab = .running,
-                              confirming: PhoneHomeView.Confirm? = nil, selected: Int32? = nil, running list: [RunningApp] = running,
-                              loaded: Bool = true, _ configure: @escaping @MainActor (AppState, PhonePages) -> Void) -> RenderSample {
+    private static func panel(_ name: String, on id: ScreenID = .phone, dark: Bool = false, tab: TouchHomeView.Tab = .running,
+                              confirming: TouchHomeView.Confirm? = nil, selected: Int32? = nil, running list: [RunningApp] = running,
+                              loaded: Bool = true, _ configure: @escaping @MainActor (AppState, TouchPages) -> Void) -> RenderSample {
         var config = allScreens.first { $0.id == id }!
         config.enabled = true
         let fit = ScreenPlan.fit(of: config)
@@ -427,10 +427,10 @@ enum RenderSamples {
             // 只有这一块屏（建好、在看），型号页、换档跟着它走
             s.config.screens = [config]
             connected(s)
-            let pages = PhonePages()
+            let pages = TouchPages()
             configure(s, pages)
             let catalog = AppCatalog(sample: list, installed: installed, loaded: loaded)
-            return AnyView(PhoneHomeView(screen: id, state: s, catalog: catalog, pages: pages, intents: stub, tab: tab,
+            return AnyView(TouchHomeView(screen: id, state: s, catalog: catalog, pages: pages, intents: stub, tab: tab,
                                          confirming: confirming, selected: selected)
                 .frame(width: size.width, height: size.height)
                 .screenPanel(id, state: s))

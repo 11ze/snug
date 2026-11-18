@@ -6,7 +6,7 @@ import SwiftUI
 /// 刚截好：缩略图 +「已复制截图 · 点按裁剪」
 struct ScreenshotThumbnail: View {
     let image: NSImage
-    /// 这一档比基准宽度宽几倍：跟着手机屏一起放大，在手机上看着大小不变
+    /// 这一档比基准宽度宽几倍：跟着屏一起放大，在手机上看着大小不变
     let scale: CGFloat
     let onOpen: () -> Void
 

@@ -14,10 +14,10 @@ import SwiftUI
 final class ScreenPanels {
     private let state: AppState
     private let catalog: AppCatalog
-    private let intents: (ScreenID) -> any PhoneIntents
+    private let intents: (ScreenID) -> any TouchIntents
     private var panels: [ScreenID: ScreenWindows] = [:]
 
-    init(state: AppState, catalog: AppCatalog, intents: @escaping (ScreenID) -> any PhoneIntents) {
+    init(state: AppState, catalog: AppCatalog, intents: @escaping (ScreenID) -> any TouchIntents) {
         self.state = state
         self.catalog = catalog
         self.intents = intents
@@ -49,20 +49,20 @@ final class ScreenWindows {
     let id: ScreenID
     private let state: AppState
     private let catalog: AppCatalog
-    private let pages = PhonePages()
-    private let intents: any PhoneIntents
+    private let pages = TouchPages()
+    private let intents: any TouchIntents
     private var display: DisplayID?
-    private var list: PhonePanel?
-    private var homeBar: PhonePanel?
+    private var list: TouchPanel?
+    private var homeBar: TouchPanel?
     private var homeBarView: HomeBarView?
     /// 截图后浮在小横条上方的那一块（缩略图或提示），和它此刻显示的是什么
-    private var overlay: PhonePanel?
+    private var overlay: TouchPanel?
     private var overlayShown: OverlayShown?
-    private var cropPanel: PhonePanel?
+    private var cropPanel: TouchPanel?
     private var screenObserver: (any NSObjectProtocol)?
     private var closed = false
 
-    init(id: ScreenID, state: AppState, catalog: AppCatalog, intents: any PhoneIntents) {
+    init(id: ScreenID, state: AppState, catalog: AppCatalog, intents: any TouchIntents) {
         self.id = id
         self.state = state
         self.catalog = catalog
@@ -159,7 +159,7 @@ final class ScreenWindows {
             return
         }
         let scale = ScreenFit.scale(screen: screen.frame.size)
-        let panel = overlay ?? PhonePanel(content: NSView(), opaque: false)
+        let panel = overlay ?? TouchPanel(content: NSView(), opaque: false)
         overlay = panel
         let preview = if case .preview = shot { true } else { false }
         let shown = OverlayShown(overlay: shot, scale: scale)
@@ -187,7 +187,7 @@ final class ScreenWindows {
             cropPanel = nil
             return
         }
-        let panel = cropPanel ?? PhonePanel(content: FirstMouseHostingView(rootView: CropView(
+        let panel = cropPanel ?? TouchPanel(content: FirstMouseHostingView(rootView: CropView(
             image: NSImage(data: image.png) ?? NSImage(), pixelSize: image.size,
             onCancel: { [weak self] in self?.intents.cancelCrop() },
             onDone: { [weak self] selection in self?.intents.finishCrop(selection) }).screenPanel(id, state: state)))
@@ -199,12 +199,12 @@ final class ScreenWindows {
     private func build(on id: DisplayID) {
         Log.info("屏（\(self.id)）的列表、小横条建在 #\(id) 上")
         display = id
-        list = PhonePanel(content: FirstMouseHostingView(rootView: PhoneHomeView(screen: self.id, state: state, catalog: catalog, pages: pages,
+        list = TouchPanel(content: FirstMouseHostingView(rootView: TouchHomeView(screen: self.id, state: state, catalog: catalog, pages: pages,
                                                                                  intents: intents).screenPanel(self.id, state: state)))
         let bar = HomeBarView()
         bar.onActivate = { [weak self] in self?.intents.showList() }
         bar.onCapture = { [weak self] in self?.intents.takeScreenshot() }
-        homeBar = PhonePanel(content: bar)
+        homeBar = TouchPanel(content: bar)
         homeBarView = bar
     }
 
@@ -240,7 +240,7 @@ final class ScreenWindows {
 }
 
 /// 不抢焦点、所有桌面都在、盖住菜单栏的面板。截图的浮层是圆角卡片，面板透明（opaque 传 false）
-final class PhonePanel: NSPanel {
+final class TouchPanel: NSPanel {
     init(content: NSView, opaque: Bool = true) {
         super.init(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         // 菜单栏是 24，菜单栏右边的图标是 25：再高一级才盖得住
