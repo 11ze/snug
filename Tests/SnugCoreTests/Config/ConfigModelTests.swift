@@ -106,6 +106,21 @@ struct ConfigModelTests {
         #expect(c.nextSerialBlock == 5)
     }
 
+    @Test("屏幕列表里有一项结构坏了（取值不认识、缺字段）：只丢那一项，其余几块和主屏照旧，不当成 2.5 的配置迁移")
+    func dropsUndecodableScreen() throws {
+        let good = #"{"id":"a","orientation":"landscape","device":{"screen":{"width":1080,"height":1920},"kind":"computer"},"enabled":true,"name":"A","serials":[1,2,3]}"#
+        let badOrientation = #"{"id":"b","orientation":"Landscape","device":{"screen":{"width":9,"height":20}},"enabled":true,"name":"B","serials":[4]}"#
+        let noName = #"{"id":"c","orientation":"portrait","device":{"screen":{"width":9,"height":20}},"enabled":true,"serials":[5]}"#
+        let c = try decode(#"{"screens":[\#(badOrientation),\#(good),\#(noName)],"mainScreen":"a","phoneScreen":true}"#)
+        #expect(c.screens.map(\.id.rawValue) == ["a"])
+        #expect(c.mainScreen == ScreenID("a"))
+    }
+
+    @Test("屏幕列表这一项根本不是列表：整份按损坏处理（交给 ConfigStore 隔离原文件），不静默迁成一块手机屏")
+    func screensNotAList() {
+        #expect(throws: DecodingError.self) { try decode(#"{"screens":{"id":"a"},"phoneScreen":true}"#) }
+    }
+
     @Test("不认识的更新源（比如更新的版本写的）用默认值，不把整份配置判为损坏")
     func unknownUpdateSource() throws {
         let c = try JSONDecoder().decode(AppConfig.self, from: Data(#"{"updateSource":"mirror","zoomSteps":3}"#.utf8))

@@ -54,10 +54,23 @@ public struct AppConfig: Codable, Equatable, Sendable {
     public init(from decoder: any Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         let d = AppConfig()
-        if let screens = try? c.decodeIfPresent([ScreenConfig].self, forKey: .screens) {
-            // 手改坏了的（分辨率不对、重了号）丢掉那一项，不连累别的
+        if c.contains(.screens) {
+            // 逐项解：手改坏了的那一项（取值不认识、缺字段、分辨率不对、重了号）丢掉并记一笔，不连累别的。
+            // 键在却不是列表就整份按损坏处理（ConfigStore 隔离原文件）：当成 2.5 的配置迁移的话，下次写盘就把列表覆盖了
             var seen = Set<ScreenID>()
-            self.screens = screens.filter { $0.device.screen.isValid && !$0.serials.isEmpty && seen.insert($0.id).inserted }
+            var screens: [ScreenConfig] = []
+            for (i, item) in try c.decode([Lossy<ScreenConfig>].self, forKey: .screens).enumerated() {
+                switch item.result {
+                case .success(let screen) where screen.device.screen.isValid && !screen.serials.isEmpty && !seen.contains(screen.id):
+                    seen.insert(screen.id)
+                    screens.append(screen)
+                case .success(let screen):
+                    Log.warn("配置里第 \(i + 1) 块屏「\(screen.name)」数值不合格（分辨率不对、没有序列号或重了号），丢掉这一项")
+                case .failure(let error):
+                    Log.warn("配置里第 \(i + 1) 块屏解不开，丢掉这一项：\(error)")
+                }
+            }
+            self.screens = screens
         } else {
             // 2.5 及以前：一块竖屏手机屏，开关和型号沿用；手改坏了的型号（缺字段、横着写、不是正数）用默认值
             let enabled = try c.decodeIfPresent(Bool.self, forKey: .phoneScreen) ?? true
@@ -73,6 +86,15 @@ public struct AppConfig: Codable, Equatable, Sendable {
         // 不认识的更新源（更新的版本加的、降级回来）用默认值
         updateSource = (try? c.decodeIfPresent(UpdateSource.self, forKey: .updateSource)) ?? d.updateSource
         lastVersion = try? c.decodeIfPresent(Version.self, forKey: .lastVersion)
+    }
+}
+
+/// 解不开也不抛的一项：列表里坏了的那一项单独丢掉，不让整个列表解不开
+private struct Lossy<Value: Decodable>: Decodable {
+    let result: Result<Value, any Error>
+
+    init(from decoder: any Decoder) throws {
+        result = Result { try Value(from: decoder) }
     }
 }
 
