@@ -22,8 +22,8 @@ struct ScreenPlanTests {
         let c = config()
         let wishes = ScreenPlan.wishes(config: c, remote: remote, trusted: true)
         #expect(wishes.map(\.id) == [.phone, c.screens[1].id])
-        #expect(wishes[0].spec == c.screens[0].spec)
-        #expect(wishes[1].fit == c.screens[1].fit)
+        #expect(wishes[0].spec == ScreenPlan.spec(of: c.screens[0]))
+        #expect(wishes[1].fit == ScreenPlan.fit(of: c.screens[1]))
     }
 
     @Test("不在远程、没有辅助功能权限：一块都不要；预览模式不等远程")

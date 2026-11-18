@@ -19,7 +19,7 @@ extension AppController: AppIntents {
         guard changeConfig("加屏：\(orientation.title) · \(device.title)", {
             added = $0.addScreen(orientation: orientation, device: device, name: name.isEmpty ? nil : name)
         }), let added else { return }
-        Log.info("新屏「\(added.name)」\(added.fit)，序列号 \(added.serials.map(String.init).joined(separator: "/"))")
+        Log.info("新屏「\(added.name)」\(ScreenPlan.fit(of: added))，序列号 \(added.serials.map(String.init).joined(separator: "/"))")
         applyPlan()
     }
 
@@ -29,7 +29,7 @@ extension AppController: AppIntents {
     }
 
     func setScreenDevice(_ id: ScreenID, _ device: DeviceChoice) {
-        let fit = ScreenFit(device: device.screen, kind: device.kind, orientation: state.screen(id)?.orientation ?? .portrait)
+        let fit = ScreenPlan.fit(device, state.screen(id)?.orientation ?? .portrait)
         editScreen(id, "型号 → \(device.title)（\(fit)）") { $0.device = device }
     }
 

@@ -74,14 +74,16 @@ App 将本机已安装的 Snug 按同样方式切块，只按字节范围从最�
 
 发布工具 `SnugRelease` 只依赖 `SnugCore`，由 `scripts/snug` 调用。
 
+`SnugCore` 的目录依赖单向：`Model`（屏的身份 `ScreenID`、设备的类别和数值等纯值类型）← `Config`、`Persistence` ← `Screens`。配置怎么翻成屏的身份和比例只在 `ScreenPlan` 写一处。
+
 屏幕调度在 `SnugCore/Screens`，分四块，依赖单向：
 
 | 类型 | 管什么 |
 | :--- | :--- |
 | `ScreenPlan` | 纯函数：按配置和远程状态算出这一刻要哪几块屏（`ScreenWish`），每块给什么行为（`ScreenBehavior.touch`：是不是触屏，即有没有面板、翻不翻译手势、铺不铺满、调不调字号）。行为只在这里按型号的类别定，下游只认它、不认类别；`Desk.State` 把它发布给界面 |
 | `ScreenSet` | 屏幕拓扑的唯一来源：加屏、撤屏、换档、换比例、重试、最短在线时间、设为主屏与还原排列 |
-| `Desk` | 一块屏上的事：放窗口、换档、字号、归位、还原记录（`placed/<屏 id>.json`） |
-| `DeskSet` | 管所有 `Desk`：在同一条 `SerialLane` 上排队，处理跨屏的事（窗口从一块屏转到另一块、退出 App 时各屏归位、撤屏前清场、在手机上退出某块屏） |
+| `Desk` | 一块屏上的事：放窗口（手机、平板铺满换档，电脑只挪过来居中）、换档、字号、归位、还原记录（`placed/<屏 id>.json`），正在做什么按号排（`Desk.Ticket`） |
+| `DeskSet` | 管所有 `Desk`：在同一条 `SerialLane` 上排队，处理跨屏的事（窗口从一块屏转到另一块、退出 App 时各屏归位、撤屏前清场、在手机上退出某块屏）；留下的账交给 `LeftBehindLedger`，盯退出和关窗交给 `RequestWatcher` |
 
 `AppController` 每次感知到变化就调 `ScreenPlan.wishes` 交给 `DeskSet.setWishes`，界面只读 `AppState.desks`（每块屏的状态）。
 
@@ -91,7 +93,7 @@ App 将本机已安装的 Snug 按同样方式切块，只按字节范围从最�
 SNUG_WRITE_TOKENS=1 swift test --filter DesignTokensTests
 ```
 
-手势翻译分两半：`SnugCore/Touch` 是纯状态机，一次手势只认一块范围 `TouchRegion`（位置与缩放倍数），不依赖哪块屏；`SnugSystem` 中 `TouchTap` 负责监听线程，持有每块屏的范围，按下时按落点选定这次手势用哪一块，`TouchEvents` 负责读入与拼装事件。`AppController` 只决定范围：开着手势、没在裁剪截图时，每块行为里带手势的屏（手机、平板屏）各一块范围，否则关闭。新增一种手势时，在状态机里加判定与 `TouchCommand`，在 `TouchEvents` 里拼装要补发的事件，再在 `TouchTap` 按命令分派处补上一支。
+手势翻译分两半：`SnugCore/Touch` 是纯状态机，一次手势只认一块范围 `TouchRegion`（位置与缩放倍数），不依赖哪块屏；`SnugSystem` 中 `TouchTap` 负责监听线程，持有每块屏的范围，按下时按落点选定这次手势用哪一块，`TouchEvents` 负责读入与拼装事件。`AppController` 只决定范围：开着手势时，每块触屏（手机、平板屏）各一块范围，正在裁剪截图的那块除外。新增一种手势时，在状态机里加判定与 `TouchCommand`，在 `TouchEvents` 里拼装要补发的事件，再在 `TouchTap` 按命令分派处补上一支。
 
 ## 启动参数
 

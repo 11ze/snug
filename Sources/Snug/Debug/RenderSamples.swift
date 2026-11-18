@@ -420,7 +420,8 @@ enum RenderSamples {
                               loaded: Bool = true, _ configure: @escaping @MainActor (AppState, PhonePages) -> Void) -> RenderSample {
         var config = allScreens.first { $0.id == id }!
         config.enabled = true
-        let size = config.fit.size(width: config.fit.baseWidth)
+        let fit = ScreenPlan.fit(of: config)
+        let size = fit.size(width: fit.baseWidth)
         return RenderSample(name: name, dark: dark, size: size) {
             let s = sampleState()
             // 只有这一块屏（建好、在看），型号页、换档跟着它走

@@ -116,6 +116,7 @@ extension ScreenConfig {
     var symbol: String { device.kind.symbol(orientation) }
     /// 屏上的点数（基准那一档）：「950 × 660 点」
     var sizeText: String {
+        let fit = ScreenPlan.fit(of: self)
         let size = fit.size(width: fit.baseWidth)
         return "\(Int(size.width)) × \(Int(size.height)) 点"
     }

@@ -3,7 +3,7 @@ import Testing
 @testable import SnugCore
 
 @Suite("机型库 DeviceCatalog")
-struct DeviceModelsTests {
+struct DeviceCatalogTests {
     /// 随 App 发的机型库（唯一的数据源）
     static let bundled = URL(fileURLWithPath: #filePath)
         .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()

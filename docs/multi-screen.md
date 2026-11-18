@@ -441,7 +441,7 @@ MARK 小工具                               跟着用它的代码走
 | :--- | :--- |
 | `ScreenPlan`、`ScreenWish`、`ScreenBehavior` | `Sources/SnugCore/Screens/` |
 | `ScreenSet`、`ScreenState`、`ScreenSpec`、`ScreenID`、`DeskSet` | 同上（`Desk` 由 PhoneDesk 改来） |
-| `ScreenConfig`、`Orientation`、`DeviceKind` | `Sources/SnugCore/Config/`；机型相关的放 `Screens/` |
+| `ScreenConfig`、`Orientation`、`DeviceKind` | `ScreenConfig` 在 `Sources/SnugCore/Config/`；`ScreenID`、`Orientation`、`DeviceKind`、`DeviceChoice` 这些纯值类型在 `Sources/SnugCore/Model/`（审查后挪的，断开 Config ↔ Screens、Persistence ↔ Screens 两个环）；机型库 `DeviceCatalog` 在 `Screens/` |
 | 设置页的屏幕列表：增删、开关、改型号、设为主屏（界面以 UI 原型为准） | `Sources/Snug/UI/` |
 | 横屏的 App 资源库排版 | `Sources/Snug/Screens/` 下的视图 |
 | 启动参数 `--preview-screens`：不等远程，建出所有开着的屏，替代 `--preview-phone` | `Sources/SnugCore/Launch/LaunchMode.swift` |

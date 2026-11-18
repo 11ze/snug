@@ -32,15 +32,6 @@ public struct ScreenConfig: Codable, Equatable, Sendable, Identifiable {
     /// 同时最多这么多块（V8：四块同时在没问题，现实用不到更多）
     public static let limit = 4
 
-    /// 屏的身份：竖横各一个产品号，像素上限和方向一致（V4、V5）
-    public var spec: ScreenSpec {
-        ScreenSpec(name: name, productID: orientation == .portrait ? ScreenSpec.portraitProductID : ScreenSpec.landscapeProductID,
-                   serials: serials, maxPixels: orientation == .portrait ? ScreenFit.portraitPixels : ScreenFit.landscapePixels)
-    }
-
-    /// 这块屏的比例和档位
-    public var fit: ScreenFit { ScreenFit(device: device.screen, kind: device.kind, orientation: orientation) }
-
     /// 按型号和方向起的名字：「Snug iPad」「Snug MacBook Air」「Snug iPhone 17 Pro Max 横屏」。
     /// 名字只是给人认的，重名也不影响（身份不同）；同一台设备横竖各一块时靠「横屏」「竖屏」分开
     public static func suggestedName(for device: DeviceChoice, orientation: Orientation) -> String {
