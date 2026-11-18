@@ -3,6 +3,7 @@
 // 谁露着资源库谁就要它（want），露着的有一个就每 1.5 秒刷新在跑的 App：每次从没人要到有人要，第一次按最近用过重排，
 // 之后只增删、不换位置（见 AppList.keepingOrder）；装着的 App 每次有人要时读一次。都收起就停；
 // 要它的都在放窗口时暂停（列表被盖住，刷了也看不见，还和搬窗口排同一条队）；
+// 电脑屏的资源库窗口还要每个窗口在哪块屏（spots）：有它要时在同一轮里紧跟着列表读，一次拷全系统的窗口表；
 // 一次远程结束就清空，下次从头读。退掉的 App、关掉的窗口，DeskSet 一确认就从这里去掉，不等下一轮
 import AppKit
 import Observation
@@ -19,14 +20,18 @@ final class AppCatalog {
     private(set) var installed: [InstalledApp]
     /// 第一次刷新完成前显示「正在读取」，不显示「没有」
     private(set) var loaded: Bool
+    /// 每个窗口在哪块屏、露没露着（电脑屏的资源库标在每个窗口后面）。只在有人要时跟着刷新读
+    private(set) var spots: [WindowKey: WindowSpot]
 
     @ObservationIgnored private let apps: AppService?
     @ObservationIgnored private let windows: WindowService?
     @ObservationIgnored private var refreshing: Task<Void, Never>?
     @ObservationIgnored private var scanning: Task<Void, Never>?
-    /// 谁在要（屏号或资源库窗口）和它是不是在忙（忙着就不用为它刷）
-    @ObservationIgnored private var demand: [String: Bool] = [:]
-    private var paused: Bool { demand.values.allSatisfy { $0 } }
+    /// 谁在要（屏号或资源库窗口）：在不在忙（忙着就不用为它刷）、要不要窗口在哪块屏
+    @ObservationIgnored private var demand: [String: Demand] = [:]
+    private var paused: Bool { demand.values.allSatisfy(\.busy) }
+    /// 不忙的里面有要窗口在哪块屏的：没有就不拷全系统的窗口表
+    private var locating: Bool { demand.values.contains { $0.spots && !$0.busy } }
     @ObservationIgnored private var icons: [String: NSImage] = [:]
     /// forget 过几次：刷新读到一半时有东西没了，读出来的那份可能还带着它，丢掉重读
     @ObservationIgnored private var forgotten = 0
@@ -37,20 +42,22 @@ final class AppCatalog {
         running = []
         installed = []
         loaded = false
+        spots = [:]
     }
 
     /// 渲染样例用：固定的内容，不刷新
-    init(sample running: [RunningApp], installed: [InstalledApp], loaded: Bool = true) {
+    init(sample running: [RunningApp], installed: [InstalledApp], spots: [WindowKey: WindowSpot] = [:], loaded: Bool = true) {
         apps = nil
         windows = nil
         self.running = running
         self.installed = AppList.sorted(installed)
         self.loaded = loaded
+        self.spots = spots
     }
 
-    /// 露着资源库：busy 是这块屏正在放窗口、打开 App（列表被盖住）
-    func want(_ owner: String, busy: Bool = false) {
-        demand[owner] = busy
+    /// 露着资源库：busy 是这块屏正在放窗口、打开 App（列表被盖住）；spots 是还要每个窗口在哪块屏（电脑屏的资源库窗口）
+    func want(_ owner: String, busy: Bool = false, spots: Bool = false) {
+        demand[owner] = Demand(busy: busy, spots: spots)
         startRefreshing()
     }
 
@@ -74,10 +81,14 @@ final class AppCatalog {
                 if !paused {
                     let before = forgotten
                     let fresh = await windows.withWindows(apps.running())
+                    // 紧跟着列表读，两边对得上
+                    var located: [WindowKey: WindowSpot]?
+                    if locating { located = await windows.spots() }
                     guard !Task.isCancelled else { return }
                     guard forgotten == before else { continue }
                     let next = reorder ? fresh : AppList.keepingOrder(of: running, updatedWith: fresh)
                     if next != running { running = next }
+                    if let located, located != spots { spots = located }
                     loaded = true
                     reorder = false
                 }
@@ -93,10 +104,11 @@ final class AppCatalog {
         scanning = nil
     }
 
-    /// 一次远程结束：清空，下次露出时显示「正在读取」，不拿上次的旧列表。各块屏的面板撤掉时已经各自 release；
-    /// 电脑屏的资源库窗口可能还开着，它的需求留着、接着刷新（清了它，下次远程这个窗口就不动了）
+    /// 一次远程结束：清空，下次露出时显示「正在读取」，不拿上次的旧列表。需求不在这里清：各块屏的面板撤掉时各自 release，
+    /// 电脑屏的资源库窗口跟着它的屏关掉时 release（这一刻它可能还没关完，需求还在就接着刷新，等它 release 再停）
     func reset() {
         running = []
+        spots = [:]
         loaded = false
         if demand.isEmpty { stopRefreshing() }
     }
@@ -136,4 +148,9 @@ final class AppCatalog {
 
     /// 窗口所属 App 的图标
     func icon(for window: WindowInfo) -> NSImage { icon(for: app(of: window).app) }
+
+    private struct Demand {
+        var busy: Bool
+        var spots: Bool
+    }
 }

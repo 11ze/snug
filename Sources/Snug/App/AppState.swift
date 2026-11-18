@@ -60,22 +60,18 @@ final class AppState {
                    dismissed: desks.dismissed.contains(id))
     }
 
-    /// UU 正在推这块屏，也就是用户此刻正在这块屏上
-    func inUse(_ id: ScreenID) -> Bool {
-        guard let display = desks.desks[id]?.display else { return false }
-        return streamedDisplay == display
+    /// 这块显示器是哪块 Snug 屏；不是 Snug 的屏（内建屏、外接显示器）返回 nil
+    func screenID(on display: DisplayID) -> ScreenID? {
+        desks.desks.first { $0.value.display == display }?.key
     }
 
-    /// UU 此刻在推的那块 Snug 屏
+    /// UU 此刻在推的那块 Snug 屏，也就是用户此刻正在这块屏上
+    var watchedScreen: ScreenID? { streamedDisplay.flatMap { screenID(on: $0) } }
+
     /// 菜单栏「App 资源库」能往哪些屏放：就绪的电脑屏，按屏幕列表的顺序。手机、平板屏有自己的面板，
     /// Mac 样式的窗口开在它们上面也放不下
     var libraryScreens: [ScreenID] {
         config.screens.map(\.id).filter { desks.desks[$0]?.display != nil && behavior(of: $0)?.touch == false }
-    }
-
-    var watchedScreen: ScreenID? {
-        guard let streamed = streamedDisplay else { return nil }
-        return desks.desks.first { $0.value.display == streamed }?.key
     }
 
     /// 只在值真的变了时才写，免得每拍都让界面重算

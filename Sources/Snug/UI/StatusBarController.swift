@@ -81,7 +81,10 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     /// 在哪块屏的菜单栏点，就在哪块屏打开
     @objc private func openLibrary() {
         let screen = item.button?.window?.screen
-        navigation.openLibrary(on: screen.flatMap { $0.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber }?.uint32Value)
+        let display = screen.flatMap { $0.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber }?.uint32Value
+        // 认不出是哪块屏的菜单栏时，资源库按 UU 在推的电脑屏选，开错屏时从这里查
+        Log.info("菜单栏：点了「App 资源库」，在\(screen.map { "「\($0.localizedName)」（display \(display.map { "\($0)" } ?? "?")）" } ?? "认不出的屏")的菜单栏")
+        navigation.openLibrary(on: display)
     }
     @objc private func quit() { intents.quit() }
 }

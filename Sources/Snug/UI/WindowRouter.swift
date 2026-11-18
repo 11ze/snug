@@ -7,8 +7,9 @@ final class WindowRouter: Navigation {
     private let controller: AppController
     private lazy var settings = SettingsWindowController(state: controller.state, intents: controller, navigation: self)
     private lazy var about = AboutWindowController()
-    private lazy var library = LibraryWindowController(state: controller.state, catalog: controller.catalog, desks: controller.desks,
-                                                       intents: controller)
+    private lazy var library = LibraryWindowController(state: controller.state, catalog: controller.catalog) { [controller] in
+        ScreenIntents(id: $0, app: controller)
+    }
     private lazy var welcome = WelcomeWindowController(state: controller.state)
     private lazy var update = UpdateWindowController(state: controller.state, intents: controller)
     private let legacy = LegacyNoticeWindowController()

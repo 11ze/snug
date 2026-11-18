@@ -166,12 +166,6 @@ public final class WindowService: WindowControl {
         return Self.onScreenFrames().filter { $0.key.pid != me && area.contains(CGPoint(x: $0.value.midX, y: $0.value.midY)) }
     }
 
-    /// 这个进程的普通窗口，连不在当前桌面的（别的桌面、全屏空间、最小化）一起：位置，和此刻露不露在屏上。
-    /// 电脑屏的资源库要分清「在这块屏、露着」和「在这块屏的全屏空间里，被资源库所在的桌面盖住」
-    public func framesInAllSpaces(of pid: Int32) async -> [WindowKey: (frame: CGRect, shown: Bool)] {
-        Self.levelZeroWindows([.optionAll, .excludeDesktopElements]).filter { $0.key.pid == pid }
-    }
-
     /// 屏上普通窗口（第 0 层）此刻的位置，问窗口服务器
     private static func onScreenFrames() -> [WindowKey: CGRect] {
         levelZeroWindows([.optionOnScreenOnly, .excludeDesktopElements]).mapValues(\.frame)
@@ -199,7 +193,17 @@ public final class WindowService: WindowControl {
         }
     }
 
-    // MARK: App 资源库（手机屏上的卡片）
+    // MARK: App 资源库（AppCatalog 读）
+
+    /// 每个普通窗口在哪块屏、露没露着（见 WindowSpot），连不在当前桌面的（别的桌面、全屏空间、最小化）一起。
+    /// 电脑屏的资源库要分清「在这块屏、露着」和「在这块屏的全屏空间里，被资源库所在的桌面盖住」。
+    /// 问窗口服务器，不经过 App；全系统的窗口表一次拷全，不按进程分开读
+    public func spots() async -> [WindowKey: WindowSpot] {
+        let displays = Self.onlineDisplays()
+        return Self.levelZeroWindows([.optionAll, .excludeDesktopElements]).mapValues {
+            WindowSpot(frame: $0.frame, shown: $0.shown, displays: displays)
+        }
+    }
 
     /// 给在跑的 App 补上窗口：不管在哪块屏、哪个桌面空间，全屏、最小化的也算。App 和窗口都按最近用过排
     public func withWindows(_ apps: [RunningApp]) async -> [RunningApp] {
@@ -307,4 +311,18 @@ public final class WindowService: WindowControl {
 
     /// 屏上窗口从前到后的编号
     private static func frontToBack() -> [UInt32] { onScreen().map(\.id) }
+
+    /// 各块在线屏的范围（全局坐标，左上原点，和窗口服务器报的窗口位置同一个坐标系），按系统列出的顺序
+    private static func onlineDisplays() -> [(id: DisplayID, bounds: CGRect)] {
+        var count: UInt32 = 0
+        var error = CGGetOnlineDisplayList(0, nil, &count)
+        var ids = [CGDirectDisplayID](repeating: 0, count: Int(count))
+        if error == .success, count > 0 { error = CGGetOnlineDisplayList(count, &ids, &count) }
+        guard error == .success else {
+            // 读不到屏，资源库里的窗口全标成「不在当前桌面」：记下来，不然看着像位置没同步
+            Log.warn("读不到在线的屏（CGError=\(error.rawValue)），资源库认不出窗口在哪块屏")
+            return []
+        }
+        return ids.prefix(Int(count)).map { ($0, CGDisplayBounds($0)) }
+    }
 }
