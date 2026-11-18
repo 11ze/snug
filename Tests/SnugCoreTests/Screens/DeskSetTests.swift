@@ -229,6 +229,25 @@ struct DeskSetTests {
         #expect(rig.set.state.desks[second]?.screen == .failed)
     }
 
+    @Test("加屏时 macOS 把留着的 Snug 屏也挪开了：那块屏上的窗口按它挪过的距离放回，不推回旧坐标")
+    func followsNudgedSnugScreen() async throws {
+        let rig = try Rig()
+        let computerWish = ScreenWish(id: rig.desk.wish.id, spec: rig.desk.wish.spec, fit: .standard, behavior: computer)
+        rig.set.setWishes([computerWish])
+        await rig.set.idle()
+        let screen = try #require(rig.displays.bounds(101))
+        let safari = WindowInfo(key: WindowKey(pid: 31, id: 51), app: "Safari", bundleID: "com.apple.Safari", title: "Snug")
+        let frame = CGRect(x: screen.minX + 20, y: screen.minY + 40, width: 300, height: 200)
+        rig.windows.add(safari.key, frame: frame, info: safari)
+        rig.displays.onCreate = { [displays = rig.displays, windows = rig.windows] in
+            displays.nudged[101] = CGVector(dx: 1180, dy: 0)
+            windows.setFrame(safari.key, FakeDisplays.main)      // 系统挪屏时把窗口挪乱了
+        }
+        rig.set.setWishes([computerWish, rig.secondWish()])
+        await rig.set.idle()
+        #expect(rig.windows.window(safari.key)?.frame == frame.offsetBy(dx: 1180, dy: 0))
+    }
+
     // MARK: 设为主屏
 
     @Test("设为主屏：建好、善后之后设主屏；原主屏上的窗口跟着搬过去，不放回")

@@ -42,6 +42,8 @@ final class FakeDisplays: VirtualDisplays {
     var others: [DisplayID: ScreenMode] = [:]
     /// 别的屏此刻在哪（全局坐标）。在 onCreate / onRetire 里改它，模拟 macOS 给 Snug 的屏让地方时挪了别的屏
     var otherBounds: [DisplayID: CGRect] = [:]
+    /// Snug 的屏被系统挪开了多少。在 onCreate / onRetire 里改它，模拟加撤屏时 macOS 连 Snug 的屏一起挪
+    var nudged: [DisplayID: CGVector] = [:]
     /// 设模式不成（帮手失败）：屏还是被拨动后的模式
     var modeFails = false
     /// 释放后不下线（显示器睡着时要等唤醒）：goOffline 才真下线，onRetire 那时才发生
@@ -120,7 +122,8 @@ final class FakeDisplays: VirtualDisplays {
     /// 第几块屏（按编号）往右排：第一块在 origin，后面的接着往右放，各不重叠
     private func origin(of id: DisplayID) -> CGPoint {
         let before = widths.keys.filter { $0 < id }.count
-        return CGPoint(x: Self.origin.x + CGFloat(before) * 4000, y: Self.origin.y)
+        let nudge = nudged[id] ?? .zero
+        return CGPoint(x: Self.origin.x + CGFloat(before) * 4000 + nudge.dx, y: Self.origin.y + nudge.dy)
     }
 
     func bounds(_ id: DisplayID) -> CGRect? {

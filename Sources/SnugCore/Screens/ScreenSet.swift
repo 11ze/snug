@@ -209,6 +209,8 @@ public final class ScreenSet {
     private struct Surroundings {
         var windows: [WindowKey: CGRect]
         var others: [OtherDisplay]
+        /// 当时在的 Snug 屏在哪：系统挪屏让地方时不分是不是 Snug 的，留着的那几块上的窗口也要跟着平移
+        var snug: [DisplayID: CGRect]
     }
 
     private struct Retiring {
@@ -221,7 +223,8 @@ public final class ScreenSet {
     private func surroundings(before change: String) async -> Surroundings {
         let others = displays.otherDisplays()
         Log.info("\(change)前别的屏：\(others.isEmpty ? "没有" : others.map { "\($0.name) \($0.mode)" }.joined(separator: "、"))")
-        return Surroundings(windows: await windows.snapshot(), others: others)
+        let snug = Dictionary(uniqueKeysWithValues: live.values.compactMap { v in displays.bounds(v.display).map { (v.display, $0) } })
+        return Surroundings(windows: await windows.snapshot(), others: others, snug: snug)
     }
 
     /// 屏幕组合换完（新屏上线、旧屏下线）后放回：先设回被拨动的屏（模式连分辨率一起变时会再挪窗口），
@@ -237,16 +240,21 @@ public final class ScreenSet {
             for (was, _) in drifted { await displays.setMode(was.id, was.mode, permanently: permanently) }
             await timeline.sleep(Self.topologySettle)
         }
-        let expected = Self.following(before.windows, from: before.others, to: displays.otherDisplays())
-        await windows.restore(expected, except: placedWindows())
+        var was = Dictionary(before.others.map { ($0.id, $0.bounds) }, uniquingKeysWith: { first, _ in first })
+        var at = Dictionary(displays.otherDisplays().map { ($0.id, $0.bounds) }, uniquingKeysWith: { first, _ in first })
+        for (display, bounds) in before.snug {
+            was[display] = bounds
+            at[display] = displays.bounds(display)
+        }
+        await windows.restore(Self.following(before.windows, from: was, to: at), except: placedWindows())
     }
 
     /// 窗口该在的位置：所在的屏被 macOS 挪了（Snug 的屏多了，它会把外接屏挪开让地方，撤屏后再挪回来），
     /// 屏上的窗口是跟着屏走的，记下的位置也按屏挪过的距离平移，不然放回去反倒把它们推偏
-    static func following(_ windows: [WindowKey: CGRect], from before: [OtherDisplay], to now: [OtherDisplay]) -> [WindowKey: CGRect] {
-        let moved: [(was: CGRect, by: CGVector)] = before.compactMap { was in
-            guard let now = now.first(where: { $0.id == was.id }), now.bounds.origin != was.bounds.origin else { return nil }
-            return (was.bounds, CGVector(dx: now.bounds.minX - was.bounds.minX, dy: now.bounds.minY - was.bounds.minY))
+    static func following(_ windows: [WindowKey: CGRect], from before: [DisplayID: CGRect], to now: [DisplayID: CGRect]) -> [WindowKey: CGRect] {
+        let moved: [(was: CGRect, by: CGVector)] = before.compactMap { id, was in
+            guard let now = now[id], now.origin != was.origin else { return nil }
+            return (was, CGVector(dx: now.minX - was.minX, dy: now.minY - was.minY))
         }
         guard !moved.isEmpty else { return windows }
         return windows.mapValues { frame in
