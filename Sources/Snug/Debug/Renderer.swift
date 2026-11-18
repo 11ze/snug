@@ -90,6 +90,7 @@ final class RenderStub: AppIntents, TouchIntents, Navigation {
     func showList() {}
     func returnToPlaced() {}
     func putBack() {}
+    func putBack(_ window: WindowKey) {}
     func zoom(by delta: Int) {}
     func setDevice(_ device: DeviceChoice) {}
     func dismissScreen() {}

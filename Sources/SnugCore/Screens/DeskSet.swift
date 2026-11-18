@@ -212,8 +212,14 @@ public final class DeskSet {
     }
 
     /// 跨屏的那一段在这里：窗口正放在别的屏上，转到手机、平板屏是原位记录跟着走（中间不还原一次）；
-    /// 转到电脑屏先在原来那块屏上放回原位、缩回字号（电脑屏不记账、不调字号）。这块屏上怎么放归 Desk.place
+    /// 转到电脑屏先在原来那块屏上放回原位、缩回字号（电脑屏不调字号）。从电脑屏转走，原位记录同样跟着走。
+    /// 这块屏上怎么放归 Desk.place
     private func place(_ window: WindowInfo, on desk: Desk, zoom: Bool = true) async {
+        if let lender = desks.values.first(where: { $0 !== desk && $0.state.brought.contains(window.key) }),
+           let record = lender.broughtRecord(of: window.key) {
+            Log.info("\(window.label) 从电脑屏（\(lender.id)）转到屏（\(desk.id)），原位记录跟着走")
+            return await desk.place(window, zoom: zoom, from: Desk.Handover(record: record, release: { lender.release(window.key) }))
+        }
         guard let from = holder(of: window.key), from !== desk else { return await desk.place(window, zoom: zoom) }
         guard desk.readyDisplay(for: "把 \(window.label) 转过来") != nil else { return desk.setNotice(.screenNotReady) }
         guard desk.behavior.touch else {
@@ -275,6 +281,13 @@ public final class DeskSet {
         guard let desk = desks[id], desk.state.placed != nil else { return }
         let ticket = desk.begin(.puttingBack)
         lane.run { await desk.perform(ticket) { await desk.putBackPlaced() } }
+    }
+
+    /// 电脑屏资源库里的「还原」：把 Snug 挪过来的这个窗口放回原处
+    public func putBack(_ window: WindowKey, on id: ScreenID) {
+        guard let desk = desks[id], desk.state.brought.contains(window) else { return }
+        let ticket = desk.begin(.puttingBack)
+        lane.run { await desk.perform(ticket) { await desk.putBackBrought(window) } }
     }
 
     /// 字大 / 字小一级，并记到这个 App 名下。到了上下限什么都不做（界面上那个按钮已经点不了）
@@ -544,7 +557,8 @@ public final class DeskSet {
         lane.runCoalesced("settle") { await self.screens.settleDisplays() }
     }
 
-    /// 有辅助功能权限后调用：上次 Snug 没来得及放回去的窗口，按各块屏的还原账放回去。账在队里轮到时才读，不会拿旧的放两遍。
+    /// 有辅助功能权限后调用：上次 Snug 没来得及放回去的窗口，按还原账一笔一笔放回去（触屏一块屏一笔，电脑屏挪过来的窗口一个一笔，
+    /// 盘上同一种格式，见 SnugPaths.broughtRecord）。账在队里轮到时才读，不会拿旧的放两遍。
     /// 2.5 及以前的还原账先挪成那块手机屏的账
     public func recover() {
         lane.run {

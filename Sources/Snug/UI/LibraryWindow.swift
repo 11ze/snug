@@ -1,7 +1,8 @@
 // 电脑屏的 App 资源库：Mac 样式的窗口，从菜单栏的「App 资源库」打开，在哪块电脑屏的菜单栏点就在哪块屏上开、往哪块屏放。
 // 电脑屏没有小横条；已经开在别的屏上的窗口不会自己过来，点程序坞只是把它在原来的屏上提到前面（V9），
 // 远端的人看不见别的屏、拖不了窗口，靠这里一键拉过来。
-// 左栏「运行中 / 全部 App」；每个窗口标出现在在哪块屏，「放到这块屏」交给这块屏的意图（电脑屏只挪过来居中，不铺满、不调字号）。
+// 左栏「运行中 / 全部 App」；每个窗口标出现在在哪块屏，「放到这块屏」交给这块屏的意图（电脑屏只挪过来居中，不铺满、不调字号），
+// 挪过来的「还原」放回原处（远端的人一样拖不回去）。
 // 数据和屏上的资源库共用 AppCatalog，窗口在哪块屏（WindowSpot）也从那里读；UU 在推这块屏、窗口没最小化时才要它刷新
 import AppKit
 import SnugCore
@@ -26,6 +27,7 @@ struct LibraryView: View {
     let catalog: AppCatalog
     @Bindable var model: LibraryModel
     let place: (WindowInfo) -> Void
+    let putBack: (WindowInfo) -> Void
     let open: (AppInfo) -> Void
 
     private var targetDisplay: DisplayID? { model.target.flatMap { state.desks.desks[$0]?.display } }
@@ -120,6 +122,8 @@ struct LibraryView: View {
         let here = targetDisplay.map { spot == .shown($0) } == true
         // 在这块屏的全屏空间里：「放到这块屏」会退出全屏、挪到眼前，按钮照实说
         let hiddenFullScreen = targetDisplay.map { spot == .fullScreen($0) } == true && !window.minimized
+        // Snug 挪过来、还记着原处的：在这块屏上就能还原（在这块屏上直接开的窗口没有原处可回）
+        let restorable = model.target.flatMap { state.desks.desks[$0]?.brought.contains(window.key) } == true
         return HStack(spacing: MacTokens.Space.s) {
             Image(systemName: "macwindow").foregroundStyle(.secondary)
             Text(window.displayTitle).lineLimit(1)
@@ -128,6 +132,9 @@ struct LibraryView: View {
             if !here {
                 Button(hiddenFullScreen ? "退出全屏" : "放到这块屏") { place(window) }
                     .disabled(targetDisplay == nil || state.desks.closing.contains(window.key))
+            } else if restorable {
+                Button("还原") { putBack(window) }
+                    .disabled(state.desks.closing.contains(window.key))
             }
         }
         .frame(minHeight: MacTokens.Size.rowMinHeight - MacTokens.Space.s)
@@ -181,11 +188,12 @@ private extension View {
 }
 
 private extension Desk.Work {
-    /// 资源库窗口上的进度：电脑屏只有打开 App、挪窗口两件事
+    /// 资源库窗口上的进度：电脑屏只有打开 App、挪过来、放回去三件事
     var libraryText: String {
         switch self {
         case .opening(let app): "正在打开 \(app.name)…"
         case .placing(let window): "正在把 \(window.app) 挪过来…"
+        case .puttingBack: "正在放回原处…"
         default: "请稍候…"
         }
     }
@@ -241,6 +249,10 @@ final class LibraryWindowController: NSObject, NSWindowDelegate {
                                place: { [weak self] window in
                                    guard let self, let target = model.target else { return }
                                    intents(target).pull(window)
+                               },
+                               putBack: { [weak self] window in
+                                   guard let self, let target = model.target else { return }
+                                   intents(target).putBack(window.key)
                                },
                                open: { [weak self] app in
                                    guard let self, let target = model.target else { return }

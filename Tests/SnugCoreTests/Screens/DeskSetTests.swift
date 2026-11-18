@@ -24,6 +24,16 @@ private extension Rig {
 
     func placed(on id: ScreenID) -> WindowInfo? { set.state.desks[id]?.placed?.window }
     func record(of id: ScreenID) -> PlacedRecord? { RestoreRecord<PlacedRecord>(url: paths.placedRecord(for: id)).pending() }
+    /// 电脑屏上挪过来的这个窗口的那份账
+    func brought(_ w: WindowInfo, on id: ScreenID) -> PlacedRecord? {
+        RestoreRecord<PlacedRecord>(url: paths.broughtRecord(for: id, window: w.key)).pending()
+    }
+    /// 电脑屏上挪过来、能还原的窗口
+    func broughtKeys(on id: ScreenID) -> Set<WindowKey>? { set.state.desks[id]?.brought }
+    /// 电脑屏的可放区域里居中（挪过来的样子）
+    func centeredOnSecond(_ size: CGSize) throws -> CGRect {
+        try #require(displays.windowArea(102, withHomeBar: false)).centered(size)
+    }
     /// 第二块屏的可放区域（假屏往右排，第二块在第一块右边 4000 点）
     var secondArea: CGRect { phoneArea.offsetBy(dx: 4000, dy: 0) }
 }
@@ -328,6 +338,156 @@ struct DeskSetTests {
         rig.set.settleDisplays()
         await rig.set.idle()
         #expect(rig.windows.window(memo.key)?.frame == home)
+    }
+
+    // MARK: 电脑屏的还原
+
+    @Test("挪到电脑屏：先记账（一个窗口一份），资源库里还原就放回原处、销掉这一份；别的照旧在屏上")
+    func bringRecordsAndPutsBack() async throws {
+        let rig = try Rig()
+        await rig.readyTwo(computer)
+        rig.set.pull(ghostty, on: second)
+        rig.set.pull(finder, on: second)
+        await rig.set.idle()
+        #expect(rig.windows.window(ghostty.key)?.frame == (try rig.centeredOnSecond(ghosttyHome.size)))
+        #expect(rig.brought(ghostty, on: second)?.original == ghosttyHome)
+        #expect(rig.brought(finder, on: second)?.original == finderHome)
+        #expect(rig.broughtKeys(on: second) == [ghostty.key, finder.key])
+        rig.set.putBack(ghostty.key, on: second)
+        await rig.set.idle()
+        #expect(rig.windows.window(ghostty.key)?.frame == ghosttyHome)
+        #expect(rig.brought(ghostty, on: second) == nil)
+        #expect(rig.broughtKeys(on: second) == [finder.key])
+        #expect(rig.windows.window(finder.key)?.frame == (try rig.centeredOnSecond(finderHome.size)))
+    }
+
+    @Test("撤电脑屏：挪过来的窗口按账放回原处（不挪到主屏正中），账销掉")
+    func retireComputerPutsBroughtBack() async throws {
+        let rig = try Rig()
+        await rig.readyTwo(computer)
+        rig.set.pull(ghostty, on: second)
+        rig.set.pull(finder, on: second)
+        await rig.set.idle()
+        rig.timeline.advance(10)
+        rig.set.setWishes([rig.desk.wish])
+        await rig.set.idle()
+        #expect(rig.windows.window(ghostty.key)?.frame == ghosttyHome)
+        #expect(rig.windows.window(finder.key)?.frame == finderHome)
+        #expect(rig.brought(ghostty, on: second) == nil)
+        #expect(rig.brought(finder, on: second) == nil)
+    }
+
+    @Test("原来全屏的窗口挪到电脑屏：原位按退出全屏后的位置记，还原时恢复全屏")
+    func bringFullScreenRestoresIt() async throws {
+        let rig = try Rig()
+        await rig.readyTwo(computer)
+        rig.set.pull(safari, on: second)
+        await rig.set.idle()
+        let record = try #require(rig.brought(safari, on: second))
+        #expect(record.original == safariWindowed)
+        #expect(record.wasFullScreen)
+        rig.set.putBack(safari.key, on: second)
+        await rig.set.idle()
+        #expect(rig.windows.window(safari.key)?.fullScreen == true)
+        #expect(rig.brought(safari, on: second) == nil)
+    }
+
+    @Test("挪过来的窗口被用户挪去了别的屏：定期核对时销账，撤屏时不拽回来")
+    func movedAwayIsLeftAlone() async throws {
+        let rig = try Rig()
+        await rig.readyTwo(computer)
+        rig.set.pull(ghostty, on: second)
+        await rig.set.idle()
+        let moved = CGRect(x: FakeDisplays.main.minX + 40, y: FakeDisplays.main.minY + 40, width: 800, height: 600)
+        rig.windows.setFrame(ghostty.key, moved)
+        rig.set.verifyPlacement()
+        await rig.set.idle()
+        rig.timeline.advance(10)
+        rig.set.setWishes([rig.desk.wish])
+        await rig.set.idle()
+        #expect(rig.windows.window(ghostty.key)?.frame == moved)
+        #expect(rig.brought(ghostty, on: second) == nil)
+    }
+
+    @Test("定期核对：挪过来的窗口挪去了别的屏、或在 Snug 之外关了，销账，不再算能还原；最小化的照旧算")
+    func verifySettlesBrought() async throws {
+        let rig = try Rig()
+        await rig.readyTwo(computer)
+        rig.set.pull(ghostty, on: second)
+        rig.set.pull(finder, on: second)
+        rig.set.pull(notes, on: second)
+        await rig.set.idle()
+        rig.windows.setFrame(ghostty.key, CGRect(x: 40, y: 60, width: 800, height: 600))
+        rig.windows.vanish(finder.key)
+        _ = await rig.windows.setMinimized(notes.key, true)
+        rig.set.verifyPlacement()
+        await rig.set.idle()
+        #expect(rig.brought(ghostty, on: second) == nil)
+        #expect(rig.brought(finder, on: second) == nil)
+        #expect(rig.brought(notes, on: second)?.original == notesHome)
+        #expect(rig.broughtKeys(on: second) == [notes.key])
+    }
+
+    @Test("Snug 崩溃后再启动：电脑屏挪过来的窗口按各自的账放回原处")
+    func recoverBrought() async throws {
+        let tmp = try TempDir()
+        do {
+            let rig = try Rig(dataDirectory: tmp.url)
+            await rig.readyTwo(computer)
+            rig.set.pull(ghostty, on: second)
+            rig.set.pull(finder, on: second)
+            await rig.set.idle()
+        }
+        let rig = try Rig(dataDirectory: tmp.url)
+        rig.windows.setFrame(ghostty.key, CGRect(x: 4100, y: 100, width: 1200, height: 800))
+        rig.windows.setFrame(finder.key, CGRect(x: 4200, y: 200, width: 800, height: 500))
+        rig.set.recover()
+        await rig.set.idle()
+        #expect(rig.windows.window(ghostty.key)?.frame == ghosttyHome)
+        #expect(rig.windows.window(finder.key)?.frame == finderHome)
+        #expect(rig.brought(ghostty, on: second) == nil)
+        #expect(rig.brought(finder, on: second) == nil)
+    }
+
+    @Test("设着主屏时从外接屏挪到电脑屏的窗口：撤屏时先设回主屏（系统把新主屏上的窗口换回原主屏），照样按账放回外接屏")
+    func broughtWhileMainReturnsHome() async throws {
+        let rig = try Rig()
+        let home = CGRect(x: -1800, y: 100, width: 800, height: 600)
+        let xcode = WindowInfo(key: WindowKey(pid: 30, id: 50), app: "Xcode", bundleID: "com.apple.dt.Xcode", title: "snug")
+        rig.windows.add(xcode.key, frame: home, info: xcode)
+        var wish = rig.secondWish(computer)
+        wish.main = true
+        rig.set.setWishes([rig.desk.wish, wish])
+        await rig.set.idle()
+        let shift = try #require(rig.displays.bounds(102)).origin
+        _ = await rig.windows.move(xcode.key, to: home.offsetBy(dx: -shift.x, dy: -shift.y))
+        rig.set.pull(xcode, on: second)
+        await rig.set.idle()
+        // 设回原主屏时系统把新主屏上的窗口整体搬回原主屏（11-18 真机实测，见 how-it-works「窗口原位」）
+        rig.arrangement.onChange = { [unowned windows = rig.windows] in
+            windows.setFrame(xcode.key, CGRect(x: 300, y: 200, width: 800, height: 600))
+        }
+        rig.timeline.advance(10)
+        rig.set.setWishes([rig.desk.wish])
+        await rig.set.idle()
+        #expect(rig.windows.window(xcode.key)?.frame == home)
+        #expect(rig.brought(xcode, on: second) == nil)
+    }
+
+    @Test("从电脑屏转到手机屏：原位记录跟着走，电脑屏那份销掉；在手机上还原回到当初的原处")
+    func transferFromComputer() async throws {
+        let rig = try Rig()
+        await rig.readyTwo(computer)
+        rig.set.pull(ghostty, on: second)
+        await rig.set.idle()
+        await rig.pull(ghostty)
+        #expect(rig.placed(on: .phone) == ghostty)
+        #expect(rig.record?.original == ghosttyHome)
+        #expect(rig.brought(ghostty, on: second) == nil)
+        #expect(rig.broughtKeys(on: second) == [])
+        rig.desk.putBack()
+        await rig.set.idle()
+        #expect(rig.windows.window(ghostty.key)?.frame == ghosttyHome)
     }
 
     // MARK: 设为主屏

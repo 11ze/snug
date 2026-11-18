@@ -449,7 +449,7 @@ enum RenderSamples {
             let model = LibraryModel()
             model.target = computerID
             return AnyView(LibraryView(state: s, catalog: AppCatalog(sample: running, installed: installed), model: model,
-                                       place: { _ in }, open: { _ in }))
+                                       place: { _ in }, putBack: { _ in }, open: { _ in }))
         }
         return [notice] + [false, true].flatMap { dark in
             [LibraryModel.Source.running, .all].map { source in
@@ -458,15 +458,16 @@ enum RenderSamples {
                     let s = sampleState()
                     s.config.screens[2].enabled = true
                     connected(s)
-                    // htop 已经在这块电脑屏上，其余在内建屏、已最小化
+                    // htop 是挪到这块电脑屏上的（能还原），其余在内建屏、已最小化
                     let main = CGMainDisplayID()
                     let spots: [WindowKey: WindowSpot] = [windows[0].key: .shown(main), windows[1].key: .shown(main),
                                                           windows[3].key: .shown(main), windows[4].key: .shown(22)]
                     let model = LibraryModel()
                     model.target = computerID
                     model.source = source
+                    s.desks.desks[computerID]?.brought = [windows[4].key]
                     let catalog = AppCatalog(sample: running, installed: installed, spots: spots)
-                    return AnyView(LibraryView(state: s, catalog: catalog, model: model, place: { _ in }, open: { _ in }))
+                    return AnyView(LibraryView(state: s, catalog: catalog, model: model, place: { _ in }, putBack: { _ in }, open: { _ in }))
                 }
             }
         }

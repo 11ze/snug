@@ -1,4 +1,5 @@
-// 各块屏的还原账在盘上的那一摞（placed/<屏 id>.json，见 SnugPaths），和 2.5 那份 phone-screen.json 的迁移
+// 还原账在盘上的那一摞（一个文件一笔：触屏 placed/<屏 id>.json，电脑屏挪过来的窗口 placed/<屏 id>~<pid>-<窗口号>.json，
+// 见 SnugPaths），和 2.5 那份 phone-screen.json 的迁移
 import Foundation
 
 struct PlacedRecords: Sendable {
@@ -7,7 +8,7 @@ struct PlacedRecords: Sendable {
     /// 手机屏已经有账（新版留了没放回的、降级回 2.5 又崩了一次）时，旧账单独存一份，和别的屏的账一样还，一笔不丢
     static let legacyScreen = ScreenID("phone-2.5")
 
-    /// 有还原账的屏（隔离起来的坏文件不算）。目录还没有就是没有账；读不出来（没有权限）记一笔，当作这次没有账可还
+    /// 每一笔还原账的名字（隔离起来的坏文件不算），当作屏的身份按它找到那个文件。目录还没有就是没有账；读不出来（没有权限）记一笔，当作这次没有账可还
     func screens() -> [ScreenID] {
         let names: [String]
         do {
