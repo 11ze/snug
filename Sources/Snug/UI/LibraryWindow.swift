@@ -1,7 +1,7 @@
 // 电脑屏的 App 资源库：Mac 样式的窗口，从菜单栏的「App 资源库」打开，在哪块电脑屏的菜单栏点就在哪块屏上开、往哪块屏放。
 // 电脑屏没有小横条；已经开在别的屏上的窗口不会自己过来，点程序坞只是把它在原来的屏上提到前面（V9），
 // 远端的人看不见别的屏、拖不了窗口，靠这里一键拉过来。
-// 左栏「运行中 / 全部 App」；每个窗口标出现在在哪块屏，「放到这块屏」交给 DeskSet（电脑屏只挪过来居中，不铺满、不调字号）。
+// 左栏「运行中 / 全部 App」；每个窗口标出现在在哪块屏，「放到这块屏」交给这块屏的意图（电脑屏只挪过来居中，不铺满、不调字号）。
 // 数据和屏上的资源库共用 AppCatalog，窗口在哪块屏（WindowSpot）也从那里读
 import AppKit
 import SnugCore
@@ -25,7 +25,6 @@ struct LibraryView: View {
     let state: AppState
     let catalog: AppCatalog
     @Bindable var model: LibraryModel
-    let intents: any AppIntents
     let place: (WindowInfo) -> Void
     let open: (AppInfo) -> Void
 
@@ -197,18 +196,17 @@ private extension Desk.Work {
 final class LibraryWindowController: NSObject, NSWindowDelegate {
     private let state: AppState
     private let catalog: AppCatalog
-    private let desks: DeskSet
-    private let intents: any AppIntents
+    /// 往哪块屏放就交给哪块屏的意图，和屏上的面板走同一个入口
+    private let intents: (ScreenID) -> any PhoneIntents
     private let model = LibraryModel()
     private var window: NSWindow?
     /// 正盯着要放的那块屏（露着时）
     private var following = false
     private static let owner = "library"
 
-    init(state: AppState, catalog: AppCatalog, desks: DeskSet, intents: any AppIntents) {
+    init(state: AppState, catalog: AppCatalog, intents: @escaping (ScreenID) -> any PhoneIntents) {
         self.state = state
         self.catalog = catalog
-        self.desks = desks
         self.intents = intents
     }
 
@@ -219,17 +217,14 @@ final class LibraryWindowController: NSObject, NSWindowDelegate {
         let watched = state.watchedScreen.flatMap { ready.contains($0) ? $0 : nil }
         model.target = onClicked ?? watched ?? ready.first
         if window == nil {
-            let view = LibraryView(state: state, catalog: catalog, model: model, intents: intents,
+            let view = LibraryView(state: state, catalog: catalog, model: model,
                                    place: { [weak self] window in
                                        guard let self, let target = model.target else { return }
-                                       desks.pull(window, on: target)
+                                       intents(target).pull(window)
                                    },
                                    open: { [weak self] app in
                                        guard let self, let target = model.target else { return }
-                                       switch AppList.action(for: app, running: catalog.running) {
-                                       case .pull(let window): desks.pull(window, on: target)
-                                       case .open(let app): desks.open(app, on: target)
-                                       }
+                                       intents(target).open(app)
                                    })
             let w = NSWindow(contentViewController: NSHostingController(rootView: view))
             w.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]

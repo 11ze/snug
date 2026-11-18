@@ -447,7 +447,7 @@ enum RenderSamples {
             let model = LibraryModel()
             model.target = computerID
             return AnyView(LibraryView(state: s, catalog: AppCatalog(sample: running, installed: installed), model: model,
-                                       intents: stub, place: { _ in }, open: { _ in }))
+                                       place: { _ in }, open: { _ in }))
         }
         return [notice] + [false, true].flatMap { dark in
             [LibraryModel.Source.running, .all].map { source in
@@ -464,7 +464,7 @@ enum RenderSamples {
                     model.target = computerID
                     model.source = source
                     let catalog = AppCatalog(sample: running, installed: installed, spots: spots)
-                    return AnyView(LibraryView(state: s, catalog: catalog, model: model, intents: stub, place: { _ in }, open: { _ in }))
+                    return AnyView(LibraryView(state: s, catalog: catalog, model: model, place: { _ in }, open: { _ in }))
                 }
             }
         }
