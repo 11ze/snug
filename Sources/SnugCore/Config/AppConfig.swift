@@ -27,12 +27,16 @@ public struct AppConfig: Codable, Equatable, Sendable {
     /// 段号的下限按分钟数（从这一刻起）往后走：降级到 2.5 跑过一次，2.5 写盘时丢掉它不认的屏幕列表和计数器，
     /// 再升级回来计数器从 0 数，单靠它就会把以前那块屏的身份分给新屏
     static let serialEpoch = Date(timeIntervalSince1970: 1_767_225_600)   // 2026-01-01 00:00 UTC
+    /// 段号的上限：再大序列号就装不下 UInt32 了（按分钟数要七百多年才到，只有手改配置会碰上）
+    static let maxSerialBlock = Int((UInt32.max - serialBase - 2) / 10)
 
     public init() {}
 
-    /// 加一块屏：分配一段没用过的序列号，名字按型号起
-    public mutating func addScreen(orientation: Orientation, device: DeviceChoice, name: String? = nil, now: Date = Date()) -> ScreenConfig {
-        let block = max(nextSerialBlock, Int(max(0, now.timeIntervalSince(Self.serialEpoch)) / 60))
+    /// 加一块屏：分配一段没用过的序列号，名字按型号起。已经有 ScreenConfig.limit 块就不加，返回 nil
+    @discardableResult
+    public mutating func addScreen(orientation: Orientation, device: DeviceChoice, name: String? = nil, now: Date = Date()) -> ScreenConfig? {
+        guard screens.count < ScreenConfig.limit else { return nil }
+        let block = min(max(nextSerialBlock, Int(max(0, now.timeIntervalSince(Self.serialEpoch)) / 60)), Self.maxSerialBlock)
         let base = Self.serialBase + UInt32(block) * 10
         nextSerialBlock = block + 1
         let screen = ScreenConfig(id: .make(), orientation: orientation, device: device, enabled: true,
@@ -82,7 +86,7 @@ public struct AppConfig: Codable, Equatable, Sendable {
             screens = [.legacyPhone(phone, enabled: enabled)]
         }
         mainScreen = (try? c.decodeIfPresent(ScreenID.self, forKey: .mainScreen)).flatMap { id in screens.contains { $0.id == id } ? id : nil }
-        nextSerialBlock = max(0, (try? c.decodeIfPresent(Int.self, forKey: .nextSerialBlock)) ?? 0)
+        nextSerialBlock = ((try? c.decodeIfPresent(Int.self, forKey: .nextSerialBlock)) ?? 0).clamped(to: 0...Self.maxSerialBlock)
         gestures = try c.decodeIfPresent(Bool.self, forKey: .gestures) ?? d.gestures
         screenshot = try c.decodeIfPresent(Bool.self, forKey: .screenshot) ?? d.screenshot
         zoomSteps = try c.decodeIfPresent(Int.self, forKey: .zoomSteps).map { $0.clamped(to: Self.zoomStepsRange) } ?? d.zoomSteps

@@ -10,8 +10,8 @@ struct ScreenPlanTests {
     /// 手机竖屏 + iPad 横屏 + 关着的 Air
     private func config() -> AppConfig {
         var c = AppConfig()
-        _ = c.addScreen(orientation: .landscape, device: ipad)
-        var off = c.addScreen(orientation: .landscape, device: air)
+        c.addScreen(orientation: .landscape, device: ipad)
+        var off = c.addScreen(orientation: .landscape, device: air)!
         off.enabled = false
         c.screens[2] = off
         return c
@@ -68,10 +68,12 @@ struct ScreenPlanTests {
         #expect(wishes.map(\.main) == [false, true])
     }
 
-    @Test("开着的超过上限（手改配置）：只建前 4 块")
+    @Test("加到上限就不再加；手改配置开了更多块：只建前 4 块")
     func limit() {
         var c = AppConfig()
-        for _ in 0..<5 { _ = c.addScreen(orientation: .portrait, device: .standard) }
+        for _ in 1..<ScreenConfig.limit { #expect(c.addScreen(orientation: .portrait, device: .standard) != nil) }
+        #expect(c.addScreen(orientation: .portrait, device: .standard) == nil)
+        c.screens.append(ScreenConfig(id: .make(), orientation: .portrait, device: .standard, enabled: true, name: "手改的", serials: [1]))
         #expect(ScreenPlan.wishes(config: c, remote: remote, trusted: true).count == ScreenConfig.limit)
     }
 }

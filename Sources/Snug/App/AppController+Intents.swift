@@ -12,13 +12,16 @@ extension AppController: AppIntents {
 
     /// name 是表单里原样填的；没填（只打了空格也算）就交给 AppConfig.addScreen 按型号和方向起名
     func addScreen(orientation: Orientation, device: DeviceChoice, name: String) {
-        guard store.config.screens.count < ScreenConfig.limit else { return Log.warn("屏幕列表已有 \(ScreenConfig.limit) 块，不再加") }
         let name = name.trimmingCharacters(in: .whitespaces)
         var added: ScreenConfig?
         // 最后起成什么名字记在下面「新屏」那一行
         guard changeConfig("加屏：\(orientation.title) · \(device.title)", {
             added = $0.addScreen(orientation: orientation, device: device, name: name.isEmpty ? nil : name)
-        }), let added else { return }
+        }), let added else {
+            // 满了 AppConfig 不加（配置没变）；写盘失败 changeConfig 已经记过
+            if added == nil { Log.warn("屏幕列表已有 \(ScreenConfig.limit) 块，不再加") }
+            return
+        }
         Log.info("新屏「\(added.name)」\(ScreenPlan.fit(of: added))，序列号 \(added.serials.map(String.init).joined(separator: "/"))")
         applyPlan()
     }

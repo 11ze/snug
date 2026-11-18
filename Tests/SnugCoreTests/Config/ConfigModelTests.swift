@@ -48,7 +48,7 @@ struct ConfigModelTests {
     func writesLegacyFields() throws {
         var c = AppConfig()
         let tablet = DeviceChoice(model: "Apple iPad Pro 11 英寸（M5）", screen: DeviceScreen(width: 1668, height: 2420, points: 834), kind: .tablet)
-        _ = c.addScreen(orientation: .landscape, device: tablet)
+        c.addScreen(orientation: .landscape, device: tablet)
         c.screens.swapAt(0, 1)
         c.screens[1].enabled = false
         c.screens[1].device = DeviceChoice(model: nil, screen: DeviceScreen(width: 1080, height: 2400))
@@ -72,15 +72,15 @@ struct ConfigModelTests {
     func addScreen() throws {
         var c = AppConfig()
         let ipad = DeviceChoice(model: "Apple iPad（A16）", screen: DeviceScreen(width: 1640, height: 2360, points: 820), kind: .tablet)
-        let a = c.addScreen(orientation: .landscape, device: ipad, now: AppConfig.serialEpoch)
-        let b = c.addScreen(orientation: .landscape, device: .standard, now: AppConfig.serialEpoch)
+        let a = c.addScreen(orientation: .landscape, device: ipad, now: AppConfig.serialEpoch)!
+        let b = c.addScreen(orientation: .landscape, device: .standard, now: AppConfig.serialEpoch)!
         #expect(a.serials == [200_100_000, 200_100_001, 200_100_002])
         #expect(b.serials == [200_100_010, 200_100_011, 200_100_012])
         #expect(a.name == "Snug iPad")
         #expect(b.name == "Snug iPhone 17 Pro Max 横屏")
         #expect(a.id != b.id)
         c.removeScreen(a.id)
-        let d = c.addScreen(orientation: .portrait, device: .standard, name: "我的手机", now: AppConfig.serialEpoch)
+        let d = c.addScreen(orientation: .portrait, device: .standard, name: "我的手机", now: AppConfig.serialEpoch)!
         #expect(d.serials.first == 200_100_020)
         #expect(d.name == "我的手机")
         #expect(c.screens.map(\.id) == [.phone, b.id, d.id])
@@ -90,12 +90,20 @@ struct ConfigModelTests {
     func serialsSurviveLostCounter() {
         let earlier = AppConfig.serialEpoch.addingTimeInterval(100 * 60)
         var before = AppConfig()
-        let old = before.addScreen(orientation: .landscape, device: .standard, now: earlier)
+        let old = before.addScreen(orientation: .landscape, device: .standard, now: earlier)!
         var lost = AppConfig()
-        let new = lost.addScreen(orientation: .landscape, device: .standard, now: earlier.addingTimeInterval(60))
+        let new = lost.addScreen(orientation: .landscape, device: .standard, now: earlier.addingTimeInterval(60))!
         #expect(old.serials.first == 200_101_000)
         #expect(new.serials.first == 200_101_010)
         #expect(Set(old.serials).isDisjoint(with: new.serials))
+    }
+
+    @Test("手改出离谱的号段计数（大到序列号装不下）：夹回上限，加屏不崩")
+    func hugeSerialBlock() throws {
+        var c = try decode(#"{"nextSerialBlock":99999999999}"#)
+        #expect(c.nextSerialBlock == AppConfig.maxSerialBlock)
+        let added = c.addScreen(orientation: .portrait, device: .standard)!
+        #expect(added.serials.allSatisfy { $0 >= AppConfig.serialBase })
     }
 
     @Test("删掉设为主屏的那块：主屏回到「不改」")
@@ -169,7 +177,7 @@ struct ConfigModelTests {
         c.updateSource = .github
         c.lastVersion = Version(major: 2, minor: 1, patch: 0)
         c.screens[0].device = DeviceChoice(model: "华为 Mate 70 Pro", screen: DeviceScreen(width: 1260, height: 2832))
-        _ = c.addScreen(orientation: .landscape, device: DeviceChoice(model: nil, screen: DeviceScreen(width: 1600, height: 2560, notch: 30), kind: .computer))
+        c.addScreen(orientation: .landscape, device: DeviceChoice(model: nil, screen: DeviceScreen(width: 1600, height: 2560, notch: 30), kind: .computer))
         #expect(try JSONDecoder().decode(AppConfig.self, from: JSONEncoder().encode(c)) == c)
     }
 }
