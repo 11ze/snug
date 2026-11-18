@@ -608,7 +608,7 @@ public final class DeskSet {
         }
     }
 
-    /// 启动时调用（不用辅助功能权限）：上次设了主屏没设回就退出了（崩溃），按账把排布摆回去
+    /// 启动时调用（不用辅助功能权限）：上次设了主屏没设回就退出了（崩溃），销掉那份账（系统已经摆好，见 ScreenSet）
     public func recoverArrangement() {
         lane.run { await self.screens.recoverArrangement() }
     }

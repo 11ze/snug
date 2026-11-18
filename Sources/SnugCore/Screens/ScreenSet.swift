@@ -290,7 +290,7 @@ public final class ScreenSet {
             // 已有没销的账（上次没设回）就留着最早的那份：那才是用户自己的排布
             if arrangementLedger.pending() == nil { try arrangementLedger.record(ArrangementRecord(origins: before)) }
         } catch {
-            return Log.error("设主屏的还原账写不进去（\(arrangementLedger.file.url.path)）：\(error)；不设主屏，免得崩了之后摆不回来")
+            return Log.error("设主屏的还原账写不进去（\(arrangementLedger.file.url.path)）：\(error)；不设主屏，不然不再当主屏时没有账可依、摆不回来")
         }
         onTopologyChange?()
         guard await arrangement.makeMain(display) else {
@@ -302,10 +302,14 @@ public final class ScreenSet {
         await timeline.sleep(Self.topologySettle)
     }
 
-    /// 启动时（在放回窗口之前）：上次设了主屏没设回就退出了（崩溃），按账摆回去
+    /// 启动时：上次设了主屏没设回就退出了（崩溃）。不按账摆：Snug 的屏随上次的进程一起没了，屏幕组合一变，
+    /// macOS 已经按剩下这组屏记的排布摆好；账里别的屏的位置是 Snug 的屏还在时的，系统给它们让过地方，
+    /// 照着摆反倒把外接屏挪偏（11-17 实测：外接屏从 -217 被摆到 -408）。只销账、记一笔
     func recoverArrangement() async {
-        guard arrangementLedger.pending() != nil else { return }
-        await restoreArrangement(because: "上次设了主屏没设回")
+        guard let record = arrangementLedger.pending() else { return }
+        Log.info("上次设了主屏没设回就退出了：Snug 的屏已随之撤掉，系统按这组屏幕记的排布摆好了（\(Self.describe(arrangement.origins()))），"
+                 + "不再按账（\(Self.describe(record.origins))）摆")
+        settleArrangement()
     }
 
     private func restoreArrangement(because reason: String) async {
@@ -315,8 +319,8 @@ public final class ScreenSet {
             Log.info("\(reason)，排布摆回设主屏之前（\(Self.describe(record.origins))）")
             settleArrangement()
         } else {
-            // 账留着，下次启动再试
-            Log.error("\(reason)，排布没能摆回去（\(Self.describe(record.origins))），账留着下次启动再试")
+            // 账留着：再设主屏时还用这份最早的；屏撤掉时 macOS 按这组屏幕记的排布摆回
+            Log.error("\(reason)，排布没能摆回去（\(Self.describe(record.origins))），屏撤掉时系统会按这组屏幕记的排布摆回")
         }
         await timeline.sleep(Self.topologySettle)
     }

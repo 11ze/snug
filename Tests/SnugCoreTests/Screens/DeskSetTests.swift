@@ -284,7 +284,7 @@ struct DeskSetTests {
         #expect(RestoreRecord<ArrangementRecord>(url: rig.paths.arrangementRecord).pending() == nil)
     }
 
-    @Test("崩溃后启动：按设主屏的账摆回去，再销账；没有账什么都不做")
+    @Test("崩溃后启动：不按账摆（Snug 的屏随上次的进程一起没了，macOS 已按剩下这组屏记的排布摆好，账里的位置是 Snug 的屏还在时的），只销账；没有账什么都不做")
     func recoversArrangement() async throws {
         let rig = try Rig()
         rig.set.recoverArrangement()
@@ -293,17 +293,23 @@ struct DeskSetTests {
         try RestoreRecord<ArrangementRecord>(url: rig.paths.arrangementRecord).record(ArrangementRecord(origins: [1: .zero, 7: CGPoint(x: -1920, y: 0)]))
         rig.set.recoverArrangement()
         await rig.set.idle()
-        #expect(rig.journal.all == ["arrange #1,#7"])
+        #expect(rig.journal.all.isEmpty)
         #expect(RestoreRecord<ArrangementRecord>(url: rig.paths.arrangementRecord).pending() == nil)
     }
 
-    @Test("摆不回去：账留着，下次启动再试")
+    @Test("不再当主屏时摆不回去：账留着，下次再设主屏时照旧用最早的那份")
     func restoreFailsKeepsLedger() async throws {
         let rig = try Rig()
-        try RestoreRecord<ArrangementRecord>(url: rig.paths.arrangementRecord).record(ArrangementRecord(origins: [1: .zero]))
-        rig.arrangement.fails = true
-        rig.set.recoverArrangement()
+        var wish = rig.secondWish(computer)
+        wish.main = true
+        rig.set.setWishes([wish])
         await rig.set.idle()
-        #expect(RestoreRecord<ArrangementRecord>(url: rig.paths.arrangementRecord).pending() != nil)
+        let recorded = RestoreRecord<ArrangementRecord>(url: rig.paths.arrangementRecord).pending()
+        #expect(recorded != nil)
+        rig.arrangement.fails = true
+        wish.main = false
+        rig.set.setWishes([wish])
+        await rig.set.idle()
+        #expect(RestoreRecord<ArrangementRecord>(url: rig.paths.arrangementRecord).pending() == recorded)
     }
 }
