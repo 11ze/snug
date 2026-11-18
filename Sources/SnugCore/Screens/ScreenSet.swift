@@ -96,11 +96,12 @@ public final class ScreenSet {
         return reshaped
     }
 
-    /// 撤掉不要的、建出要了还没有的；失败的按 retryDelays 排队重试
-    private func reconcile() async {
+    /// 撤掉不要的、建出要了还没有的；失败的按 retryDelays 排队重试。
+    /// 失败的那块只在轮到它的重试（retrying）时再建：别的设置改了也走这里，当场再建会把重试次数提前耗掉，用完了还每次都建
+    private func reconcile(retrying: ScreenID? = nil) async {
         let wanted = Set(wishes.map(\.id))
         let retire = live.keys.filter { !wanted.contains($0) }.sorted { $0.rawValue < $1.rawValue }
-        let create = wishes.filter { live[$0.id] == nil }
+        let create = wishes.filter { live[$0.id] == nil && (states[$0.id] != .failed || $0.id == retrying) }
         for id in states.keys where !wanted.contains(id) && live[id] == nil { states[id] = nil }
         guard !retire.isEmpty || !create.isEmpty else { return }
         for wish in create { states[wish.id] = .preparing }
@@ -178,7 +179,7 @@ public final class ScreenSet {
             await timeline.sleep(delay)
             guard !Task.isCancelled else { return }
             await lane.run {
-                await self.reconcile()
+                await self.reconcile(retrying: id)
                 await self.claimMain()
             }.value
         }

@@ -212,6 +212,23 @@ struct DeskSetTests {
         #expect(rig.record(of: .phone) == nil)
     }
 
+    @Test("加屏失败、等着重试时改了别的设置（又走一次差量）：不当场再建失败的那块，三次重试照样按点来")
+    func failedWaitsForRetry() async throws {
+        let rig = try Rig()
+        rig.set.setWishes([rig.desk.wish])
+        await rig.set.idle()
+        rig.journal.clear()
+        rig.displays.failuresLeft = .max
+        rig.set.setWishes([rig.desk.wish, rig.secondWish()])
+        var renamed = rig.secondWish()
+        renamed.behavior = computer
+        rig.set.setWishes([rig.desk.wish, renamed])
+        await rig.set.idle()
+        // 头一次加三次重试，一共 4 次
+        #expect(rig.journal.all.filter { $0.hasPrefix("create") }.count == 4)
+        #expect(rig.set.state.desks[second]?.screen == .failed)
+    }
+
     // MARK: 设为主屏
 
     @Test("设为主屏：建好、善后之后设主屏；原主屏上的窗口跟着搬过去，不放回")
