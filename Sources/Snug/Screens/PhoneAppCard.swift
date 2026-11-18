@@ -35,7 +35,7 @@ struct AppCard: View {
             header
             ForEach(app.windows) { window in
                 let onPhone = window.key == placed?.window.key
-                Divider().padding(.leading, 80)
+                Divider().padding(.leading, AppRowLabel.textInset)
                 WindowRow(window: window, onPhone: onPhone, onScreen: onScreen, closing: phone.closing.contains(window.key),
                           confirming: $confirming, intents: intents)
                 if onPhone, let placed {
@@ -48,7 +48,7 @@ struct AppCard: View {
     }
 
     private var header: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: TouchTokens.Space.s) {
             Button { intents.open(app.app) } label: {
                 AppRowLabel(icon: icon, title: app.app.name, subtitle: subtitle, subtitleColor: askingQuit ? .red : .secondary)
             }
@@ -56,9 +56,9 @@ struct AppCard: View {
             .disabled(quitting)
             actions
         }
-        .padding(.leading, 16)
-        .padding(.trailing, 12)
-        .padding(.vertical, 12)
+        .padding(.leading, TouchTokens.Space.l)
+        .padding(.trailing, TouchTokens.Space.m)
+        .padding(.vertical, TouchTokens.Space.m)
     }
 
     private var subtitle: String {
@@ -69,11 +69,11 @@ struct AppCard: View {
 
     @ViewBuilder private var actions: some View {
         if quitting {
-            ProgressView().controlSize(.small).frame(width: TouchStyle.touchTarget)
+            ProgressView().controlSize(.small).frame(width: TouchTokens.Size.touchTarget)
         } else if askingQuit {
             ConfirmButtons(title: "退出", confirming: $confirming) { intents.quit(app) }
         } else {
-            HStack(spacing: 8) {
+            HStack(spacing: TouchTokens.Space.s) {
                 RoundButton(symbol: "macwindow.badge.plus", label: "新建窗口") { intents.newWindow(app) }
                 if AppList.canQuit(app.app) {
                     RoundButton(symbol: "xmark.app", label: "退出") { confirming = .quit(app.pid) }
@@ -95,20 +95,20 @@ private struct WindowRow: View {
     private var askingClose: Bool { confirming == .close(window.key) }
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: TouchTokens.Space.s) {
             Button { onPhone ? intents.returnToPlaced() : intents.pull(window) } label: {
-                HStack(spacing: 16) {
+                HStack(spacing: TouchTokens.Space.l) {
                     Image(systemName: onPhone ? onScreen.symbol : "macwindow")
-                        .font(TouchStyle.headline.weight(.regular))
-                        .foregroundStyle(onPhone ? TouchStyle.tint : .secondary)
-                        .frame(width: TouchStyle.iconSize)
+                        .font(TouchTokens.Font.headline.font.weight(.regular))
+                        .foregroundStyle(onPhone ? TouchTokens.Color.tint : .secondary)
+                        .frame(width: TouchTokens.Size.listIcon)
                     Text(askingClose ? "关闭此窗口？" : window.displayTitle)
-                        .font(TouchStyle.body)
+                        .font(TouchTokens.Font.body.font)
                         .foregroundStyle(askingClose ? Color.red : .primary)
                         .lineLimit(1)
                     Spacer(minLength: 0)
                     if !askingClose {
-                        if onPhone { Tag(text: onScreen.text, color: TouchStyle.tint) }
+                        if onPhone { Tag(text: onScreen.text, color: TouchTokens.Color.tint) }
                         if window.minimized { Tag(text: "已最小化", color: .secondary) }
                     }
                 }
@@ -118,26 +118,26 @@ private struct WindowRow: View {
             .buttonStyle(PressableStyle())
             trailing
         }
-        .padding(.leading, 16)
-        .padding(.trailing, 12)
-        .frame(height: TouchStyle.touchTarget)
+        .padding(.leading, TouchTokens.Space.l)
+        .padding(.trailing, TouchTokens.Space.m)
+        .frame(height: TouchTokens.Size.touchTarget)
         .disabled(closing)
     }
 
     @ViewBuilder private var trailing: some View {
         if closing {
-            HStack(spacing: 8) {
+            HStack(spacing: TouchTokens.Space.s) {
                 ProgressView().controlSize(.small)
-                Text("正在关闭").font(TouchStyle.label).foregroundStyle(.secondary)
+                Text("正在关闭").font(TouchTokens.Font.label.font).foregroundStyle(.secondary)
             }
         } else if askingClose {
             ConfirmButtons(title: "关闭", confirming: $confirming) { intents.close(window) }
         } else {
             Button { confirming = .close(window.key) } label: {
                 Image(systemName: "xmark.circle.fill")
-                    .font(TouchStyle.headline.weight(.regular))
+                    .font(TouchTokens.Font.headline.font.weight(.regular))
                     .foregroundStyle(.tertiary)
-                    .frame(width: TouchStyle.touchTarget, height: TouchStyle.touchTarget)
+                    .frame(width: TouchTokens.Size.touchTarget, height: TouchTokens.Size.touchTarget)
             }
             .buttonStyle(PressableStyle())
             .accessibilityLabel("关闭窗口")
@@ -152,10 +152,10 @@ private struct Tag: View {
 
     var body: some View {
         Text(text)
-            .font(TouchStyle.label)
+            .font(TouchTokens.Font.label.font)
             .foregroundStyle(color)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 2)
+            .padding(.horizontal, TouchTokens.Space.s)
+            .padding(.vertical, TouchTokens.Space.xxs)
             .background(color.opacity(0.12), in: Capsule())
     }
 }
@@ -167,21 +167,21 @@ private struct PlacedControls: View {
     let intents: any PhoneIntents
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: TouchTokens.Space.m) {
             if placed.zoomable {
                 RoundButton(symbol: "textformat.size.smaller", label: "缩小字号") { intents.zoom(by: -1) }
                     .disabled(placed.zoom <= ZoomBook.range.lowerBound)
                 Text(zoomText)
-                    .font(TouchStyle.body.monospacedDigit())
+                    .font(TouchTokens.Font.body.font.monospacedDigit())
                     .foregroundStyle(.secondary)
                     .frame(minWidth: 72)
                     .contentTransition(.numericText())
                 RoundButton(symbol: "textformat.size.larger", label: "放大字号") { intents.zoom(by: 1) }
                     .disabled(placed.zoom >= ZoomBook.range.upperBound)
             }
-            Spacer(minLength: 8)
+            Spacer(minLength: TouchTokens.Space.s)
             Button { intents.putBack() } label: {
-                HStack(spacing: 8) {
+                HStack(spacing: TouchTokens.Space.s) {
                     if work == .puttingBack {
                         ProgressView().controlSize(.small)
                     } else {
@@ -189,16 +189,16 @@ private struct PlacedControls: View {
                     }
                     Text("还原")
                 }
-                .font(TouchStyle.body.weight(.medium))
-                .padding(.horizontal, 20)
-                .frame(height: TouchStyle.touchTarget)
-                .background(TouchStyle.background, in: Capsule())
+                .font(TouchTokens.Font.body.font.weight(.medium))
+                .padding(.horizontal, TouchTokens.Space.margin)
+                .frame(height: TouchTokens.Size.touchTarget)
+                .background(TouchTokens.Color.background, in: Capsule())
             }
             .buttonStyle(PressableStyle())
         }
-        .padding(.leading, 80)
-        .padding(.trailing, 12)
-        .padding(.bottom, 12)
+        .padding(.leading, AppRowLabel.textInset)
+        .padding(.trailing, TouchTokens.Space.m)
+        .padding(.bottom, TouchTokens.Space.m)
     }
 
     private var zoomText: String {

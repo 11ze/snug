@@ -10,12 +10,13 @@ struct SearchPage: View {
     let phone: PanelState
     let intents: any PhoneIntents
     @FocusState private var focused: Bool
+    @Environment(\.topTrailingClear) private var topTrailingClear
 
     private var query: String { search.trimmedQuery }
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 12) {
+            HStack(spacing: TouchTokens.Space.m) {
                 SearchBar {
                     TextField("搜索 App", text: $search.query)
                         .textFieldStyle(.plain)
@@ -24,11 +25,12 @@ struct SearchPage: View {
                 }
                 BarButton(title: "取消") { search.close() }
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 12)
-            .padding(.bottom, 16)
+            .padding(.horizontal, TouchTokens.Space.margin)
+            .padding(.trailing, topTrailingClear)
+            .padding(.top, TouchTokens.Space.m)
+            .padding(.bottom, TouchTokens.Space.l)
             ScrollView {
-                results.padding(.horizontal, 20).padding(.bottom, 24)
+                results.padding(.horizontal, TouchTokens.Space.margin).padding(.bottom, TouchTokens.Space.xxl)
             }
             .scrollIndicators(.never)
         }
@@ -41,13 +43,13 @@ struct SearchPage: View {
 
     @ViewBuilder private var results: some View {
         if query.isEmpty {
-            LazyVStack(alignment: .leading, spacing: 8) {
+            LazyVStack(alignment: .leading, spacing: TouchTokens.Space.s) {
                 ForEach(AppList.grouped(catalog.installed)) { group in
                     Text(group.letter)
-                        .font(TouchStyle.label.weight(.semibold))
+                        .font(TouchTokens.Font.label.font.weight(.semibold))
                         .foregroundStyle(.secondary)
-                        .padding(.leading, 4)
-                        .padding(.top, 8)
+                        .padding(.leading, TouchTokens.Space.xs)
+                        .padding(.top, TouchTokens.Space.s)
                     ListCard(group.apps.map(\.app)) { appRow($0) }
                 }
             }
@@ -56,7 +58,7 @@ struct SearchPage: View {
             if result.isEmpty {
                 EmptyState(symbol: "magnifyingglass", title: "无结果", text: "没有与「\(query)」相符的 App 或窗口")
             } else {
-                VStack(alignment: .leading, spacing: 24) {
+                VStack(alignment: .leading, spacing: TouchTokens.Space.xxl) {
                     if !result.apps.isEmpty {
                         TitledSection("App") { ListCard(result.apps) { appRow($0) } }
                     }
@@ -96,7 +98,7 @@ private struct ResultRow: View {
 
     var body: some View {
         Button(action: action) {
-            AppRowLabel(icon: icon, title: title, subtitle: subtitle).padding(16)
+            AppRowLabel(icon: icon, title: title, subtitle: subtitle).padding(TouchTokens.Space.l)
         }
         .buttonStyle(PressableStyle())
     }

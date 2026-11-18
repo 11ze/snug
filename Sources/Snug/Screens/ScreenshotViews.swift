@@ -56,7 +56,7 @@ private extension View {
     }
 }
 
-/// 白字标题 + 一行淡一些的说明，字号同 TouchStyle.body / label
+/// 白字标题 + 一行淡一些的说明，字号同 TouchTokens.Font.body / label
 private struct OverlayText: View {
     let headline: String
     let detail: String?

@@ -101,7 +101,7 @@ private struct ScreenRow: View {
 
     var body: some View {
         HStack(spacing: MacTokens.Space.m) {
-            SettingLabel(screen.name, detail: screen.summary, tile: TileToken(color: MacTokens.IconTile.screenPhone.color, symbol: screen.symbol))
+            SettingLabel(screen.name, detail: screen.summary, tile: MacTokens.IconTile.screen(symbol: screen.symbol))
             Spacer(minLength: MacTokens.Space.s)
             if watching {
                 Label("在看", systemImage: "circle.fill")
@@ -137,7 +137,7 @@ private struct WhyManyScreens: View {
             Text("关着的屏远程时不建，UU 的屏幕列表也更短。").font(.callout).foregroundStyle(.secondary)
         }
         .padding(MacTokens.Space.l)
-        .frame(width: 300, alignment: .leading)
+        .frame(width: MacTokens.Size.helpPopoverWidth, alignment: .leading)
     }
 
     private func reason(_ symbol: String, _ title: String, _ detail: String) -> some View {
@@ -158,14 +158,8 @@ private struct StatusHeader: View {
 
     var body: some View {
         let text = StatusText(state)
-        let status = state.accessibilityTrusted ? state.status : StatusToken(color: MacTokens.IconTile.accessibility.color,
-                                                                             symbol: MacTokens.IconTile.accessibility.symbol, text: "")
         HStack(spacing: MacTokens.Space.m) {
-            Image(systemName: status.symbol)
-                .font(.system(size: 20, weight: .semibold))
-                .foregroundStyle(.white)
-                .frame(width: MacTokens.Size.statusTile, height: MacTokens.Size.statusTile)
-                .background(status.color.gradient, in: RoundedRectangle(cornerRadius: MacTokens.Radius.statusTile, style: .continuous))
+            StatusTile(state.accessibilityTrusted ? state.status.tile : MacTokens.IconTile.accessibility)
             VStack(alignment: .leading, spacing: MacTokens.Space.xs) {
                 Text(text.headline).font(.headline)
                 if let detail = text.detail { Text(detail).foregroundStyle(.secondary) }
@@ -287,7 +281,7 @@ private struct ZoomSlider: View {
             Image(systemName: "textformat.size.larger")
         }
         .labelsHidden()
-        .frame(width: 160)
+        .frame(width: MacTokens.Size.zoomSliderWidth)
         .accessibilityValue(steps == 0 ? "不放大" : "+\(steps) 级")
     }
 }

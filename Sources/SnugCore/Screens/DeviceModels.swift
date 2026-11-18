@@ -10,6 +10,38 @@ public enum DeviceKind: String, Codable, CaseIterable, Sendable {
     case phone, tablet, computer
 }
 
+// 按类别定的几条规则只写在这里，全用 switch：加一个类别时编译器逐处报错，不会有哪处悄悄按老规矩走
+extension DeviceKind {
+    /// 触屏：屏上有 App 资源库面板，翻译手势、放大字号（见 ScreenPlan.behavior）；电脑都不要
+    public var isTouch: Bool {
+        switch self {
+        case .phone, .tablet: true
+        case .computer: false
+        }
+    }
+
+    /// 平常的方向：添加屏幕时选了这一类先摆成它；名字里是这个方向就不写「横屏」「竖屏」（见 ScreenConfig.suggestedName）
+    public var usualOrientation: Orientation {
+        switch self {
+        case .phone: .portrait
+        case .tablet, .computer: .landscape
+        }
+    }
+
+    /// 能选的方向：电脑只有横屏（docs/multi-screen.md 第 1 节）
+    public var allowedOrientations: [Orientation] {
+        switch self {
+        case .phone, .tablet: [.portrait, .landscape]
+        case .computer: [.landscape]
+        }
+    }
+
+    /// 一块屏的型号能换成哪几类：触不触屏一样的才能换。屏上的面板、手势跟着触屏走，跨过去等于换一块屏
+    public var swappableKinds: Set<DeviceKind> {
+        Set(Self.allCases.filter { $0.isTouch == isTouch })
+    }
+}
+
 /// 屏的方向：添加时定，之后不改（换方向要撤屏重建，UU 也得重选屏，和换一块新屏没有区别）
 public enum Orientation: String, Codable, CaseIterable, Sendable {
     case portrait, landscape

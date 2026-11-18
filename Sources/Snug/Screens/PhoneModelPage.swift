@@ -9,44 +9,47 @@ struct PhoneModelPage: View {
     let state: AppState
     @Bindable var pages: PhonePages
     let intents: any PhoneIntents
+    @Environment(\.topTrailingClear) private var topTrailingClear
 
     private var query: String { pages.trimmedQuery }
     private var current: DeviceChoice { state.screen(screen)?.device ?? .standard }
 
     var body: some View {
         VStack(spacing: 0) {
-            // 和 iOS 的导航栏一样：标题居中，右边「完成」
+            // 和 iOS 的导航栏一样：标题居中，右边「完成」。只有「完成」让开右上角，标题仍在整块屏的正中
             ZStack {
-                Text("型号").font(TouchStyle.headline)
+                Text("型号").font(TouchTokens.Font.headline.font)
                 HStack {
                     Spacer()
                     BarButton(title: "完成", bold: true) { pages.close() }
                 }
+                .padding(.trailing, topTrailingClear)
             }
-            .frame(height: TouchStyle.touchTarget)
-            .padding(.horizontal, 20)
-            .padding(.top, 12)
+            .frame(height: TouchTokens.Size.touchTarget)
+            .padding(.horizontal, TouchTokens.Space.margin)
+            .padding(.top, TouchTokens.Space.m)
             ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
+                VStack(alignment: .leading, spacing: TouchTokens.Space.xxl) {
                     SearchBar {
                         TextField("搜索型号", text: $pages.query).textFieldStyle(.plain)
                         ClearButton(text: $pages.query)
                     }
                     content
                 }
-                .padding(.horizontal, 20)
-                .padding(.top, 8)
-                .padding(.bottom, 24)
+                .padding(.horizontal, TouchTokens.Space.margin)
+                .padding(.top, TouchTokens.Space.s)
+                .padding(.bottom, TouchTokens.Space.xxl)
             }
             .scrollIndicators(.never)
         }
     }
 
     @ViewBuilder private var content: some View {
-        // 触屏只换成手机、平板；这块屏的类别排前面
-        let found = state.devices.search(query, in: [.phone, .tablet])
+        // 只列这块屏能换成的几类（见 DeviceKind.swappableKinds），这块屏的类别排前面
+        let kinds = current.kind.swappableKinds
+        let found = state.devices.search(query, in: kinds)
         let brands = found.filter { $0.kind == current.kind } + found.filter { $0.kind != current.kind }
-        LazyVStack(alignment: .leading, spacing: 24) {
+        LazyVStack(alignment: .leading, spacing: TouchTokens.Space.xxl) {
             if query.isEmpty {
                 TitledSection("当前 · 这块屏按它调整比例") { CurrentPhone(choice: current) }
             }
@@ -62,8 +65,8 @@ struct PhoneModelPage: View {
                 TitledSection("自定义") { CustomScreen(current: current) { choose(DeviceChoice(model: nil, screen: $0, kind: current.kind)) } }
             }
             ForEach(brands) { brand in
-                TitledSection(brand.kind == .phone ? brand.name : "\(brand.name) · \(brand.kind.title)") {
-                    ListCard(brand.models, dividerInset: 20) { model in
+                TitledSection(brand.label(mixed: kinds.count > 1)) {
+                    ListCard(brand.models, dividerInset: TouchTokens.Space.margin) { model in
                         ModelRow(model: model, selected: model.id == current.model) { choose(DeviceChoice(model)) }
                     }
                 }
@@ -82,19 +85,19 @@ private struct CurrentPhone: View {
     let choice: DeviceChoice
 
     var body: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: TouchTokens.Space.l) {
             Image(systemName: choice.kind.symbol(.portrait))
-                .font(TouchStyle.headline.weight(.regular))
-                .foregroundStyle(TouchStyle.tint)
-                .frame(width: TouchStyle.iconSize)
+                .font(TouchTokens.Font.headline.font.weight(.regular))
+                .foregroundStyle(TouchTokens.Color.tint)
+                .frame(width: TouchTokens.Size.listIcon)
                 .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(choice.displayName).font(TouchStyle.headline).lineLimit(1)
-                Text(choice.screen.sizeText).font(TouchStyle.body).foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: TouchTokens.Space.xs) {
+                Text(choice.displayName).font(TouchTokens.Font.headline.font).lineLimit(1)
+                Text(choice.screen.sizeText).font(TouchTokens.Font.body.font).foregroundStyle(.secondary)
             }
             Spacer(minLength: 0)
         }
-        .padding(16)
+        .padding(TouchTokens.Space.l)
         .card()
     }
 }
@@ -109,19 +112,19 @@ private struct CustomScreen: View {
     private var screen: DeviceScreen? { DeviceScreen.custom(Int(width), Int(height)) }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 12) {
+        VStack(alignment: .leading, spacing: TouchTokens.Space.m) {
+            HStack(spacing: TouchTokens.Space.m) {
                 NumberField(placeholder: "宽", text: $width)
-                Text("×").font(TouchStyle.body).foregroundStyle(.secondary)
+                Text("×").font(TouchTokens.Font.body.font).foregroundStyle(.secondary)
                 NumberField(placeholder: "高", text: $height)
                 PillButton(title: "使用") { screen.map(use) }
                     .disabled(screen == nil)
             }
             Text(DeviceScreen.customHint)
-                .font(TouchStyle.label)
+                .font(TouchTokens.Font.label.font)
                 .foregroundStyle(.secondary)
         }
-        .padding(16)
+        .padding(TouchTokens.Space.l)
         .card()
         .onAppear {
             guard let screen = current.customScreen else { return }
@@ -138,9 +141,9 @@ private struct NumberField: View {
     var body: some View {
         TextField(placeholder, text: $text)
             .textFieldStyle(.plain)
-            .font(TouchStyle.body.monospacedDigit())
+            .font(TouchTokens.Font.body.font.monospacedDigit())
             .multilineTextAlignment(.center)
-            .padding(.horizontal, 12)
+            .padding(.horizontal, TouchTokens.Space.m)
             .fieldBackground()
             .onChange(of: text) { _, new in
                 let digits = new.filter(\.isASCII).filter(\.isNumber)
@@ -157,18 +160,18 @@ private struct ModelRow: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(model.name).font(TouchStyle.body).lineLimit(1)
-                    Text(model.screen.sizeText).font(TouchStyle.label).foregroundStyle(.secondary)
+            HStack(spacing: TouchTokens.Space.m) {
+                VStack(alignment: .leading, spacing: TouchTokens.Space.xs) {
+                    Text(model.name).font(TouchTokens.Font.body.font).lineLimit(1)
+                    Text(model.screen.sizeText).font(TouchTokens.Font.label.font).foregroundStyle(.secondary)
                 }
-                Spacer(minLength: 8)
+                Spacer(minLength: TouchTokens.Space.s)
                 if selected {
-                    Image(systemName: "checkmark").font(TouchStyle.body.weight(.semibold)).foregroundStyle(TouchStyle.tint)
+                    Image(systemName: "checkmark").font(TouchTokens.Font.body.font.weight(.semibold)).foregroundStyle(TouchTokens.Color.tint)
                 }
             }
-            .padding(.horizontal, 20)
-            .frame(minHeight: TouchStyle.touchTarget + 12)
+            .padding(.horizontal, TouchTokens.Space.margin)
+            .frame(minHeight: TouchTokens.Size.touchTarget + 12)
             .contentShape(Rectangle())
         }
         .buttonStyle(PressableStyle())

@@ -164,3 +164,32 @@ struct DeviceModelsTests {
         #expect(c.resolve(custom) == custom)
     }
 }
+
+@Suite("设备类别 DeviceKind")
+struct DeviceKindTests {
+    @Test("触屏的是手机、平板，电脑不是；和 ScreenPlan 给的行为一致")
+    func isTouch() {
+        #expect(DeviceKind.allCases.filter(\.isTouch) == [.phone, .tablet])
+        for kind in DeviceKind.allCases {
+            #expect(ScreenPlan.behavior(kind, gestures: true).touch == kind.isTouch, "\(kind)")
+        }
+    }
+
+    @Test("平常的方向：手机竖，平板、电脑横；能选的方向：手机、平板横竖都行，电脑只能横；平常的方向总在能选的里面")
+    func orientations() {
+        #expect(DeviceKind.allCases.map(\.usualOrientation) == [.portrait, .landscape, .landscape])
+        #expect(DeviceKind.phone.allowedOrientations == [.portrait, .landscape])
+        #expect(DeviceKind.tablet.allowedOrientations == [.portrait, .landscape])
+        #expect(DeviceKind.computer.allowedOrientations == [.landscape])
+        for kind in DeviceKind.allCases {
+            #expect(kind.allowedOrientations.contains(kind.usualOrientation), "\(kind)")
+        }
+    }
+
+    @Test("型号能换成哪几类：触屏之间互换，电脑只换电脑")
+    func swappableKinds() {
+        #expect(DeviceKind.phone.swappableKinds == [.phone, .tablet])
+        #expect(DeviceKind.tablet.swappableKinds == [.phone, .tablet])
+        #expect(DeviceKind.computer.swappableKinds == [.computer])
+    }
+}

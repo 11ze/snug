@@ -5,7 +5,7 @@
 //   - 运行中：在跑的 App，窗口挂在各自的 App 下（见 PhoneAppCard）。放着窗口时它的 App 单列在最上面「当前 App」，其余在「其他 App」
 //   - 全部：本机所有 App 的图标网格，按字典序，正在运行的下方有圆点
 // 横屏（手机横拿、平板横屏）两栏：高度只有五六百点，左边 App 列表（小标题、搜索、分段控件），右边选中 App 的窗口，不用上下来回翻。
-// 平板屏右上角约 45 点压着 UU 的圆形菜单按钮（V6），右上角的按钮往左让开 50 点。
+// 平板屏右上角约 45 点压着 UU 的圆形菜单按钮（V6），右上角的按钮往左让开（读环境值 topTrailingClear，搜索页、型号页同样）。
 // - 搜索：见 PhoneSearchPage；型号：见 PhoneModelPage
 // - 退出这块屏：页眉里再问一次，讲明窗口会还原、下次远程恢复
 // - 正在打开、正在放、正在调整比例、正在退出：整屏讲明是哪个 App、哪个窗口、哪台设备；出了问题：顶部写明出了什么事、怎么办
@@ -52,6 +52,7 @@ struct PhoneHomeView: View {
     @State private var confirming: Confirm?
     /// 横屏时左栏选中的 App；没选过就跟着放着的窗口、再不然第一个
     @State private var selected: Int32?
+    @Environment(\.topTrailingClear) private var topTrailingClear
 
     /// tab、confirming、selected：渲染样例用
     init(screen: ScreenID, state: AppState, catalog: AppCatalog, pages: PhonePages, intents: any PhoneIntents,
@@ -83,12 +84,8 @@ struct PhoneHomeView: View {
     /// 退出这块屏的图标：右上角的按钮、确认卡和「正在退出」共用
     static let dismissSymbol = "rectangle.portrait.and.arrow.forward"
     private static let top = "top"
-    /// 顶部那一行的左右边距，和下面的内容一样
-    private static let rowMargin = TouchStyle.margin
     private var phone: PanelState { state.panel(screen) }
     private var config: ScreenConfig? { state.screen(screen) }
-    /// 平板屏：右上角让开 UU 的圆形菜单按钮
-    private var topRightClear: CGFloat { config?.device.kind == .tablet ? TouchTokens.Layout.tabletTopRightClear : 0 }
 
     var body: some View {
         GeometryReader { geo in
@@ -105,7 +102,7 @@ struct PhoneHomeView: View {
             }
         }
         .animation(.easeOut(duration: MotionTokens.standard), value: phone.work)
-        .background(TouchStyle.background)
+        .background(TouchTokens.Color.background)
         .onChange(of: phone.listVisible) { confirming = nil }
         .onChange(of: phone.work) { confirming = nil }
         .onChange(of: tab) { confirming = nil }
@@ -120,12 +117,15 @@ struct PhoneHomeView: View {
                     LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
                         header.id(Self.top)
                         SwiftUI.Section {
-                            page.padding(.horizontal, 20).padding(.top, 4).padding(.bottom, 24)
+                            page
+                                .padding(.horizontal, TouchTokens.Space.margin)
+                                .padding(.top, TouchTokens.Space.xs)
+                                .padding(.bottom, TouchTokens.Space.xxl)
                         } header: {
                             TabPicker(selection: $tab)
-                                .padding(.horizontal, 20)
-                                .padding(.vertical, 12)
-                                .background(TouchStyle.background)
+                                .padding(.horizontal, TouchTokens.Space.margin)
+                                .padding(.vertical, TouchTokens.Space.m)
+                                .background(TouchTokens.Color.background)
                         }
                     }
                 }
@@ -148,7 +148,7 @@ struct PhoneHomeView: View {
             if let placed = phone.placed {
                 BackButton(app: placed.window.app) { intents.returnToPlaced() }
             }
-            Spacer(minLength: 12)
+            Spacer(minLength: TouchTokens.Space.m)
             HStack(spacing: 0) {
                 // 确认卡在页眉里：每次点都滚回去，翻到下面时再点也看得见
                 navButton(Self.dismissSymbol, label: "退出这块屏") {
@@ -157,23 +157,23 @@ struct PhoneHomeView: View {
                 }
                 navButton(config?.symbol ?? "iphone", label: "型号", atEdge: true) { pages.open(.phoneModel) }
             }
-            .padding(.trailing, topRightClear)
+            .padding(.trailing, topTrailingClear)
         }
-        .frame(height: TouchStyle.touchTarget)
-        .padding(.leading, Self.rowMargin)
-        .padding(.top, 12)
+        .frame(height: TouchTokens.Size.touchTarget)
+        .padding(.leading, TouchTokens.Space.margin)
+        .padding(.top, TouchTokens.Space.m)
     }
 
     /// 顶部那一行右边的图标按钮：点按范围 touchTarget 见方，图标居中。
     /// 最右那个（atEdge）把这一行的右边距算进点按范围：图标贴着边距，和型号页的「完成」、搜索页的「取消」对齐，
     /// 点按范围伸到屏幕边上，图标左边不用留一大块空，两个图标才不会隔得太开
     private func navButton(_ symbol: String, label: String, atEdge: Bool = false, action: @escaping () -> Void) -> some View {
-        let margin = atEdge ? Self.rowMargin : 0
+        let margin = atEdge ? TouchTokens.Space.margin : 0
         return Button(action: action) {
             Image(systemName: symbol)
-                .font(TouchStyle.headline.weight(.regular))
-                .foregroundStyle(TouchStyle.tint)
-                .frame(width: TouchStyle.touchTarget - margin, height: TouchStyle.touchTarget, alignment: atEdge ? .trailing : .center)
+                .font(TouchTokens.Font.headline.font.weight(.regular))
+                .foregroundStyle(TouchTokens.Color.tint)
+                .frame(width: TouchTokens.Size.touchTarget - margin, height: TouchTokens.Size.touchTarget, alignment: atEdge ? .trailing : .center)
                 .padding(.trailing, margin)
         }
         .buttonStyle(PressableStyle())
@@ -181,16 +181,16 @@ struct PhoneHomeView: View {
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("App").font(TouchStyle.largeTitle)
+        VStack(alignment: .leading, spacing: TouchTokens.Space.m) {
+            Text("App").font(TouchTokens.Font.largeTitle.font)
             Button { pages.open(.search) } label: {
                 SearchBar { Text("搜索 App").foregroundStyle(.secondary) }
             }
             .buttonStyle(PressableStyle())
             banners
         }
-        .padding(.horizontal, Self.rowMargin)
-        .padding(.top, 4)
+        .padding(.horizontal, TouchTokens.Space.margin)
+        .padding(.top, TouchTokens.Space.xs)
     }
 
     /// 退出这块屏的确认、出了问题的提示
@@ -198,7 +198,7 @@ struct PhoneHomeView: View {
         if confirming == .dismissScreen {
             Banner(symbol: Self.dismissSymbol, tint: .red, headline: "退出这块屏？", detail: "窗口还原，下次远程时恢复") {
                 // 间距和提示卡里的「稍后 / 强制退出」一样
-                ConfirmButtons(title: "退出", confirming: $confirming, spacing: 12) { intents.dismissScreen() }
+                ConfirmButtons(title: "退出", confirming: $confirming, spacing: TouchTokens.Space.m) { intents.dismissScreen() }
             }
         } else if let notice = phone.notice {
             NoticeBanner(notice: notice, intents: intents)
@@ -213,7 +213,7 @@ struct PhoneHomeView: View {
     }
 
     private var runningPage: some View {
-        VStack(alignment: .leading, spacing: 24) {
+        VStack(alignment: .leading, spacing: TouchTokens.Space.xxl) {
             if let placed = phone.placed {
                 TitledSection("当前 App") { appCard(catalog.app(of: placed.window)) }
             }
@@ -231,7 +231,7 @@ struct PhoneHomeView: View {
     }
 
     private func appCards(_ apps: [RunningApp]) -> some View {
-        LazyVStack(spacing: 12) {
+        LazyVStack(spacing: TouchTokens.Space.m) {
             ForEach(apps) { appCard($0) }
         }
     }
@@ -244,7 +244,7 @@ struct PhoneHomeView: View {
 
     /// 左边 App 列表，右边选中 App 的窗口
     private func split(width: CGFloat) -> some View {
-        let sidebar = config?.device.kind == .tablet ? TouchTokens.Layout.TabletLandscape.sidebar : TouchTokens.Layout.PhoneLandscape.sidebar
+        let sidebar = (config?.device.kind ?? .phone).landscapeSidebar
         return HStack(spacing: 0) {
             sideColumn.frame(width: min(sidebar, width * 0.45))
             Divider()
@@ -255,7 +255,7 @@ struct PhoneHomeView: View {
                         banners
                         detail
                     }
-                    .padding(.horizontal, Self.rowMargin)
+                    .padding(.horizontal, TouchTokens.Space.margin)
                     .padding(.vertical, TouchTokens.Space.m)
                 }
                 .scrollIndicators(.never)
@@ -267,7 +267,7 @@ struct PhoneHomeView: View {
 
     private var sideColumn: some View {
         VStack(alignment: .leading, spacing: TouchTokens.Space.m) {
-            Text("App").font(TouchStyle.headline.weight(.bold))
+            Text("App").font(TouchTokens.Font.headline.font.weight(.bold))
             Button { pages.open(.search) } label: {
                 SearchBar { Text("搜索 App").foregroundStyle(.secondary) }
             }
@@ -290,7 +290,7 @@ struct PhoneHomeView: View {
                 }
             }
         }
-        .padding(.horizontal, Self.rowMargin)
+        .padding(.horizontal, TouchTokens.Space.margin)
         .padding(.top, TouchTokens.Space.margin)
     }
 
@@ -326,14 +326,14 @@ struct PhoneHomeView: View {
         HStack(spacing: TouchTokens.Space.m) {
             AppIcon(image: icon, size: TouchTokens.Size.listIcon * 0.75)
             VStack(alignment: .leading, spacing: TouchTokens.Space.xxs) {
-                Text(title).font(TouchStyle.label).lineLimit(1)
-                if let subtitle { Text(subtitle).font(TouchStyle.caption).foregroundStyle(.secondary).lineLimit(1) }
+                Text(title).font(TouchTokens.Font.label.font).lineLimit(1)
+                if let subtitle { Text(subtitle).font(TouchTokens.Font.caption.font).foregroundStyle(.secondary).lineLimit(1) }
             }
             Spacer(minLength: 0)
         }
         .padding(.horizontal, TouchTokens.Space.m)
-        .frame(minHeight: TouchStyle.touchTarget)
-        .background(chosen ? TouchStyle.tintFill : .clear, in: RoundedRectangle(cornerRadius: TouchTokens.Radius.control, style: .continuous))
+        .frame(minHeight: TouchTokens.Size.touchTarget)
+        .background(chosen ? TouchTokens.Color.tintFill : .clear, in: RoundedRectangle(cornerRadius: TouchTokens.Radius.control, style: .continuous))
         .contentShape(Rectangle())
     }
 
@@ -341,7 +341,7 @@ struct PhoneHomeView: View {
         if let app = shown {
             // 放着窗口的 App：那个窗口排第一（见 AppCatalog.app(of:)）
             appCard(phone.placed.flatMap { $0.window.key.pid == app.pid ? catalog.app(of: $0.window) : nil } ?? app)
-            Text("点窗口放到这块屏上，铺满并放大字号").font(TouchStyle.caption).foregroundStyle(.secondary)
+            Text("点窗口放到这块屏上，铺满并放大字号").font(TouchTokens.Font.caption.font).foregroundStyle(.secondary)
                 .padding(.horizontal, TouchTokens.Space.xs)
         } else if catalog.loaded {
             EmptyState(symbol: "square.grid.2x2", text: "没有正在运行的 App")
@@ -361,13 +361,13 @@ private struct TabPicker: View {
             ForEach(PhoneHomeView.Tab.allCases) { tab in
                 Button { selection = tab } label: {
                     Text(tab.title)
-                        .font(TouchStyle.label.weight(selection == tab ? .semibold : .medium))
+                        .font(TouchTokens.Font.label.font.weight(selection == tab ? .semibold : .medium))
                         .frame(maxWidth: .infinity)
                         .frame(height: 38)
                         .background {
                             if selection == tab {
                                 RoundedRectangle(cornerRadius: 9, style: .continuous)
-                                    .fill(TouchStyle.segment)
+                                    .fill(TouchTokens.Color.segment)
                                     .shadow(color: .black.opacity(0.12), radius: 4, y: 2)
                             }
                         }
@@ -377,8 +377,8 @@ private struct TabPicker: View {
             }
         }
         .padding(3)
-        .background(TouchStyle.fill, in: RoundedRectangle(cornerRadius: TouchStyle.cornerRadius, style: .continuous))
-        .animation(.easeOut(duration: 0.15), value: selection)
+        .background(TouchTokens.Color.fill, in: RoundedRectangle(cornerRadius: TouchTokens.Radius.card, style: .continuous))
+        .animation(.easeOut(duration: MotionTokens.fast), value: selection)
     }
 }
 
@@ -389,15 +389,15 @@ private struct BackButton: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 4) {
-                Image(systemName: "chevron.left").font(TouchStyle.headline)
-                Text(app).font(TouchStyle.body.weight(.medium)).lineLimit(1)
+            HStack(spacing: TouchTokens.Space.xs) {
+                Image(systemName: "chevron.left").font(TouchTokens.Font.headline.font)
+                Text(app).font(TouchTokens.Font.body.font.weight(.medium)).lineLimit(1)
             }
-            .foregroundStyle(TouchStyle.tint)
-            .padding(.leading, 16)
-            .padding(.trailing, 20)
-            .frame(height: TouchStyle.touchTarget)
-            .background(TouchStyle.tint.opacity(0.12), in: Capsule())
+            .foregroundStyle(TouchTokens.Color.tint)
+            .padding(.leading, TouchTokens.Space.l)
+            .padding(.trailing, TouchTokens.Space.margin)
+            .frame(height: TouchTokens.Size.touchTarget)
+            .background(TouchTokens.Color.tint.opacity(0.12), in: Capsule())
         }
         .buttonStyle(PressableStyle())
         .accessibilityLabel("返回 \(app)")
@@ -413,7 +413,7 @@ private struct NoticeBanner: View {
         let text = notice.text
         Banner(symbol: "exclamationmark.circle.fill", tint: .orange, headline: text.headline, detail: text.detail) {
             if case .quitStalled(let app, let pid) = notice {
-                HStack(spacing: 12) {
+                HStack(spacing: TouchTokens.Space.m) {
                     PillButton(title: "稍后") { intents.dismissNotice() }
                     PillButton(title: "强制退出", destructive: true) { intents.forceQuit(pid: pid, app: app) }
                 }
@@ -431,18 +431,18 @@ private struct Banner<Actions: View>: View {
     @ViewBuilder let actions: Actions
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 12) {
+        HStack(alignment: .firstTextBaseline, spacing: TouchTokens.Space.m) {
             Image(systemName: symbol).foregroundStyle(tint)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(headline).font(TouchStyle.body.weight(.semibold))
+            VStack(alignment: .leading, spacing: TouchTokens.Space.xs) {
+                Text(headline).font(TouchTokens.Font.body.font.weight(.semibold))
                 if let detail {
-                    Text(detail).font(TouchStyle.body).foregroundStyle(.secondary)
+                    Text(detail).font(TouchTokens.Font.body.font).foregroundStyle(.secondary)
                 }
                 actions
             }
         }
-        .font(TouchStyle.body)
-        .padding(16)
+        .font(TouchTokens.Font.body.font)
+        .padding(TouchTokens.Space.l)
         .frame(maxWidth: .infinity, alignment: .leading)
         .card()
     }
@@ -463,18 +463,18 @@ private struct AllApps: View {
             EmptyState(symbol: nil, text: "正在读取")
         } else {
             let running = Dictionary(catalog.running.map { ($0.app.bundleID, $0.pid) }, uniquingKeysWith: { first, _ in first })
-            LazyVGrid(columns: Self.columns, spacing: 20) {
+            LazyVGrid(columns: Self.columns, spacing: TouchTokens.Space.margin) {
                 ForEach(catalog.installed) { item in
                     let pid = running[item.app.bundleID]
                     Button { intents.open(item.app) } label: {
-                        VStack(spacing: 8) {
+                        VStack(spacing: TouchTokens.Space.s) {
                             AppIcon(image: catalog.icon(for: item.app), size: 72)
-                            Text(item.app.name).font(TouchStyle.label).lineLimit(1).frame(maxWidth: 116)
+                            Text(item.app.name).font(TouchTokens.Font.label.font).lineLimit(1).frame(maxWidth: 116)
                             Circle()
                                 .fill(.secondary)
                                 .frame(width: 6, height: 6)
                                 .opacity(pid == nil ? 0 : 1)
-                                .padding(.top, -4)
+                                .padding(.top, -TouchTokens.Space.xs)
                         }
                         .contentShape(Rectangle())
                     }
@@ -523,31 +523,31 @@ private struct BusyView: View {
     let content: Content
 
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: TouchTokens.Space.l) {
             switch content.art {
             case .icon(let image):
-                AppIcon(image: image, size: TouchStyle.iconSize * 2)
+                AppIcon(image: image, size: TouchTokens.Size.listIcon * 2)
             case .symbol(let name):
                 Image(systemName: name)
-                    .font(.system(size: TouchStyle.iconSize * 1.5, weight: .light))
+                    .font(.system(size: TouchTokens.Size.listIcon * 1.5, weight: .light))
                     .foregroundStyle(.secondary)
-                    .frame(width: TouchStyle.iconSize * 2, height: TouchStyle.iconSize * 2)
+                    .frame(width: TouchTokens.Size.listIcon * 2, height: TouchTokens.Size.listIcon * 2)
                     .accessibilityHidden(true)
             }
-            VStack(spacing: 4) {
-                Text(content.title).font(TouchStyle.headline).lineLimit(1)
+            VStack(spacing: TouchTokens.Space.xs) {
+                Text(content.title).font(TouchTokens.Font.headline.font).lineLimit(1)
                 if let subtitle = content.subtitle {
-                    Text(subtitle).font(TouchStyle.body).foregroundStyle(.secondary).lineLimit(1)
+                    Text(subtitle).font(TouchTokens.Font.body.font).foregroundStyle(.secondary).lineLimit(1)
                 }
             }
-            VStack(spacing: 8) {
+            VStack(spacing: TouchTokens.Space.s) {
                 ProgressView()
-                Text(content.status).font(TouchStyle.label).foregroundStyle(.secondary)
+                Text(content.status).font(TouchTokens.Font.label.font).foregroundStyle(.secondary)
             }
-            .padding(.top, 16)
+            .padding(.top, TouchTokens.Space.l)
         }
-        .padding(.horizontal, 32)
+        .padding(.horizontal, TouchTokens.Space.section)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(TouchStyle.background)
+        .background(TouchTokens.Color.background)
     }
 }

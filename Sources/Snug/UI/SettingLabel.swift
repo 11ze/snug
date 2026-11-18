@@ -1,5 +1,5 @@
 // 设置页、「关于 Snug」、欢迎页共用的行标题：系统设置那样的彩色方块图标（SF Symbols）+ 标题 + 一行短说明；
-// 以及权限那几行的标题、状态和「授权…」按钮
+// 页面顶部的大图标块（设置页的远程状态、屏幕详情）；以及权限那几行的标题、状态和「授权…」按钮
 import PermissionFlow
 import SwiftUI
 
@@ -52,6 +52,23 @@ extension SettingLabel {
     /// 录屏权限那一行（设置的通用页）
     static var screenRecording: SettingLabel {
         SettingLabel(PermissionName.screenRecording, detail: "只有截图要用", tile: MacTokens.IconTile.screenRecording)
+    }
+}
+
+/// 页面顶部的大图标块：和行标题的小方块同一种样子，大一号（设置页的远程状态、屏幕详情的头部）
+struct StatusTile: View {
+    let tile: TileToken
+
+    init(_ tile: TileToken) {
+        self.tile = tile
+    }
+
+    var body: some View {
+        Image(systemName: tile.symbol)
+            .font(.system(size: 20, weight: .semibold))
+            .foregroundStyle(.white)
+            .frame(width: MacTokens.Size.statusTile, height: MacTokens.Size.statusTile)
+            .background(tile.color.gradient, in: RoundedRectangle(cornerRadius: MacTokens.Radius.statusTile, style: .continuous))
     }
 }
 

@@ -188,7 +188,7 @@ final class ScreenWindows {
         let panel = cropPanel ?? PhonePanel(content: FirstMouseHostingView(rootView: CropView(
             image: NSImage(data: image.png) ?? NSImage(), pixelSize: image.size,
             onCancel: { [weak self] in self?.intents.cancelCrop() },
-            onDone: { [weak self] selection in self?.intents.finishCrop(selection) })))
+            onDone: { [weak self] selection in self?.intents.finishCrop(selection) }).screenPanel(id, state: state)))
         cropPanel = panel
         panel.setFrame(screen.frame, display: true)
         panel.orderFrontRegardless()
@@ -198,7 +198,7 @@ final class ScreenWindows {
         Log.info("屏（\(self.id)）的列表、小横条建在 #\(id) 上")
         display = id
         list = PhonePanel(content: FirstMouseHostingView(rootView: PhoneHomeView(screen: self.id, state: state, catalog: catalog, pages: pages,
-                                                                                 intents: intents)))
+                                                                                 intents: intents).screenPanel(self.id, state: state)))
         let bar = HomeBarView()
         bar.onActivate = { [weak self] in self?.intents.showList() }
         bar.onCapture = { [weak self] in self?.intents.takeScreenshot() }
@@ -248,7 +248,7 @@ final class PhonePanel: NSPanel {
         isReleasedWhenClosed = false
         hasShadow = false
         isOpaque = opaque
-        backgroundColor = opaque ? TouchStyle.backgroundNSColor : .clear
+        backgroundColor = opaque ? TouchTokens.Color.backgroundNSColor : .clear
         contentView = content
     }
 
@@ -320,7 +320,7 @@ final class HomeBarView: NSView {
     }
 
     /// 相机键的点击范围：左边整条高、一个手指宽（图标只有二十几点）。图标摆在它正中
-    private var cameraArea: NSRect { NSRect(x: 0, y: 0, width: TouchStyle.touchTarget * scale, height: bounds.height) }
+    private var cameraArea: NSRect { NSRect(x: 0, y: 0, width: TouchTokens.Size.touchTarget * scale, height: bounds.height) }
 
     override func layout() {
         super.layout()
@@ -336,7 +336,7 @@ final class HomeBarView: NSView {
     }
 
     override func draw(_ dirtyRect: NSRect) {
-        TouchStyle.backgroundNSColor.setFill()
+        TouchTokens.Color.backgroundNSColor.setFill()
         bounds.fill()
     }
 
