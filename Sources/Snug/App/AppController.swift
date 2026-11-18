@@ -33,6 +33,8 @@ final class AppController: Sendable {
     private var tickTimer: Timer?
     private var lastTickAt: Date?
     private var lastVerifyAt = Date.distantPast
+    /// 手势翻译此刻覆盖哪几块屏：变了才记日志
+    private var gestureScreens: Set<ScreenID> = []
     /// 单调时钟的起点：系统改时间不会让「已经过了多久」算错
     private let anchor = (date: Date(), uptime: ProcessInfo.processInfo.systemUptime)
 
@@ -177,30 +179,38 @@ final class AppController: Sendable {
 
     private func desksChanged(_ desks: DeskSet.State) {
         state.desks = desks
-        // 截图所在的屏没了：浮着的截图、裁剪中的一并收掉，不然下次连上还盖着旧截图
-        if let id = state.screenshotScreen, desks.desks[id]?.display == nil {
-            screenshots.dismiss()
-            state.screenshotScreen = nil
-        }
+        // 截图所在的屏没了：浮着的截图、裁剪中的、正给它截的一并收掉，不然下次连上还盖着旧截图
+        screenshots.dismiss(outside: Set(desks.desks.compactMap { $0.value.display == nil ? nil : $0.key }))
         syncGestures()
     }
 
     private func screenshotChanged(_ overlay: ScreenshotOverlay?) {
         state.screenshotOverlay = overlay
-        if overlay == nil { state.screenshotScreen = nil }
+        state.screenshotScreen = screenshots.screen
         syncGestures()
     }
 
-    /// 手势翻译只在要翻译手势的屏在、开着手势、并且没在裁剪截图时运行（裁剪时的拖动是在画选区，不能翻译成滚动）；
+    /// 手势翻译只在要翻译手势的屏在、开着手势时运行；正在裁剪截图的那块屏除外（拖动是在画选区，不能翻译成滚动）。
     /// 每块屏一块范围，跟着那块屏走（换档、屏幕重排时 DisplayWatcher 也会调到这里）
     func syncGestures() {
-        let cropping = state.screenshotOverlay?.isCropping == true
-        let regions: [TouchRegion] = store.config.gestures && !cropping ? state.desks.desks.compactMap { id, desk in
-            guard let display = desk.display, state.behavior(of: id)?.gestures == true else { return nil }
+        let cropping = state.screenshotOverlay?.isCropping == true ? state.screenshotScreen : nil
+        let covered: [(id: ScreenID, region: TouchRegion)] = store.config.gestures ? state.desks.desks.compactMap { id, desk in
+            guard id != cropping, let display = desk.display, state.behavior(of: id)?.gestures == true else { return nil }
             // 窗口露着时才拦它的关闭按钮：列表盖着时那个位置是列表
-            return TouchRegion(screen: CGDisplayBounds(display), closeButton: desk.listVisible ? nil : desk.closeButton)
+            return (id, TouchRegion(screen: CGDisplayBounds(display), closeButton: desk.listVisible ? nil : desk.closeButton))
         } : []
-        state.update(\.gesturesFailed, !touch.setRegions(regions))
+        let ids = Set(covered.map(\.id))
+        if ids != gestureScreens {
+            gestureScreens = ids
+            let names = ids.map(screenName).sorted().joined(separator: "、")
+            let why = !store.config.gestures ? "（总开关关着）" : cropping.map { "（\(screenName($0)) 在裁剪截图）" } ?? ""
+            Log.info("手势翻译范围：\(ids.isEmpty ? "没有屏" : names)\(why)")
+        }
+        state.update(\.gesturesFailed, !touch.setRegions(covered.map(\.region)))
+    }
+
+    private func screenName(_ id: ScreenID) -> String {
+        store.config.screens.first { $0.id == id }?.name ?? id.rawValue
     }
 
     static func describe(_ t: SessionTransition) -> String {

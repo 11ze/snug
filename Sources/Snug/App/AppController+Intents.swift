@@ -209,8 +209,7 @@ final class ScreenIntents: PhoneIntents {
 
     func takeScreenshot() {
         guard let window = app.state.desks.desks[id]?.placed?.window else { return }
-        app.state.screenshotScreen = id
-        Task { await app.screenshots.take(window) }
+        Task { await app.screenshots.take(window, on: id) }
     }
 
     func openCrop() { app.screenshots.openCrop() }

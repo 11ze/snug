@@ -78,7 +78,7 @@ final class ScreenWindows {
     func close() {
         closed = true
         if let screenObserver { NotificationCenter.default.removeObserver(screenObserver) }
-        tearDown()
+        tearDown(because: "这块屏不在列表里了，或不再是手机、平板屏")
     }
 
     /// 截图浮层只在截图的那块屏上
@@ -107,9 +107,10 @@ final class ScreenWindows {
     private func update() {
         guard !closed else { return }
         let panel = state.panel(id)
-        guard let display = panel.display, let screen = Screens.screen(for: display) else { return tearDown() }
+        guard let display = panel.display else { return tearDown(because: "屏撤掉了") }
+        guard let screen = Screens.screen(for: display) else { return tearDown(because: "系统里还没有 #\(display) 这块屏") }
         if display != self.display {
-            tearDown()
+            tearDown(because: "换到 #\(display)")
             build(on: display)
         }
         guard let list, let homeBar else { return }
@@ -124,6 +125,11 @@ final class ScreenWindows {
         if showList { list.orderFrontRegardless() } else { list.orderOut(nil) }
         // 手机离开了就关掉搜索、型号页，交还键盘：不然在主屏上打的字会进到看不见的输入框
         if !showList || !watching { pages.close() }
+        // 手机离开了还在裁剪：取消回到缩略图，不然这块屏的手势翻译一直停着，手机上又看不到裁剪界面
+        if !watching, screenshot?.isCropping == true {
+            Log.info("手机离开了屏（\(id)），取消这块屏上的截图裁剪")
+            intents.cancelCrop()
+        }
         // 只在打开页面那一下拿键盘：之后用户点了别的窗口，不能每次状态一变就抢回来
         let entering = pages.active && !list.acceptsKeys
         list.acceptsKeys = pages.active
@@ -189,6 +195,7 @@ final class ScreenWindows {
     }
 
     private func build(on id: DisplayID) {
+        Log.info("屏（\(self.id)）的列表、小横条建在 #\(id) 上")
         display = id
         list = PhonePanel(content: FirstMouseHostingView(rootView: PhoneHomeView(screen: self.id, state: state, catalog: catalog, pages: pages,
                                                                                  intents: intents)))
@@ -199,7 +206,8 @@ final class ScreenWindows {
         homeBarView = bar
     }
 
-    private func tearDown() {
+    private func tearDown(because reason: String) {
+        if let display { Log.info("屏（\(id)）在 #\(display) 上的列表、小横条拆掉：\(reason)") }
         catalog.release(id.rawValue)
         pages.close()
         list?.orderOut(nil)

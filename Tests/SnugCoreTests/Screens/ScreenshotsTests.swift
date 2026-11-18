@@ -20,7 +20,7 @@ struct ScreenshotsTests {
 
     @Test("截图：整张进剪贴板，底部浮缩略图")
     func take() async {
-        await shots.take(ghostty)
+        await shots.take(ghostty, on: .phone)
         #expect(shooter.captured == [ghostty.key])
         #expect(shooter.clipboard == FakeShooter.shot)
         #expect(shots.overlay == .preview(FakeShooter.shot))
@@ -30,7 +30,7 @@ struct ScreenshotsTests {
     @Test("没有录屏权限：不截，也不弹系统授权，只提示去 Mac 上授权")
     func noPermission() async {
         shooter.trusted = false
-        await shots.take(ghostty)
+        await shots.take(ghostty, on: .phone)
         #expect(shooter.captured.isEmpty)
         #expect(shots.overlay == .notice(.needsPermission))
     }
@@ -42,7 +42,7 @@ struct ScreenshotsTests {
     ])
     func failures(failure: CaptureFailure, notice: ScreenshotNotice) async {
         shooter.results = [.failure(failure)]
-        await shots.take(ghostty)
+        await shots.take(ghostty, on: .phone)
         #expect(shooter.clipboard == nil)
         #expect(shots.overlay == .notice(notice))
     }
@@ -50,13 +50,13 @@ struct ScreenshotsTests {
     @Test("剪贴板没写进去：不浮缩略图，如实提示")
     func copyFailed() async {
         shooter.copyWorks = false
-        await shots.take(ghostty)
+        await shots.take(ghostty, on: .phone)
         #expect(shots.overlay == .notice(.copyFailed))
     }
 
     @Test("缩略图 5 秒后收起，文字提示 3 秒后收起")
     func expires() async {
-        await shots.take(ghostty)
+        await shots.take(ghostty, on: .phone)
         timeline.advance(Screenshots.previewDuration - 0.1)
         shots.expire()
         #expect(shots.overlay == .preview(FakeShooter.shot))
@@ -65,7 +65,7 @@ struct ScreenshotsTests {
         #expect(shots.overlay == nil)
 
         shooter.trusted = false
-        await shots.take(ghostty)
+        await shots.take(ghostty, on: .phone)
         timeline.advance(Screenshots.noticeDuration + 0.1)
         shots.expire()
         #expect(shots.overlay == nil)
@@ -73,7 +73,7 @@ struct ScreenshotsTests {
 
     @Test("裁剪中不会到点收起；取消回到缩略图，重新计时")
     func cropDoesNotExpire() async {
-        await shots.take(ghostty)
+        await shots.take(ghostty, on: .phone)
         shots.openCrop()
         #expect(shots.overlay == .cropping(FakeShooter.shot))
         timeline.advance(60)
@@ -89,7 +89,7 @@ struct ScreenshotsTests {
 
     @Test("完成裁剪：选区按比例换算成原图像素，裁好的那块替换剪贴板")
     func finishCrop() async {
-        await shots.take(ghostty)
+        await shots.take(ghostty, on: .phone)
         shots.openCrop()
         // 选区是图片里的比例：左上四分之一就是 1000×2000 原图的左上 500×1000
         shots.finishCrop(CGRect(x: 0, y: 0, width: 0.5, height: 0.5))
@@ -102,7 +102,7 @@ struct ScreenshotsTests {
     @Test("裁不出来：剪贴板里还是整张图，如实提示")
     func cropFailed() async {
         shooter.cropWorks = false
-        await shots.take(ghostty)
+        await shots.take(ghostty, on: .phone)
         shots.openCrop()
         shots.finishCrop(CGRect(x: 0, y: 0, width: 0.5, height: 0.5))
         #expect(shooter.clipboard == FakeShooter.shot)
@@ -111,9 +111,9 @@ struct ScreenshotsTests {
 
     @Test("裁剪中手机屏没了：一并收掉，下次连上不会再冒出旧截图的裁剪界面")
     func dismissWhileCropping() async {
-        await shots.take(ghostty)
+        await shots.take(ghostty, on: .phone)
         shots.openCrop()
-        shots.dismiss()
+        shots.dismiss(outside: [])
         #expect(shots.overlay == nil)
         shots.finishCrop(CGRect(x: 0, y: 0, width: 0.5, height: 0.5))
         #expect(shooter.crops.isEmpty)
@@ -123,9 +123,9 @@ struct ScreenshotsTests {
     @Test("截到一半手机屏没了：截好的不再浮出来，也不写剪贴板")
     func dismissWhileCapturing() async {
         shooter.holding = true
-        let taking = Task { await shots.take(ghostty) }
+        let taking = Task { await shots.take(ghostty, on: .phone) }
         await settle()
-        shots.dismiss()
+        shots.dismiss(outside: [])
         shooter.release()
         await taking.value
         #expect(shots.overlay == nil)
@@ -137,10 +137,10 @@ struct ScreenshotsTests {
         let first = CapturedImage(png: Data([7]), pixelWidth: 10, pixelHeight: 20)
         shooter.results = [.success(first), .success(FakeShooter.shot)]
         shooter.holding = true
-        let slow = Task { await shots.take(ghostty) }
+        let slow = Task { await shots.take(ghostty, on: .phone) }
         await settle()
         shooter.holding = false
-        await shots.take(ghostty)
+        await shots.take(ghostty, on: .phone)
         shooter.release()
         await slow.value
         #expect(shots.overlay == .preview(FakeShooter.shot))
@@ -149,17 +149,56 @@ struct ScreenshotsTests {
 
     @Test("裁剪中截完的一张不打断裁剪，也不改剪贴板")
     func captureDuringCrop() async {
-        await shots.take(ghostty)
+        await shots.take(ghostty, on: .phone)
         let later = CapturedImage(png: Data([8]), pixelWidth: 10, pixelHeight: 20)
         shooter.results = [.success(later)]
         shooter.holding = true
-        let taking = Task { await shots.take(ghostty) }
+        let taking = Task { await shots.take(ghostty, on: .phone) }
         await settle()
         shots.openCrop()
         shooter.release()
         await taking.value
         #expect(shots.overlay == .cropping(FakeShooter.shot))
         #expect(shooter.clipboard == FakeShooter.shot)
+    }
+
+    @Test("截图浮在点相机键的那块屏上；旧缩略图到点收起时正在截的新图，截完照样浮在它那块屏上")
+    func screenFollowsCapture() async {
+        let tablet = ScreenID("tablet")
+        await shots.take(ghostty, on: .phone)
+        #expect(shots.screen == .phone)
+        shooter.holding = true
+        let taking = Task { await shots.take(ghostty, on: tablet) }
+        await settle()
+        #expect(shots.screen == .phone)
+        timeline.advance(Screenshots.previewDuration + 0.1)
+        shots.expire()
+        #expect(shots.overlay == nil)
+        #expect(shots.screen == nil)
+        shooter.release()
+        await taking.value
+        #expect(shots.overlay == .preview(FakeShooter.shot))
+        #expect(shots.screen == tablet)
+    }
+
+    @Test("在一块屏上裁剪时点别的屏的相机键：不截，裁剪界面留在原来那块屏上")
+    func cropStaysOnItsScreen() async {
+        await shots.take(ghostty, on: .phone)
+        shots.openCrop()
+        await shots.take(ghostty, on: ScreenID("tablet"))
+        #expect(shots.overlay == .cropping(FakeShooter.shot))
+        #expect(shots.screen == .phone)
+        #expect(shooter.captured == [ghostty.key])
+    }
+
+    @Test("别的屏没了不动这块屏上的截图；截图那块屏没了才收")
+    func dismissOnlyItsScreen() async {
+        await shots.take(ghostty, on: .phone)
+        shots.dismiss(outside: [.phone])
+        #expect(shots.overlay == .preview(FakeShooter.shot))
+        shots.dismiss(outside: [])
+        #expect(shots.overlay == nil)
+        #expect(shots.screen == nil)
     }
 
     /// 让挂起的截图跑到 capture 里停住
