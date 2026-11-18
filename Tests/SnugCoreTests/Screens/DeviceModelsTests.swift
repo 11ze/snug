@@ -108,6 +108,16 @@ struct DeviceModelsTests {
         #expect(!c.search("拯救者", in: [.tablet]).isEmpty)
     }
 
+    @Test("随 App 发的机型库：平板只在平板段（手机段里的平板会按手机扣掉上下，iPad 上实测铺满、不用扣）")
+    func bundledTabletsOnlyInTabletSection() throws {
+        let c = try DeviceCatalog(contentsOf: Self.bundled)
+        let tabletWords = ["iPad", "Pad", "Tab", "平板"]
+        for model in c.brands(.phone).flatMap(\.models) {
+            #expect(!tabletWords.contains { model.name.contains($0) }, "\(model.id)")
+        }
+        #expect(c.search("ipad", in: [.tablet]).flatMap(\.models).count >= 20)
+    }
+
     @Test("随 App 发的机型库：每一条按方向建出来的屏都过 2 倍门槛、在像素上限里（手机竖横、平板竖横、电脑横）")
     func bundledFits() throws {
         let c = try DeviceCatalog(contentsOf: Self.bundled)

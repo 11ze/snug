@@ -117,7 +117,7 @@ Some apps enforce a minimum width and can't shrink to the phone screen. Snug fir
 
 UU Remote scales the picture proportionally to fit the phone, leaving black bars when the proportions don't match. Snug sizes the phone screen to your phone model, so the picture fills it exactly.
 
-- **Any platform, any brand**: fully supports iPhone, iPad, and Android devices from every major brand, with 810 built-in phones across 19 brands, plus common tablets, Macs, and standard resolutions
+- **Any platform, any brand**: fully supports iPhone, iPad, and Android devices from every major brand, with 785 built-in phones across 19 brands and 46 tablets, plus common Macs and standard resolutions
 - **Custom**: if your model isn't listed, enter its screen resolution or aspect ratio
 
 <p align="center"><img src="https://dl.zephyrxiang.com/snug/media/phone-models.3137ee0e.png" width="36%" alt="Phone model page: the current model, a custom resolution, and models listed by brand"><br><sub>Phone model: models listed by brand, or enter a custom resolution</sub></p>
