@@ -1,5 +1,5 @@
 // 裁剪界面：盖满手机屏。图片等比摆在中间（四周留出边距，手指够得到边角上的把手），
-// 默认整张都选着，拖四角或四边往里收；顶部左边取消、右边完成。
+// 默认整张都选着，拖四角或四边往里收；顶部左边取消、右边完成（平板上让开右上角 UU 的按钮）。
 // 选区存成图片里的比例（见 CropGeometry），换档时跟着图片走；尺寸按这一档的倍率放大（倍率由界面宽度算）
 import SnugCore
 import SwiftUI
@@ -15,6 +15,7 @@ struct CropView: View {
     @State private var selection = CGRect(x: 0, y: 0, width: 1, height: 1)
     /// 正在拖的把手，和按下时的选区（界面坐标）
     @State private var dragging: (handle: CropGeometry.Handle, start: CGRect)?
+    @Environment(\.topTrailingClear) private var topTrailingClear
 
     var body: some View {
         GeometryReader { geo in
@@ -102,6 +103,8 @@ struct CropView: View {
         .foregroundStyle(.white)
         .buttonStyle(PressableStyle())
         .padding(.horizontal, metrics.margin)
+        // 让开的宽度和别的尺寸一样跟着倍率放大
+        .padding(.trailing, topTrailingClear * metrics.scale)
         .frame(height: metrics.topBar)
         .frame(maxWidth: .infinity)
         .background(LinearGradient(colors: [.black.opacity(0.7), .clear], startPoint: .top, endPoint: .bottom))

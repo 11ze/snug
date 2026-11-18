@@ -5,7 +5,7 @@
 //   - 运行中：在跑的 App，窗口挂在各自的 App 下（见 PhoneAppCard）。放着窗口时它的 App 单列在最上面「当前 App」，其余在「其他 App」
 //   - 全部：本机所有 App 的图标网格，按字典序，正在运行的下方有圆点
 // 横屏（手机横拿、平板横屏）两栏：高度只有五六百点，左边 App 列表（小标题、搜索、分段控件），右边选中 App 的窗口，不用上下来回翻。
-// 平板屏右上角约 45 点压着 UU 的圆形菜单按钮（V6），右上角的按钮往左让开 50 点。
+// 平板屏右上角约 45 点压着 UU 的圆形菜单按钮（V6），右上角的按钮往左让开（读环境值 topTrailingClear，搜索页、型号页同样）。
 // - 搜索：见 PhoneSearchPage；型号：见 PhoneModelPage
 // - 退出这块屏：页眉里再问一次，讲明窗口会还原、下次远程恢复
 // - 正在打开、正在放、正在调整比例、正在退出：整屏讲明是哪个 App、哪个窗口、哪台设备；出了问题：顶部写明出了什么事、怎么办
@@ -52,6 +52,7 @@ struct PhoneHomeView: View {
     @State private var confirming: Confirm?
     /// 横屏时左栏选中的 App；没选过就跟着放着的窗口、再不然第一个
     @State private var selected: Int32?
+    @Environment(\.topTrailingClear) private var topTrailingClear
 
     /// tab、confirming、selected：渲染样例用
     init(screen: ScreenID, state: AppState, catalog: AppCatalog, pages: PhonePages, intents: any PhoneIntents,
@@ -85,8 +86,6 @@ struct PhoneHomeView: View {
     private static let top = "top"
     private var phone: PanelState { state.panel(screen) }
     private var config: ScreenConfig? { state.screen(screen) }
-    /// 平板屏：右上角让开 UU 的圆形菜单按钮
-    private var topRightClear: CGFloat { config?.device.kind == .tablet ? TouchTokens.Layout.tabletTopRightClear : 0 }
 
     var body: some View {
         GeometryReader { geo in
@@ -155,7 +154,7 @@ struct PhoneHomeView: View {
                 }
                 navButton(config?.symbol ?? "iphone", label: "型号", atEdge: true) { pages.open(.phoneModel) }
             }
-            .padding(.trailing, topRightClear)
+            .padding(.trailing, topTrailingClear)
         }
         .frame(height: TouchTokens.Size.touchTarget)
         .padding(.leading, TouchTokens.Space.margin)

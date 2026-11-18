@@ -182,7 +182,7 @@ final class ScreenWindows {
         let panel = cropPanel ?? PhonePanel(content: FirstMouseHostingView(rootView: CropView(
             image: NSImage(data: image.png) ?? NSImage(), pixelSize: image.size,
             onCancel: { [weak self] in self?.intents.cancelCrop() },
-            onDone: { [weak self] selection in self?.intents.finishCrop(selection) })))
+            onDone: { [weak self] selection in self?.intents.finishCrop(selection) }).screenPanel(id, state: state)))
         cropPanel = panel
         panel.setFrame(screen.frame, display: true)
         panel.orderFrontRegardless()
@@ -191,7 +191,7 @@ final class ScreenWindows {
     private func build(on id: DisplayID) {
         display = id
         list = PhonePanel(content: FirstMouseHostingView(rootView: PhoneHomeView(screen: self.id, state: state, catalog: catalog, pages: pages,
-                                                                                 intents: intents)))
+                                                                                 intents: intents).screenPanel(self.id, state: state)))
         let bar = HomeBarView()
         bar.onActivate = { [weak self] in self?.intents.showList() }
         bar.onCapture = { [weak self] in self?.intents.takeScreenshot() }

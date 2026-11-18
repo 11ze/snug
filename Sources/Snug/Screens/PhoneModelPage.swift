@@ -9,19 +9,21 @@ struct PhoneModelPage: View {
     let state: AppState
     @Bindable var pages: PhonePages
     let intents: any PhoneIntents
+    @Environment(\.topTrailingClear) private var topTrailingClear
 
     private var query: String { pages.trimmedQuery }
     private var current: DeviceChoice { state.screen(screen)?.device ?? .standard }
 
     var body: some View {
         VStack(spacing: 0) {
-            // 和 iOS 的导航栏一样：标题居中，右边「完成」
+            // 和 iOS 的导航栏一样：标题居中，右边「完成」。只有「完成」让开右上角，标题仍在整块屏的正中
             ZStack {
                 Text("型号").font(TouchTokens.Font.headline.font)
                 HStack {
                     Spacer()
                     BarButton(title: "完成", bold: true) { pages.close() }
                 }
+                .padding(.trailing, topTrailingClear)
             }
             .frame(height: TouchTokens.Size.touchTarget)
             .padding(.horizontal, TouchTokens.Space.margin)

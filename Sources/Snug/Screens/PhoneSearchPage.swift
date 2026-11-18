@@ -10,6 +10,7 @@ struct SearchPage: View {
     let phone: PanelState
     let intents: any PhoneIntents
     @FocusState private var focused: Bool
+    @Environment(\.topTrailingClear) private var topTrailingClear
 
     private var query: String { search.trimmedQuery }
 
@@ -25,6 +26,7 @@ struct SearchPage: View {
                 BarButton(title: "取消") { search.close() }
             }
             .padding(.horizontal, TouchTokens.Space.margin)
+            .padding(.trailing, topTrailingClear)
             .padding(.top, TouchTokens.Space.m)
             .padding(.bottom, TouchTokens.Space.l)
             ScrollView {
