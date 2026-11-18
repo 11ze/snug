@@ -216,6 +216,7 @@ public final class Desk {
     /// zoom 为 false：放的是在问用户的窗口（对话框、挂着 sheet 的文档），不调字号，按键会被对话框挡下。
     /// handover：从别的屏转过来（见 DeskSet.pull）
     func place(_ window: WindowInfo, zoom: Bool = true, from handover: Handover? = nil) async {
+        guard behavior.touch else { return await bring(window) }
         let inherited = handover?.record
         let started = timeline.now
         guard let display = readyDisplay(for: "放 \(window.label)") else {
@@ -270,7 +271,7 @@ public final class Desk {
         placement = next
         // 先按基准宽度铺，App 卡在自己的最小尺寸上时换档再铺；这时列表还盖着（「正在打开」）
         guard let got = await fill(&next) else {
-            let notice = await unreachable(window)
+            let notice = await env.unreachable(window)
             Log.warn("\(window.label) 挪不上屏（\(Self.reason(notice, gone: "刚关了"))），放回去")
             placement = nil
             await putBack(next.record)
@@ -295,6 +296,22 @@ public final class Desk {
         advance(to: .zooming)
         await timeline.sleep(Self.settleDelay)
         await changeZoom(by: steps)
+    }
+
+    /// 电脑屏：把窗口挪到这块屏上居中，大小不超过这块屏。不铺满、不调字号、不记账：大小没改，远端的人自己拖得回去
+    private func bring(_ window: WindowInfo) async {
+        guard let area = screens.windowArea(id, withHomeBar: false) else { return state.notice = .screenNotReady }
+        guard var look = await windows.look(window.key) else { return state.notice = await env.unreachable(window) }
+        if look.minimized { await windows.setMinimized(window.key, false) }
+        if look.fullScreen {
+            await windows.setFullScreen(window.key, false)
+            look = await windows.look(window.key) ?? look
+        }
+        guard let got = await windows.move(window.key, to: area.centered(look.frame.size)) else {
+            return state.notice = await env.unreachable(window)
+        }
+        await windows.focus(window.key)
+        Log.info("\(window.label) 挪到屏（\(id)）：\(got.short)")
     }
 
     /// 把屏上的窗口交出去（接手的屏写下账的那一刻，见 Handover）：不还原，露出列表；这边的账等 transferred 再销
@@ -579,7 +596,7 @@ public final class Desk {
         guard await windows.zoom(p.window.key, steps: target - before.zoom) else {
             // 按键没发出去：记录改回原来的级数，不然还原时会多缩
             write(before)
-            state.notice = await unreachable(p.window)
+            state.notice = await env.unreachable(p.window)
             Log.warn("\(p.window.label) 找不到了，字号没改")
             return false
         }
@@ -616,15 +633,10 @@ public final class Desk {
     /// 读要放的窗口；读不到就提示是关了还是 App 没响应
     private func reach(_ window: WindowInfo) async -> WindowLook? {
         if let look = await windows.look(window.key) { return look }
-        let notice = await unreachable(window)
+        let notice = await env.unreachable(window)
         Log.warn("读不到 \(window.label)（\(Self.reason(notice, gone: "已经关了"))），不放")
         state.notice = notice
         return nil
-    }
-
-    /// 读不到、挪不动的窗口：是关了，还是 App 没响应
-    func unreachable(_ window: WindowInfo) async -> Notice {
-        await windows.exists(window.key) ? .windowUnresponsive(app: window.app) : .windowGone(app: window.app)
     }
 
     /// 日志里的原因

@@ -216,35 +216,21 @@ public final class DeskSet {
         lane.run { await desk.perform(ticket) { await self.place(window, on: desk) } }
     }
 
+    /// 跨屏的那一段在这里：窗口正放在别的屏上，转到手机、平板屏是原位记录跟着走（中间不还原一次）；
+    /// 转到电脑屏先在原来那块屏上放回原位、缩回字号（电脑屏不记账、不调字号）。这块屏上怎么放归 Desk.place
     private func place(_ window: WindowInfo, on desk: Desk, zoom: Bool = true) async {
-        guard desk.behavior.touch else { return await bring(window, to: desk) }
         guard let from = holder(of: window.key), from !== desk else { return await desk.place(window, zoom: zoom) }
         guard desk.readyDisplay(for: "把 \(window.label) 转过来") != nil else { return desk.setNotice(.screenNotReady) }
+        guard desk.behavior.touch else {
+            guard await from.returnToOriginal(restoringState: false) else { return desk.setNotice(.windowUnresponsive(app: window.app)) }
+            await from.matchWidth()
+            return await desk.place(window, zoom: zoom)
+        }
         guard let record = from.placedRecord else { return }
         Log.info("\(window.label) 从屏（\(from.id)）转到屏（\(desk.id)），原位记录跟着走")
         await desk.place(window, zoom: zoom, from: Desk.Handover(record: record, release: from.handOver))
         // 还认着就是没接住（接手的屏写账之前哪一步没成），窗口原样留在这边
         if from.placedWindow != window.key { await from.transferred() }
-    }
-
-    /// 电脑屏：把窗口挪到这块屏上居中，大小不超过这块屏（放在手机、平板屏上的先放回原位）
-    private func bring(_ window: WindowInfo, to desk: Desk) async {
-        guard let area = screens.windowArea(desk.id, withHomeBar: false) else { return desk.setNotice(.screenNotReady) }
-        if let from = holder(of: window.key) {
-            guard await from.returnToOriginal(restoringState: false) else { return desk.setNotice(.windowUnresponsive(app: window.app)) }
-            await from.matchWidth()
-        }
-        guard var look = await windows.look(window.key) else { return desk.setNotice(await desk.unreachable(window)) }
-        if look.minimized { await windows.setMinimized(window.key, false) }
-        if look.fullScreen {
-            await windows.setFullScreen(window.key, false)
-            look = await windows.look(window.key) ?? look
-        }
-        guard let got = await windows.move(window.key, to: area.centered(look.frame.size)) else {
-            return desk.setNotice(await desk.unreachable(window))
-        }
-        await windows.focus(window.key)
-        Log.info("\(window.label) 挪到屏（\(desk.id)）：\(got.short)")
     }
 
     /// 放着这个窗口的屏
@@ -374,7 +360,7 @@ public final class DeskSet {
             // 飞书、微信点关闭只是把窗口藏起来：在屏上的窗口按完关闭不在屏上了，也算关上
             let wasShown = await self.windows.isShown(window.key)
             guard await self.windows.close(window.key) else {
-                let notice = await self.desks[id]?.unreachable(window) ?? .windowGone(app: window.app)
+                let notice = await self.env.unreachable(window)
                 Log.warn("关不了 \(window.label)（\(Desk.reason(notice, gone: "已经关了"))）")
                 self.state.closing.remove(window.key)
                 self.desks[id]?.setNotice(notice)

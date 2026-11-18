@@ -42,6 +42,11 @@ final class DeskEnvironment {
         return screens.homeFrame(home.centered(frame.size))
     }
 
+    /// 读不到、挪不动的窗口：是关了，还是 App 没响应
+    func unreachable(_ window: WindowInfo) async -> Desk.Notice {
+        await windows.exists(window.key) ? .windowUnresponsive(app: window.app) : .windowGone(app: window.app)
+    }
+
     func saveZoomBook() {
         do {
             try zoomFile.save(zoomBook)
