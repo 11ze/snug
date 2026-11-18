@@ -45,8 +45,9 @@ struct PhoneModelPage: View {
     }
 
     @ViewBuilder private var content: some View {
-        // 触屏只换成手机、平板；这块屏的类别排前面
-        let found = state.devices.search(query, in: [.phone, .tablet])
+        // 只列这块屏能换成的几类（见 DeviceKind.swappableKinds），这块屏的类别排前面
+        let kinds = current.kind.swappableKinds
+        let found = state.devices.search(query, in: kinds)
         let brands = found.filter { $0.kind == current.kind } + found.filter { $0.kind != current.kind }
         LazyVStack(alignment: .leading, spacing: TouchTokens.Space.xxl) {
             if query.isEmpty {
@@ -64,7 +65,7 @@ struct PhoneModelPage: View {
                 TitledSection("自定义") { CustomScreen(current: current) { choose(DeviceChoice(model: nil, screen: $0, kind: current.kind)) } }
             }
             ForEach(brands) { brand in
-                TitledSection(brand.kind == .phone ? brand.name : "\(brand.name) · \(brand.kind.title)") {
+                TitledSection(brand.label(mixed: kinds.count > 1)) {
                     ListCard(brand.models, dividerInset: TouchTokens.Space.margin) { model in
                         ModelRow(model: model, selected: model.id == current.model) { choose(DeviceChoice(model)) }
                     }

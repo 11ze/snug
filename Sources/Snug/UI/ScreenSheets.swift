@@ -21,7 +21,7 @@ struct AddScreenSheet: View {
     /// 机型库读不出来就用默认的那台换成这一类
     private var chosen: DeviceChoice {
         if let device, device.kind == kind { return device }
-        if kind == .phone { return state.devices.resolve(.standard) }
+        if kind == DeviceChoice.standard.kind { return state.devices.resolve(.standard) }
         if let first = state.devices.brands(kind).first?.models.first { return DeviceChoice(first) }
         return DeviceChoice(model: nil, screen: DeviceChoice.standard.screen, kind: kind)
     }
@@ -49,7 +49,7 @@ struct AddScreenSheet: View {
                         .pickerStyle(.segmented)
                         .labelsHidden()
                         .fixedSize()
-                        .disabled(kind == .computer)
+                        .disabled(kind.allowedOrientations.count < 2)
                     } label: {
                         Text("方向")
                         Text("添加后不能改")
@@ -89,8 +89,7 @@ struct AddScreenSheet: View {
         .frame(width: MacTokens.Size.sheetWidth)
         .onAppear { name = suggested }
         .onChange(of: kind) {
-            // 每类设备平常的方向：手机竖，平板、电脑横
-            orientation = kind == .phone ? .portrait : .landscape
+            orientation = kind.usualOrientation
             device = nil
         }
         .onChange(of: suggested) { if !named { name = suggested } }
@@ -137,9 +136,10 @@ struct ScreenDetailSheet: View {
                             .onSubmit { intents.renameScreen(id, name) }
                     }
                     LabeledContent("型号") {
-                        // 触屏和电脑之间不换：屏上的面板、手势跟着类别走，换类别等于换一块屏
-                        DeviceMenu(state: state, kinds: screen.device.kind == .computer ? [.computer] : [.phone, .tablet],
-                                   current: screen.device) { intents.setScreenDevice(id, $0) }
+                        // 触屏和电脑之间不换（见 DeviceKind.swappableKinds）
+                        DeviceMenu(state: state, kinds: screen.device.kind.swappableKinds, current: screen.device) {
+                            intents.setScreenDevice(id, $0)
+                        }
                     }
                     LabeledContent("方向") { Text(screen.orientation.title).foregroundStyle(.secondary) }
                 } footer: {
@@ -212,7 +212,7 @@ struct DeviceMenu: View {
         let brands = state.devices.search("", in: kinds)
         Menu(current.customScreen.map { "\(current.displayName) \($0.sizeText)" } ?? current.displayName) {
             ForEach(brands) { brand in
-                Menu(kinds.count > 1 && brand.kind != .phone ? "\(brand.name) · \(brand.kind.title)" : brand.name) {
+                Menu(brand.label(mixed: kinds.count > 1)) {
                     ForEach(brand.models) { model in
                         Toggle(model.name, isOn: Binding(get: { model.id == current.model }, set: { _ in choose(DeviceChoice(model)) }))
                     }
@@ -228,6 +228,18 @@ struct DeviceMenu: View {
                 // 自己填的沿用现在的类别
                 if let screen { choose(DeviceChoice(model: nil, screen: screen, kind: current.kind)) }
             }
+        }
+    }
+}
+
+extension DeviceCatalog.Brand {
+    /// 品牌分节的名字（这里的型号菜单、屏上的型号页共用）：只列一类时就是品牌名；
+    /// 几类混着列时手机以外的写明类别（「Apple · 平板」），手机最常见，不写
+    func label(mixed: Bool) -> String {
+        guard mixed else { return name }
+        switch kind {
+        case .phone: return name
+        case .tablet, .computer: return "\(name) · \(kind.title)"
         }
     }
 }

@@ -24,6 +24,14 @@ extension DeviceKind {
         case .phone, .computer: 0
         }
     }
+
+    /// 横屏两栏时左边 App 列表的宽度（电脑屏没有面板，跟手机走）
+    var landscapeSidebar: CGFloat {
+        switch self {
+        case .tablet: TouchTokens.Layout.TabletLandscape.sidebar
+        case .phone, .computer: TouchTokens.Layout.PhoneLandscape.sidebar
+        }
+    }
 }
 
 extension View {
