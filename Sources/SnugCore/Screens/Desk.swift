@@ -217,7 +217,6 @@ public final class Desk {
     /// handover：从别的屏转过来（见 DeskSet.pull）
     func place(_ window: WindowInfo, zoom: Bool = true, from handover: Handover? = nil) async {
         guard behavior.touch else { return await bring(window) }
-        let inherited = handover?.record
         let started = timeline.now
         guard let display = readyDisplay(for: "放 \(window.label)") else {
             state.notice = .screenNotReady
@@ -227,24 +226,47 @@ public final class Desk {
             await reveal()
             return
         }
-        // 先确认要放的窗口够得着，再动屏上现在那个：点到刚关掉的卡片，不能先把现在的拆了、两头落空
-        guard await reach(window) != nil else { return }
-        // 原来那个、或上次没放回去的那个放不回去（App 卡住）就不放：两个窗口会叠在屏上，还原记录也只记得住一个
+        guard let look = await clearScreen(for: window),
+              var next = await recordPlacement(window, look: look, zoom: zoom, from: handover),
+              let got = await land(&next) else { return }
+        let was = look.fullScreen ? "（原来全屏）" : look.minimized ? "（原来最小化）" : ""
+        let took = String(format: "%.1f", timeline.now - started)
+        let fill = describeFill(got, in: screens.windowArea(id, withHomeBar: true), width: screens.width(id) ?? next.width)
+        Log.info("\(window.label) 放上屏 #\(display)（\(took)s）：原位 \(next.record.original.short)\(was)，\(fill)")
+
+        // 带着字号回来的不重复放大，只补差的那几级
+        let steps = env.zoomBook.steps(for: window.bundleID, default: env.defaultZoom) - next.record.zoom
+        guard zoom, steps != 0 else { return }
+        // 窗口已经在屏上了，剩下的只是调字号
+        advance(to: .zooming)
+        await timeline.sleep(Self.settleDelay)
+        await changeZoom(by: steps)
+    }
+
+    /// 放窗口第一段，腾出屏：先确认要放的窗口够得着，再放回屏上现在那个、上次没放回去的那个。
+    /// 点到刚关掉的卡片，不能先把现在的拆了、两头落空；放回不了（App 卡住）就不放：两个窗口会叠在屏上，还原记录也只记得住一个。
+    /// 成了交回要放的窗口此刻的样子（放回别的窗口可能动到它，重新读）
+    private func clearScreen(for window: WindowInfo) async -> WindowLook? {
+        guard await reach(window) != nil else { return nil }
         if let p = placement, await !returnToOriginal(p) {
             Log.warn("\(p.window.label) 放不回去，先不换成 \(window.label)")
             state.notice = .windowUnresponsive(app: p.window.app)
-            return
+            return nil
         }
         if let stuck = await putBackLeftover() {
             Log.warn("\(stuck.label) 还放不回去，先不放 \(window.label)")
             state.notice = .windowUnresponsive(app: stuck.app)
-            return
+            return nil
         }
-        // 放回别的窗口可能动到它（上次没放回去的就是它），重新读
-        guard let look = await reach(window) else { return }
+        return await reach(window)
+    }
+
+    /// 放窗口第二段，先记账再动手：还原记录取跟过来的（转屏）、留下的账（它原样回来了：屏上关掉又在手机上重开，
+    /// 原位还是当初的，字号按带回来的算），都没有就按此刻的样子新记。全屏的窗口这时读到的是全屏的位置，
+    /// 崩溃后按它放回再恢复全屏也对；退出全屏后再按平时的位置改记。账写不进去就不动窗口
+    private func recordPlacement(_ window: WindowInfo, look: WindowLook, zoom: Bool, from handover: Handover?) async -> Placement? {
+        let inherited = handover?.record
         let known = Set(await windows.shownWindows(of: window.key.pid).map(\.key)).subtracting([window.key])
-        // 先记账再动手。全屏的窗口这时读到的是全屏的位置，崩溃后按它放回再恢复全屏也对。
-        // 它是留下的账的窗口、原样回来了（屏上关掉又在手机上重开）：接着用那笔账，原位还是当初的，字号按带回来的算
         let owed = inherited == nil ? env.leftBehind.owed(by: window, frame: look.frame) : nil
         let record = inherited ?? owed?.record ?? PlacedRecord(
             window: window.key, app: window.app, label: window.label, original: env.originalFrame(look.frame),
@@ -252,7 +274,7 @@ public final class Desk {
         var next = Placement(window: window, record: record, width: screenFit.baseWidth, known: known, asking: !zoom)
         guard write(next.record) else {
             state.notice = .recordUnwritable
-            return
+            return nil
         }
         handover?.release()
         if let owed {
@@ -268,34 +290,27 @@ public final class Desk {
                 write(next.record)
             }
         }
+        return next
+    }
+
+    /// 放窗口第三段，铺上屏：先按基准宽度铺，App 卡在自己的最小尺寸上时换档再铺；这时列表还盖着（「正在打开」）。
+    /// 铺不上就按账放回去、露出列表，交回 nil
+    private func land(_ next: inout Placement) async -> CGRect? {
         placement = next
-        // 先按基准宽度铺，App 卡在自己的最小尺寸上时换档再铺；这时列表还盖着（「正在打开」）
         guard let got = await fill(&next) else {
-            let notice = await env.unreachable(window)
-            Log.warn("\(window.label) 挪不上屏（\(Self.reason(notice, gone: "刚关了"))），放回去")
+            let notice = await env.unreachable(next.window)
+            Log.warn("\(next.window.label) 挪不上屏（\(Self.reason(notice, gone: "刚关了"))），放回去")
             placement = nil
             await putBack(next.record)
             // 露着列表：屏可能停在铺的中途换过的那一档
             await matchWidth()
             state.notice = notice
-            return
+            return nil
         }
         placement = next
-        await windows.focus(window.key)
+        await windows.focus(next.window.key)
         state.listVisible = false
-        let was = look.fullScreen ? "（原来全屏）" : look.minimized ? "（原来最小化）" : ""
-        let took = String(format: "%.1f", timeline.now - started)
-        let fill = describeFill(got, in: screens.windowArea(id, withHomeBar: true), width: screens.width(id) ?? next.width)
-        Log.info("\(window.label) 放上屏 #\(display)（\(took)s）：原位 \(next.record.original.short)\(was)，\(fill)")
-
-        // 带着字号回来的不重复放大，只补差的那几级；不放大字号的屏（电脑屏）缩回原样
-        let target = env.zoomBook.steps(for: window.bundleID, default: env.defaultZoom)
-        let steps = target - next.record.zoom
-        guard zoom, steps != 0 else { return }
-        // 窗口已经在屏上了，剩下的只是调字号
-        advance(to: .zooming)
-        await timeline.sleep(Self.settleDelay)
-        await changeZoom(by: steps)
+        return got
     }
 
     /// 电脑屏：把窗口挪到这块屏上居中，大小不超过这块屏。不铺满、不调字号、不记账：大小没改，远端的人自己拖得回去
