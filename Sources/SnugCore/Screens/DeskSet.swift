@@ -642,7 +642,7 @@ public final class DeskSet {
     /// 定期调用（和 verifyPlacement 同一拍）：刚在 Snug 之外没了的窗口，它的 App 换没换个新窗口（换了就接着放上来）；
     /// 留下的账的窗口回来没有（带着屏上的大小回来就还账）。没账可查时什么都不做
     public func checkReturns() {
-        guard desks.values.contains(where: \.watchesReplacement) || !env.leftBehind.entries.isEmpty,
+        guard desks.values.contains(where: \.watchesReplacement) || !env.leftBehind.isEmpty,
               desks.values.allSatisfy({ $0.state.work == nil }), !checkingReturns else { return }
         checkingReturns = true
         lane.run {
@@ -655,60 +655,19 @@ public final class DeskSet {
     /// 留下的账的窗口回来了（同一个 App 的窗口带着 Snug 铺成的大小出现）：还在远程、它就开在一块空着的 Snug 屏上，
     /// 接着放着（手机上关掉又重开）；否则放回原位，字号随窗口回来的一起缩回。一次只还一笔，还不成（App 没响应）下一拍再试
     private func takeBackReturned() async {
-        env.leftBehind.prune(now: Date())
-        await repayAppWideZoom()
+        await env.leftBehind.repayAppWideZoom()
         // 各屏还放着的、还原账上还欠着的窗口（放回时 App 卡住）归那本账还，别被别的账认走。
         // 屏撤了账还在（远程结束时 App 卡着）：按 placed/ 下的账算，不只看还在的屏
         let owed = recordedScreens().compactMap { RestoreRecord<PlacedRecord>(url: env.paths.placedRecord(for: $0)).pending()?.window }
         let skip = Set(desks.values.compactMap(\.placedWindow) + owed)
-        for bundle in Set(env.leftBehind.entries.compactMap(\.record.bundleID)) {
-            for pid in await apps.pids(bundleID: bundle) {
-                // 先问窗口服务器（不经过 App，卡住的 App 也拖不慢队），大小对得上才去读辅助功能
-                let sized = await windows.frames(of: pid).filter { !skip.contains($0.key) && env.leftBehind.awaits(bundleID: bundle, size: $0.value.size) }
-                guard !sized.isEmpty else { continue }
-                for window in await windows.shownWindows(of: pid) {
-                    guard let frame = sized[window.key], let i = env.leftBehind.match(window, frame: frame) else { continue }
-                    await takeBack(i, window: window, frame: frame)
-                    return
-                }
-            }
-        }
-    }
-
-    private func takeBack(_ i: Int, window: WindowInfo, frame: CGRect) async {
-        if let id = screens.screen(at: CGPoint(x: frame.midX, y: frame.midY)), let desk = desks[id], desk.awaitsReturn, desk.behavior.touch {
+        guard let back = await env.leftBehind.nextReturn(skip: skip) else { return }
+        let center = CGPoint(x: back.frame.midX, y: back.frame.midY)
+        if let id = screens.screen(at: center), let desk = desks[id], desk.awaitsReturn, desk.behavior.touch {
             // 还在远程、回到了一块空着的 Snug 屏上：接着放（Desk.place 认得出这笔账，原位、字号接着用）
-            await desk.placeOnItsOwn(window)
+            await desk.placeOnItsOwn(back.window)
             return
         }
-        let owed = env.leftBehind.entries[i].returned(as: window.key)
-        if owed.zoom != 0 {
-            guard await windows.zoom(window.key, steps: -owed.zoom) else {
-                return Log.warn("\(window.label) 带着屏上的样子回来了，但字号缩不回（App 没响应），下一拍再试")
-            }
-            // 缩完先记账：挪的时候出事，下次不会再缩一遍
-            env.leftBehind.update(at: i) { $0.record.zoom = 0 }
-            env.saveLeftBehind()
-        }
-        guard let got = await windows.move(window.key, to: screens.currentFrame(owed.original)) else {
-            return Log.warn("\(window.label) 带着屏上的样子回来了，但挪不动（App 没响应），下一拍再试")
-        }
-        env.leftBehind.remove(at: i)
-        env.saveLeftBehind()
-        Log.info("\(window.label) 带着屏上的样子回来了，放回原位 \(got.short)\(owed.zoom != 0 ? "，字号缩回 \(owed.zoom) 级" : "")")
-    }
-
-    /// 字号存在整个 App 里、还没缩回的（关窗时那个进程没有别的窗口）：进程又有窗口了就缩回，进程没了就不欠了
-    private func repayAppWideZoom() async {
-        for i in env.leftBehind.entries.indices where env.leftBehind.entries[i].zoomScope == .app && env.leftBehind.entries[i].record.zoom != 0 {
-            let r = env.leftBehind.entries[i].record
-            if await apps.isRunning(pid: r.window.pid) {
-                // 进程还在、还没有窗口就接着等（每拍都问，先看有没有窗口，免得每拍记一条日志）
-                guard await !windows.shownWindows(of: r.window.pid).isEmpty, await env.repayAppZoom(r) else { continue }
-            }
-            env.leftBehind.update(at: i) { $0.record.zoom = 0 }
-            env.saveLeftBehind()
-        }
+        await env.leftBehind.repay(back.owed, window: back.window, to: screens.currentFrame(back.owed.record.original))
     }
 
     /// 退出前：放回窗口、撤掉所有屏，做完才返回

@@ -244,8 +244,8 @@ public final class Desk {
         let known = Set(await windows.shownWindows(of: window.key.pid).map(\.key)).subtracting([window.key])
         // 先记账再动手。全屏的窗口这时读到的是全屏的位置，崩溃后按它放回再恢复全屏也对。
         // 它是留下的账的窗口、原样回来了（屏上关掉又在手机上重开）：接着用那笔账，原位还是当初的，字号按带回来的算
-        let owed = inherited == nil ? env.leftBehind.match(window, frame: look.frame) : nil
-        let record = inherited ?? owed.map { env.leftBehind.entries[$0].returned(as: window.key) } ?? PlacedRecord(
+        let owed = inherited == nil ? env.leftBehind.owed(by: window, frame: look.frame) : nil
+        let record = inherited ?? owed?.record ?? PlacedRecord(
             window: window.key, app: window.app, label: window.label, original: env.originalFrame(look.frame),
             wasFullScreen: look.fullScreen, wasMinimized: look.minimized, bundleID: window.bundleID, title: window.title)
         var next = Placement(window: window, record: record, width: screenFit.baseWidth, known: known, asking: !zoom)
@@ -256,8 +256,7 @@ public final class Desk {
         handover?.release()
         if let owed {
             Log.info("\(window.label) 带着屏上的样子回来了，接着放：原位按当初的 \(record.original.short)，字号已大 \(record.zoom) 级")
-            env.leftBehind.remove(at: owed)
-            env.saveLeftBehind()
+            env.leftBehind.settle(owed)
         }
         if look.minimized { await windows.setMinimized(window.key, false) }
         if look.fullScreen {
@@ -495,10 +494,10 @@ public final class Desk {
         return nil
     }
 
-    /// 窗口在 Snug 之外没了：账不销，转成留下的账（见 DeskEnvironment.leaveBehind）。
+    /// 窗口在 Snug 之外没了：账不销，转成留下的账（见 LeftBehindLedger.add）。
     /// 先记下留下的账再销这块屏的账：中途崩溃最多多一笔账，不会丢账
     private func leaveBehind(_ record: PlacedRecord) async {
-        if let notice = await env.leaveBehind(record) { state.notice = notice }
+        if let notice = await env.leftBehind.add(record) { state.notice = notice }
         settleRecord()
     }
 
