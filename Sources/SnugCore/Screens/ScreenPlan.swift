@@ -16,11 +16,8 @@ public enum ScreenPlan {
         }
     }
 
-    /// 类别 → 行为
+    /// 类别 → 行为（哪些类别算触屏见 DeviceKind.isTouch）
     public static func behavior(_ kind: DeviceKind) -> ScreenBehavior {
-        switch kind {
-        case .phone, .tablet: .touchScreen
-        case .computer: .computer
-        }
+        kind.isTouch ? .touchScreen : .computer
     }
 }

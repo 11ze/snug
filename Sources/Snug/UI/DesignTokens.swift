@@ -57,6 +57,9 @@ enum MacTokens {
         static let aboutWidth: CGFloat = 420
         static let helpPopoverWidth: CGFloat = 300
         static let iconTile: CGFloat = 24
+        static let libraryGridIcon: CGFloat = 56
+        static let libraryGridItem: CGFloat = 96
+        static let libraryRowIcon: CGFloat = 28
         static let librarySidebar: CGFloat = 200
         enum LibraryWindow {
             static let height: CGFloat = 520

@@ -431,7 +431,8 @@ enum RenderSamples {
             let catalog = AppCatalog(sample: list, installed: installed, loaded: loaded)
             return AnyView(PhoneHomeView(screen: id, state: s, catalog: catalog, pages: pages, intents: stub, tab: tab,
                                          confirming: confirming, selected: selected)
-                .frame(width: size.width, height: size.height))
+                .frame(width: size.width, height: size.height)
+                .screenPanel(id, state: s))
         }
     }
 

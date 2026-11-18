@@ -50,6 +50,9 @@
   --mac-size-library-window-width: 760px;
   --mac-size-library-window-height: 520px;
   --mac-size-library-sidebar: 200px;
+  --mac-size-library-row-icon: 28px;
+  --mac-size-library-grid-icon: 56px;
+  --mac-size-library-grid-item: 96px;
   --touch-font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", sans-serif;
   --touch-font-large-title: 700 40px/48px var(--touch-font-family);
   --touch-font-large-title-size: 40px;

@@ -103,7 +103,7 @@ struct LibraryView: View {
                         ForEach(app.windows) { window in windowRow(window).listRowSeparator(.hidden) }
                     } header: {
                         HStack(spacing: MacTokens.Space.s) {
-                            Image(nsImage: catalog.icon(for: app.app)).resizable().frame(width: 28, height: 28)
+                            Image(nsImage: catalog.icon(for: app.app)).resizable().frame(width: MacTokens.Size.libraryRowIcon, height: MacTokens.Size.libraryRowIcon)
                             VStack(alignment: .leading, spacing: 0) {
                                 Text(app.app.name).font(.headline).foregroundStyle(.primary)
                                 Text(app.windowSummary).font(.callout).foregroundStyle(.secondary)
@@ -150,15 +150,15 @@ struct LibraryView: View {
             ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             ScrollView {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 96), spacing: MacTokens.Space.m)], spacing: MacTokens.Space.l) {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: MacTokens.Size.libraryGridItem), spacing: MacTokens.Space.m)], spacing: MacTokens.Space.l) {
                     ForEach(apps, id: \.bundleID) { app in
                         Button { open(app) } label: {
                             VStack(spacing: MacTokens.Space.xs) {
-                                Image(nsImage: catalog.icon(for: app)).resizable().frame(width: 56, height: 56)
+                                Image(nsImage: catalog.icon(for: app)).resizable().frame(width: MacTokens.Size.libraryGridIcon, height: MacTokens.Size.libraryGridIcon)
                                 Text(app.name).font(.callout).lineLimit(1)
                                 Circle().fill(.secondary).frame(width: 4, height: 4).opacity(catalog.running(app) == nil ? 0 : 1)
                             }
-                            .frame(maxWidth: 96)
+                            .frame(maxWidth: MacTokens.Size.libraryGridItem)
                             .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)

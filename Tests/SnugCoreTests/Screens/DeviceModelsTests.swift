@@ -167,12 +167,9 @@ struct DeviceModelsTests {
 
 @Suite("设备类别 DeviceKind")
 struct DeviceKindTests {
-    @Test("触屏的是手机、平板，电脑不是；和 ScreenPlan 给的行为一致")
+    @Test("触屏的是手机、平板，电脑不是（ScreenPlan.behavior 按它给行为）")
     func isTouch() {
         #expect(DeviceKind.allCases.filter(\.isTouch) == [.phone, .tablet])
-        for kind in DeviceKind.allCases {
-            #expect(ScreenPlan.behavior(kind, gestures: true).touch == kind.isTouch, "\(kind)")
-        }
     }
 
     @Test("平常的方向：手机竖，平板、电脑横；能选的方向：手机、平板横竖都行，电脑只能横；平常的方向总在能选的里面")

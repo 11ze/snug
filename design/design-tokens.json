@@ -87,7 +87,10 @@
       "helpPopoverWidth": 300,
       "zoomSliderWidth": 160,
       "libraryWindow": { "width": 760, "height": 520 },
-      "librarySidebar": 200
+      "librarySidebar": 200,
+    "libraryRowIcon": 28,
+    "libraryGridIcon": 56,
+    "libraryGridItem": 96
     },
     "iconTile": {
       "about": "设置行左边的彩色小方块，里面是白色 SF Symbol。一种颜色只表示一类东西。没写 symbol 的只定颜色，图标由代码按状态给",
