@@ -71,6 +71,8 @@ final class ScreenWindows {
             forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.update() }
         }
+        // 先按此刻的状态铺一遍：屏可能在面板建出来之前就绪了，不能只等下一次变化
+        update()
         follow()
     }
 
