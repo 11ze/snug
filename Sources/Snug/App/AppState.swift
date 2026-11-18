@@ -96,7 +96,7 @@ struct PanelState: Equatable {
 /// 几个意图协议都标 Sendable：Swift 6.2 把 intents.setPhone 这种方法引用存进视图属性时要求它可跨隔离域传递
 @MainActor
 protocol AppIntents: AnyObject, Sendable {
-    /// 屏幕列表：开关、增删、改型号、改名字（远程进行中改，只影响那一块屏，见 docs/multi-screen.md 2.1）
+    /// 屏幕列表：开关、增删、改型号、改名字（远程进行中改，只影响那一块屏，见 docs/how-it-works.md「屏幕列表」）
     func setScreenEnabled(_ id: ScreenID, _ on: Bool)
     func addScreen(orientation: Orientation, device: DeviceChoice, name: String)
     func removeScreen(_ id: ScreenID)

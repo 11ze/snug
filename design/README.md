@@ -1,6 +1,6 @@
 # 设计
 
-Snug 界面的设计令牌和原型。多屏开工前先在这里把界面定下来（见 [docs/multi-screen.md](../docs/multi-screen.md) 第 8 节第 2 步），产品定位见 [docs/PRODUCT.md](../docs/PRODUCT.md)。
+Snug 界面的设计令牌和原型。界面以这里的原型为准，产品定位见 [docs/PRODUCT.md](../docs/PRODUCT.md)。
 
 ```
 design/

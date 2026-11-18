@@ -25,7 +25,7 @@ extension DeviceKind {
         }
     }
 
-    /// 能选的方向：电脑只有横屏（docs/multi-screen.md 第 1 节）
+    /// 能选的方向：电脑只有横屏
     public var allowedOrientations: [Orientation] {
         switch self {
         case .phone, .tablet: [.portrait, .landscape]

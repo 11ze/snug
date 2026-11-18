@@ -1,11 +1,11 @@
 // 一块屏此刻该在，以及它该是什么样：ScreenPlan 按配置和会话算出来交给 DeskSet，
 // ScreenSet 按身份和比例建撤、在线换比例，Desk 按行为参数放窗口。
-// 谁也不认手机、平板、电脑：类别到行为的映射只在 ScreenPlan 里（见 docs/multi-screen.md 4.1）
+// 谁也不认手机、平板、电脑：类别到行为的映射只在 ScreenPlan 里（见 docs/development.md「代码结构」）
 import CoreGraphics
 import Foundation
 
 /// 屏的身份：系统按 vendorID + productID + 序列号记住一块屏的设置、排布和 ICC 文件。
-/// 数值全部实测过（见记忆 project-phone-screen 和 docs/multi-screen.md 第 7 节）
+/// 数值全部实测过（见记忆 project-phone-screen、project-multi-screen）
 public struct ScreenSpec: Equatable, Sendable {
     /// 'SN'：认出自己建的屏
     public static let vendorID: UInt32 = 0x534E
@@ -58,7 +58,7 @@ public struct ScreenWish: Equatable, Sendable {
     public var spec: ScreenSpec
     public var fit: ScreenFit
     public var behavior: ScreenBehavior
-    /// 建好后设为主屏、撤之前设回原来的主屏（最多一块，见 docs/multi-screen.md 2.6）
+    /// 建好后设为主屏、撤之前设回原来的主屏（最多一块，见 docs/how-it-works.md「设为主屏」）
     public var main: Bool
 
     public init(id: ScreenID, spec: ScreenSpec, fit: ScreenFit, behavior: ScreenBehavior, main: Bool = false) {

@@ -104,7 +104,7 @@ SNUG_WRITE_TOKENS=1 swift test --filter DesignTokensTests
 | `--render-<界面> <目录>` | 将界面渲染为 PNG：`settings` / `welcome` / `about` / `legacy` / `menu` / `screens` / `library` / `update`（不启动监控，不改动屏幕）。`screens` 是 Snug 屏上的面板，覆盖手机竖横、平板竖横；`library` 是电脑屏的 App 资源库窗口 |
 | `--preview-screens` | 正常启动，但不等待连接即创建屏幕列表中开着的屏，无需控制端即可查看屏上的列表（**会真实创建屏幕**；设了主屏的同样会设） |
 | `--dump-uu` | 打印从 UU远程 读取到的界面（文字、表格与行）、认出的控制端与当前屏幕 |
-| `--probe-screens <规格…>` | 实测用（多屏方案的 V1～V12，见 [multi-screen.md](multi-screen.md)）：每份规格建一块实验屏，打印各档模式与 2 倍是否可用，按 Ctrl-C 撤屏并还原排布。规格是逗号分隔的 `键=值`：`modes=宽x高+…`（必填）、`name`、`serial`（默认用 999000001 起的实验身份）、`cap=像素宽x像素高`、`pattern=on\|off`（校准图）、`main=on`（设为主屏，最多一块）。**会真实创建屏幕**，测试时随测随撤，免得指针跑到看不见的屏上 |
+| `--probe-screens <规格…>` | 实测用（多屏的 V1～V12，结论见记忆 project-multi-screen）：每份规格建一块实验屏，打印各档模式与 2 倍是否可用，按 Ctrl-C 撤屏并还原排布。规格是逗号分隔的 `键=值`：`modes=宽x高+…`（必填）、`name`、`serial`（默认用 999000001 起的实验身份）、`cap=像素宽x像素高`、`pattern=on\|off`（校准图）、`main=on`（设为主屏，最多一块）。**会真实创建屏幕**，测试时随测随撤，免得指针跑到看不见的屏上 |
 | `--set-mode <屏幕编号> <宽> <高>` | 辅助进程模式：将一块 Snug 的屏切换至该档的 2 倍模式后立即退出（供主程序内部调用；高由主程序按型号的比例算好传入） |
 | `--restore-mode <屏幕编号> <模式编号> <宽> <高> <像素宽> <像素高> <刷新率> session\|permanent` | 辅助进程模式：将一块屏幕设回该模式后立即退出，只对当前登录生效或连同永久配置（供主程序内部调用：创建、移除 Snug 的屏时被系统改变模式的屏幕） |
 
@@ -112,7 +112,7 @@ SNUG_WRITE_TOKENS=1 swift test --filter DesignTokensTests
 
 | 位置 | 内容 |
 | :--- | :--- |
-| `~/Library/Application Support/Snug/config.json` | 设置，含屏幕列表 `screens`、主屏 `mainScreen`；同时写旧的 `phoneScreen`、`phone`，降级回 2.5 照样能读 |
+| `~/Library/Application Support/Snug/config.json` | 设置，含屏幕列表 `screens`、主屏 `mainScreen`；同时写旧的 `phoneScreen`、`phone`（取第一块竖屏手机屏的值），降级回 2.5 照样能读，过两个大版本再停写。降级的代价：2.5 写盘时丢掉它不认的 `screens`、`mainScreen`、`nextSerialBlock`，再升回来只剩那块手机屏 |
 | `~/Library/Application Support/Snug/placed/<屏 id>.json` | 各块屏上窗口的还原记录。2.5 的 `phone-screen.json` 启动时挪成 `placed/phone.json` 再按它还原；手机屏已经有账时挪成 `placed/phone-2.5.json`，一样还 |
 | `~/Library/Application Support/Snug/zoom.json` | 各 App 记忆的字号级数 |
 | `~/Library/Application Support/Snug/left-behind.json` | 在 Snug 之外关闭的窗口待还原的位置与字号（保留两周） |

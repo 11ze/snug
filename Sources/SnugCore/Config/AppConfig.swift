@@ -51,7 +51,7 @@ public struct AppConfig: Codable, Equatable, Sendable {
         if mainScreen == id { mainScreen = nil }
     }
 
-    /// 2.5.x 还在读的两项：取第一块竖屏手机屏的值，降级回去照样能用（过两个大版本再停写，见 docs/multi-screen.md 5.5）
+    /// 2.5.x 还在读的两项：取第一块竖屏手机屏的值，降级回去照样能用（过两个大版本再停写，见 docs/development.md「数据与日志」）
     var phoneForLegacyFields: ScreenConfig? { screens.first { $0.orientation == .portrait && $0.device.kind == .phone } }
 
     private enum CodingKeys: String, CodingKey {

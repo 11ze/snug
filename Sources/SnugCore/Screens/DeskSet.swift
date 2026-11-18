@@ -182,7 +182,7 @@ public final class DeskSet {
         state.closing = []
     }
 
-    /// 撤屏前清场（docs/multi-screen.md 3.3）：Snug 放上去的已经按账放回，屏上剩下的（用户在这块屏上直接开的、
+    /// 撤屏前清场（docs/how-it-works.md「Snug 的屏」）：Snug 放上去的已经按账放回，屏上剩下的（用户在这块屏上直接开的、
     /// 设主屏时跟过来的）挪到主屏，居中、大小不超过主屏。不挪的话，撤屏后它们停在所有屏的范围之外，系统不挪回来（实测）。
     /// 设回原主屏没成功时，主屏还是要撤的这块：挪到原来的主屏上，撤掉后系统把它摆回主屏，窗口跟着走
     private func clear(_ id: ScreenID) async {
