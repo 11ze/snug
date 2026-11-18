@@ -228,7 +228,22 @@ public final class ScreenSet {
             for (was, _) in drifted { await displays.setMode(was.id, was.mode, permanently: permanently) }
             await timeline.sleep(Self.topologySettle)
         }
-        await windows.restore(before.windows, except: placedWindows())
+        let expected = Self.following(before.windows, from: before.others, to: displays.otherDisplays())
+        await windows.restore(expected, except: placedWindows())
+    }
+
+    /// 窗口该在的位置：所在的屏被 macOS 挪了（Snug 的屏多了，它会把外接屏挪开让地方，撤屏后再挪回来），
+    /// 屏上的窗口是跟着屏走的，记下的位置也按屏挪过的距离平移，不然放回去反倒把它们推偏
+    static func following(_ windows: [WindowKey: CGRect], from before: [OtherDisplay], to now: [OtherDisplay]) -> [WindowKey: CGRect] {
+        let moved: [(was: CGRect, by: CGVector)] = before.compactMap { was in
+            guard let now = now.first(where: { $0.id == was.id }), now.bounds.origin != was.bounds.origin else { return nil }
+            return (was.bounds, CGVector(dx: now.bounds.minX - was.bounds.minX, dy: now.bounds.minY - was.bounds.minY))
+        }
+        guard !moved.isEmpty else { return windows }
+        return windows.mapValues { frame in
+            guard let shift = moved.first(where: { $0.was.contains(CGPoint(x: frame.midX, y: frame.midY)) })?.by else { return frame }
+            return frame.offsetBy(dx: shift.dx, dy: shift.dy)
+        }
     }
 
     /// 远程在不在进行（会话层的结论）。远程结束后，远程中撤屏留下的永久配置要重写（settleDisplays）

@@ -71,13 +71,16 @@ public struct OtherDisplay: Equatable, Sendable {
     /// 在「显示器」设置里的名字，日志用
     public var name: String
     public var mode: ScreenMode
+    /// 在全局坐标里的位置（左上原点）。macOS 给 Snug 的屏让地方时会挪它，屏上的窗口跟着走
+    public var bounds: CGRect
     /// 睡着了（Mac 锁屏后几秒显示器就睡）：这时改不了模式
     public var asleep: Bool
 
-    public init(id: DisplayID, name: String, mode: ScreenMode, asleep: Bool = false) {
+    public init(id: DisplayID, name: String, mode: ScreenMode, bounds: CGRect, asleep: Bool = false) {
         self.id = id
         self.name = name
         self.mode = mode
+        self.bounds = bounds
         self.asleep = asleep
     }
 }

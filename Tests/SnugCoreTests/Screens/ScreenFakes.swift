@@ -40,6 +40,8 @@ final class FakeDisplays: VirtualDisplays {
     private(set) var fits: [DisplayID: ScreenFit] = [:]
     /// 别的屏此刻的模式。在 onCreate / onRetire 里改它，模拟 macOS 换屏幕组合时把别的屏拨回它记的模式
     var others: [DisplayID: ScreenMode] = [:]
+    /// 别的屏此刻在哪（全局坐标）。在 onCreate / onRetire 里改它，模拟 macOS 给 Snug 的屏让地方时挪了别的屏
+    var otherBounds: [DisplayID: CGRect] = [:]
     /// 设模式不成（帮手失败）：屏还是被拨动后的模式
     var modeFails = false
     /// 释放后不下线（显示器睡着时要等唤醒）：goOffline 才真下线，onRetire 那时才发生
@@ -139,7 +141,7 @@ final class FakeDisplays: VirtualDisplays {
     func mainArea() -> CGRect? { Self.main }
 
     func otherDisplays() -> [OtherDisplay] {
-        others.sorted { $0.key < $1.key }.map { OtherDisplay(id: $0.key, name: "屏 \($0.key)", mode: $0.value, asleep: asleep.contains($0.key)) }
+        others.sorted { $0.key < $1.key }.map { OtherDisplay(id: $0.key, name: "屏 \($0.key)", mode: $0.value, bounds: otherBounds[$0.key] ?? .zero, asleep: asleep.contains($0.key)) }
     }
 
     func setMode(_ id: DisplayID, _ mode: ScreenMode, permanently: Bool) async {

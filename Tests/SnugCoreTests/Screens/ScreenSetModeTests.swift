@@ -170,4 +170,23 @@ struct ScreenSetModeTests {
         #expect("\(builtIn)" == "1512x982（2 倍）120Hz")
         #expect("\(ScreenMode(ioModeID: 1, width: 1920, height: 1080, pixelWidth: 1920, pixelHeight: 1080, refreshRate: 59.94))" == "1920x1080 59.94Hz")
     }
+
+    @Test("Snug 的屏多了，macOS 把外接屏挪开让地方，屏上的窗口跟着屏走：按屏挪过的距离算，不往回推；没跟着屏走的照样放回")
+    func windowsFollowMovedDisplay() async throws {
+        let rig = try Rig()
+        let external = CGRect(x: -217, y: -1080, width: 1920, height: 1080)
+        let shift: CGFloat = -191
+        rig.displays.others = [5: hp]
+        rig.displays.otherBounds = [5: external]
+        // Ghostty 在外接屏上；Finder 在主屏上
+        rig.windows.setFrame(ghostty.key, CGRect(x: 100, y: -900, width: 800, height: 600))
+        rig.displays.onCreate = { [unowned displays = rig.displays, unowned windows = rig.windows] in
+            displays.otherBounds[5] = external.offsetBy(dx: shift, dy: 0)
+            windows.setFrame(ghostty.key, CGRect(x: 100 + shift, y: -900, width: 800, height: 600))   // 跟着屏走
+            windows.setFrame(finder.key, CGRect(x: 0, y: 25, width: 800, height: 500))               // 系统把它挪了
+        }
+        await rig.ready()
+        #expect(rig.windows.window(ghostty.key)?.frame == CGRect(x: 100 + shift, y: -900, width: 800, height: 600))
+        #expect(rig.windows.window(finder.key)?.frame == finderHome)
+    }
 }

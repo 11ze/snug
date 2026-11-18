@@ -142,7 +142,8 @@ public final class VirtualDisplayService: VirtualDisplays {
 
     public func otherDisplays() -> [OtherDisplay] {
         Self.onlineIDs().filter { displays[$0] == nil }.compactMap { id in
-            DisplayMode.current(id).map { OtherDisplay(id: id, name: Screens.name(of: id), mode: $0, asleep: CGDisplayIsAsleep(id) != 0) }
+            DisplayMode.current(id).map { OtherDisplay(id: id, name: Screens.name(of: id), mode: $0, bounds: CGDisplayBounds(id),
+                                                  asleep: CGDisplayIsAsleep(id) != 0) }
         }
     }
 
