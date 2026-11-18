@@ -1,6 +1,6 @@
 // 手机屏 App 资源库共用的小部件：App 图标、「图标 + 标题 + 副标题」一行、圆形和胶囊按钮、再点一下确认的一对键、空状态、小标题分节、
 // 一组行的卡片、搜索框和它的清除键、导航栏右边的文字按钮、输入框底、卡片底。
-// 尺寸、颜色取自 PhoneStyle
+// 尺寸、颜色取自 TouchStyle
 import AppKit
 import SwiftUI
 
@@ -22,10 +22,10 @@ struct AppRowLabel: View {
 
     var body: some View {
         HStack(spacing: 16) {
-            AppIcon(image: icon, size: PhoneStyle.iconSize)
+            AppIcon(image: icon, size: TouchStyle.iconSize)
             VStack(alignment: .leading, spacing: 4) {
-                Text(title).font(PhoneStyle.headline).lineLimit(1)
-                Text(subtitle).font(PhoneStyle.body).foregroundStyle(subtitleColor).lineLimit(1)
+                Text(title).font(TouchStyle.headline).lineLimit(1)
+                Text(subtitle).font(TouchStyle.body).foregroundStyle(subtitleColor).lineLimit(1)
             }
             Spacer(minLength: 8)
         }
@@ -42,9 +42,9 @@ struct RoundButton: View {
     var body: some View {
         Button(action: action) {
             Image(systemName: symbol)
-                .font(PhoneStyle.headline)
-                .frame(width: PhoneStyle.touchTarget, height: PhoneStyle.touchTarget)
-                .background(PhoneStyle.background, in: Circle())
+                .font(TouchStyle.headline)
+                .frame(width: TouchStyle.touchTarget, height: TouchStyle.touchTarget)
+                .background(TouchStyle.background, in: Circle())
         }
         .buttonStyle(PressableStyle())
         .accessibilityLabel(label)
@@ -63,12 +63,12 @@ struct PillButton: View {
     var body: some View {
         Button(role: destructive ? .destructive : nil, action: action) {
             Text(title)
-                .font(PhoneStyle.body.weight(.medium))
+                .font(TouchStyle.body.weight(.medium))
                 .foregroundStyle(destructive ? Color.white : .primary)
                 .padding(.horizontal, 20)
                 .frame(height: Self.height)
-                .background(destructive ? Color.red : PhoneStyle.background, in: Capsule())
-                .padding(.vertical, (PhoneStyle.touchTarget - Self.height) / 2)
+                .background(destructive ? Color.red : TouchStyle.background, in: Capsule())
+                .padding(.vertical, (TouchStyle.touchTarget - Self.height) / 2)
         }
         .buttonStyle(PressableStyle())
     }
@@ -101,12 +101,12 @@ struct EmptyState: View {
     var body: some View {
         VStack(spacing: 12) {
             if let symbol {
-                Image(systemName: symbol).font(PhoneStyle.largeTitle).foregroundStyle(.tertiary)
+                Image(systemName: symbol).font(TouchStyle.largeTitle).foregroundStyle(.tertiary)
             } else {
                 ProgressView()
             }
-            if let title { Text(title).font(PhoneStyle.headline) }
-            Text(text).font(PhoneStyle.body).foregroundStyle(.secondary).multilineTextAlignment(.center)
+            if let title { Text(title).font(TouchStyle.headline) }
+            Text(text).font(TouchStyle.body).foregroundStyle(.secondary).multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 48)
@@ -126,7 +126,7 @@ struct TitledSection<Content: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title)
-                .font(PhoneStyle.label)
+                .font(TouchStyle.label)
                 .foregroundStyle(.secondary)
                 .padding(.leading, 4)
             content
@@ -167,7 +167,7 @@ struct SearchBar<Content: View>: View {
             content
             Spacer(minLength: 0)
         }
-        .font(PhoneStyle.body)
+        .font(TouchStyle.body)
         .padding(.horizontal, 12)
         .fieldBackground()
     }
@@ -197,9 +197,9 @@ struct BarButton: View {
     var body: some View {
         Button(action: action) {
             Text(title)
-                .font(bold ? PhoneStyle.body.weight(.semibold) : PhoneStyle.body)
-                .foregroundStyle(PhoneStyle.tint)
-                .frame(minWidth: PhoneStyle.touchTarget, minHeight: PhoneStyle.touchTarget, alignment: .trailing)
+                .font(bold ? TouchStyle.body.weight(.semibold) : TouchStyle.body)
+                .foregroundStyle(TouchStyle.tint)
+                .frame(minWidth: TouchStyle.touchTarget, minHeight: TouchStyle.touchTarget, alignment: .trailing)
         }
         .buttonStyle(PressableStyle())
     }
@@ -208,12 +208,12 @@ struct BarButton: View {
 extension View {
     /// 分组列表的卡片底（iOS 的 secondarySystemGroupedBackground）
     func card() -> some View {
-        background(PhoneStyle.card, in: RoundedRectangle(cornerRadius: PhoneStyle.cornerRadius, style: .continuous))
+        background(TouchStyle.card, in: RoundedRectangle(cornerRadius: TouchStyle.cornerRadius, style: .continuous))
     }
 
     /// 输入框的底（搜索框、数字框）：48 点高，iOS 的 tertiarySystemFill
     func fieldBackground() -> some View {
         frame(height: 48)
-            .background(PhoneStyle.fill, in: RoundedRectangle(cornerRadius: PhoneStyle.cornerRadius, style: .continuous))
+            .background(TouchStyle.fill, in: RoundedRectangle(cornerRadius: TouchStyle.cornerRadius, style: .continuous))
     }
 }

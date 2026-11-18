@@ -31,11 +31,11 @@ case .setMode(let display, let target):
     Log.info("切屏幕 #\(display) 到 \(target)：\(outcome)")
     Log.flush()
     exit(outcome == .switched ? 0 : 1)
-case .app, .previewPhone:
+case .app, .previewScreens:
     let paths = SnugPaths.standard
     Log.setSink(FileLogSink(url: paths.logFile))
     let app = NSApplication.shared
-    let delegate = MainActor.assumeIsolated { AppDelegate(paths: paths, previewPhone: mode == .previewPhone) }
+    let delegate = MainActor.assumeIsolated { AppDelegate(paths: paths, preview: mode == .previewScreens) }
     app.delegate = delegate
     app.setActivationPolicy(.accessory)
     app.run()

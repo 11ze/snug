@@ -1,22 +1,34 @@
 // 「运行中」页的一张 App 卡片：头上是 App（点它同点 Dock 图标；右边新建窗口、退出），下面是它的各个窗口
-// （点一下放上手机屏，右边关掉）。放在手机屏上的那个窗口排第一、写明在手机屏上，紧跟一行字号和还原。
+// （点一下放上这块屏，右边关掉）。放在这块屏上的那个窗口排第一、写明在这块屏上，紧跟一行字号和还原。
 // 退出、关窗口都要再点一下确认，同一时刻只有一处在等确认（见 PhoneHomeView.Confirm）
 import AppKit
 import SnugCore
 import SwiftUI
 
+/// 放在这块屏上的那个窗口怎么标：图标跟着屏的类别和方向，字样竖屏手机沿用「在手机屏上」（和 2.5 一样）
+struct OnScreen {
+    let text: String
+    let symbol: String
+
+    init(_ screen: ScreenConfig?) {
+        text = screen.map { $0.device.kind == .phone && $0.orientation == .portrait } == true ? "在手机屏上" : "在这块屏上"
+        symbol = screen?.symbol ?? "iphone"
+    }
+}
+
 struct AppCard: View {
-    /// 窗口按要显示的顺序（放在手机屏上的排第一，见 AppCatalog.app(of:)）
+    /// 窗口按要显示的顺序（放在这块屏上的排第一，见 AppCatalog.app(of:)）
     let app: RunningApp
-    let phone: PhoneDesk.State
+    let phone: PanelState
+    let onScreen: OnScreen
     @Binding var confirming: PhoneHomeView.Confirm?
     let icon: NSImage
     let intents: any PhoneIntents
 
     private var quitting: Bool { phone.quitting.contains(app.pid) }
     private var askingQuit: Bool { confirming == .quit(app.pid) }
-    /// 这个 App 放在手机屏上的窗口
-    private var placed: PhoneDesk.Placed? { phone.placed.flatMap { $0.window.key.pid == app.pid ? $0 : nil } }
+    /// 这个 App 放在这块屏上的窗口
+    private var placed: Desk.Placed? { phone.placed.flatMap { $0.window.key.pid == app.pid ? $0 : nil } }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -24,7 +36,7 @@ struct AppCard: View {
             ForEach(app.windows) { window in
                 let onPhone = window.key == placed?.window.key
                 Divider().padding(.leading, 80)
-                WindowRow(window: window, onPhone: onPhone, closing: phone.closing.contains(window.key),
+                WindowRow(window: window, onPhone: onPhone, onScreen: onScreen, closing: phone.closing.contains(window.key),
                           confirming: $confirming, intents: intents)
                 if onPhone, let placed {
                     PlacedControls(placed: placed, work: phone.work, intents: intents)
@@ -57,7 +69,7 @@ struct AppCard: View {
 
     @ViewBuilder private var actions: some View {
         if quitting {
-            ProgressView().controlSize(.small).frame(width: PhoneStyle.touchTarget)
+            ProgressView().controlSize(.small).frame(width: TouchStyle.touchTarget)
         } else if askingQuit {
             ConfirmButtons(title: "退出", confirming: $confirming) { intents.quit(app) }
         } else {
@@ -71,10 +83,11 @@ struct AppCard: View {
     }
 }
 
-/// App 卡片里的一个窗口：点一下放上手机屏，已经在手机屏上的就回到它；右边关掉它
+/// App 卡片里的一个窗口：点一下放上这块屏，已经在这块屏上的就回到它；右边关掉它
 private struct WindowRow: View {
     let window: WindowInfo
     let onPhone: Bool
+    let onScreen: OnScreen
     let closing: Bool
     @Binding var confirming: PhoneHomeView.Confirm?
     let intents: any PhoneIntents
@@ -85,17 +98,17 @@ private struct WindowRow: View {
         HStack(spacing: 8) {
             Button { onPhone ? intents.returnToPlaced() : intents.pull(window) } label: {
                 HStack(spacing: 16) {
-                    Image(systemName: onPhone ? "iphone" : "macwindow")
-                        .font(PhoneStyle.headline.weight(.regular))
-                        .foregroundStyle(onPhone ? PhoneStyle.tint : .secondary)
-                        .frame(width: PhoneStyle.iconSize)
+                    Image(systemName: onPhone ? onScreen.symbol : "macwindow")
+                        .font(TouchStyle.headline.weight(.regular))
+                        .foregroundStyle(onPhone ? TouchStyle.tint : .secondary)
+                        .frame(width: TouchStyle.iconSize)
                     Text(askingClose ? "关闭此窗口？" : window.displayTitle)
-                        .font(PhoneStyle.body)
+                        .font(TouchStyle.body)
                         .foregroundStyle(askingClose ? Color.red : .primary)
                         .lineLimit(1)
                     Spacer(minLength: 0)
                     if !askingClose {
-                        if onPhone { Tag(text: "在手机屏上", color: PhoneStyle.tint) }
+                        if onPhone { Tag(text: onScreen.text, color: TouchStyle.tint) }
                         if window.minimized { Tag(text: "已最小化", color: .secondary) }
                     }
                 }
@@ -107,7 +120,7 @@ private struct WindowRow: View {
         }
         .padding(.leading, 16)
         .padding(.trailing, 12)
-        .frame(height: PhoneStyle.touchTarget)
+        .frame(height: TouchStyle.touchTarget)
         .disabled(closing)
     }
 
@@ -115,16 +128,16 @@ private struct WindowRow: View {
         if closing {
             HStack(spacing: 8) {
                 ProgressView().controlSize(.small)
-                Text("正在关闭").font(PhoneStyle.label).foregroundStyle(.secondary)
+                Text("正在关闭").font(TouchStyle.label).foregroundStyle(.secondary)
             }
         } else if askingClose {
             ConfirmButtons(title: "关闭", confirming: $confirming) { intents.close(window) }
         } else {
             Button { confirming = .close(window.key) } label: {
                 Image(systemName: "xmark.circle.fill")
-                    .font(PhoneStyle.headline.weight(.regular))
+                    .font(TouchStyle.headline.weight(.regular))
                     .foregroundStyle(.tertiary)
-                    .frame(width: PhoneStyle.touchTarget, height: PhoneStyle.touchTarget)
+                    .frame(width: TouchStyle.touchTarget, height: TouchStyle.touchTarget)
             }
             .buttonStyle(PressableStyle())
             .accessibilityLabel("关闭窗口")
@@ -132,14 +145,14 @@ private struct WindowRow: View {
     }
 }
 
-/// 窗口行右边的小标签：在手机屏上、已最小化
+/// 窗口行右边的小标签：在这块屏上、已最小化
 private struct Tag: View {
     let text: String
     let color: Color
 
     var body: some View {
         Text(text)
-            .font(PhoneStyle.label)
+            .font(TouchStyle.label)
             .foregroundStyle(color)
             .padding(.horizontal, 8)
             .padding(.vertical, 2)
@@ -147,10 +160,10 @@ private struct Tag: View {
     }
 }
 
-/// 手机屏上那个窗口的字号和还原，排在它下面一行、和标题对齐。这个 App 调不了字号时只有还原
+/// 放在这块屏上那个窗口的字号和还原，排在它下面一行、和标题对齐。这个 App 调不了字号时只有还原
 private struct PlacedControls: View {
-    let placed: PhoneDesk.Placed
-    let work: PhoneDesk.Work?
+    let placed: Desk.Placed
+    let work: Desk.Work?
     let intents: any PhoneIntents
 
     var body: some View {
@@ -159,7 +172,7 @@ private struct PlacedControls: View {
                 RoundButton(symbol: "textformat.size.smaller", label: "缩小字号") { intents.zoom(by: -1) }
                     .disabled(placed.zoom <= ZoomBook.range.lowerBound)
                 Text(zoomText)
-                    .font(PhoneStyle.body.monospacedDigit())
+                    .font(TouchStyle.body.monospacedDigit())
                     .foregroundStyle(.secondary)
                     .frame(minWidth: 72)
                     .contentTransition(.numericText())
@@ -176,10 +189,10 @@ private struct PlacedControls: View {
                     }
                     Text("还原")
                 }
-                .font(PhoneStyle.body.weight(.medium))
+                .font(TouchStyle.body.weight(.medium))
                 .padding(.horizontal, 20)
-                .frame(height: PhoneStyle.touchTarget)
-                .background(PhoneStyle.background, in: Capsule())
+                .frame(height: TouchStyle.touchTarget)
+                .background(TouchStyle.background, in: Capsule())
             }
             .buttonStyle(PressableStyle())
         }

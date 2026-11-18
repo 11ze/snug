@@ -7,7 +7,7 @@ import SwiftUI
 struct SearchPage: View {
     let catalog: AppCatalog
     @Bindable var search: PhonePages
-    let phone: PhoneDesk.State
+    let phone: PanelState
     let intents: any PhoneIntents
     @FocusState private var focused: Bool
 
@@ -44,7 +44,7 @@ struct SearchPage: View {
             LazyVStack(alignment: .leading, spacing: 8) {
                 ForEach(AppList.grouped(catalog.installed)) { group in
                     Text(group.letter)
-                        .font(PhoneStyle.label.weight(.semibold))
+                        .font(TouchStyle.label.weight(.semibold))
                         .foregroundStyle(.secondary)
                         .padding(.leading, 4)
                         .padding(.top, 8)

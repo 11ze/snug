@@ -27,7 +27,16 @@ enum Renderer {
     private static func snapshot(_ sample: RenderSample, to dir: URL) -> Bool {
         let host = NSHostingView(rootView: sample.view().background(Color(nsColor: .windowBackgroundColor)))
         host.appearance = NSAppearance(named: sample.dark ? .darkAqua : .aqua)
-        host.frame = NSRect(origin: .zero, size: sample.size ?? host.fittingSize)
+        let frame = NSRect(origin: .zero, size: sample.size ?? host.fittingSize)
+        // 列表（NSTableView）没有窗口不排行，要挂进一个不显示的窗口；挂了窗口控件按「窗口不在前台」画成灰的，所以只给要的样例挂
+        var window: NSWindow?
+        if sample.inWindow {
+            window = NSWindow(contentRect: frame, styleMask: [.borderless], backing: .buffered, defer: false)
+            window?.isReleasedWhenClosed = false
+            window?.contentView = host
+        }
+        defer { window?.close() }
+        host.frame = frame
         host.layoutSubtreeIfNeeded()
         RunLoop.main.run(until: Date().addingTimeInterval(0.3))
         let size = host.bounds.size
@@ -53,7 +62,12 @@ enum Renderer {
 /// 渲染用的意图替身：什么都不做
 @MainActor
 final class RenderStub: AppIntents, PhoneIntents, Navigation {
-    func setPhoneScreen(_ on: Bool) {}
+    func setScreenEnabled(_ id: ScreenID, _ on: Bool) {}
+    func addScreen(orientation: Orientation, device: DeviceChoice, name: String) {}
+    func removeScreen(_ id: ScreenID) {}
+    func setScreenDevice(_ id: ScreenID, _ device: DeviceChoice) {}
+    func renameScreen(_ id: ScreenID, _ name: String) {}
+    func setMainScreen(_ id: ScreenID?) {}
     func setGestures(_ on: Bool) {}
     func setZoomSteps(_ steps: Int) {}
     func setLaunchAtLogin(_ on: Bool) {}
@@ -65,7 +79,6 @@ final class RenderStub: AppIntents, PhoneIntents, Navigation {
     func installUpdate() {}
     func setUpdateSource(_ source: UpdateSource) {}
     func openDownloadPage() {}
-    func setPhone(_ phone: PhoneChoice) {}
     func setScreenshot(_ on: Bool) {}
     func pull(_ window: WindowInfo) {}
     func open(_ app: AppInfo) {}
@@ -78,6 +91,7 @@ final class RenderStub: AppIntents, PhoneIntents, Navigation {
     func returnToPlaced() {}
     func putBack() {}
     func zoom(by delta: Int) {}
+    func setDevice(_ device: DeviceChoice) {}
     func dismissScreen() {}
     func takeScreenshot() {}
     func openCrop() {}
@@ -87,4 +101,5 @@ final class RenderStub: AppIntents, PhoneIntents, Navigation {
     func openWelcome() {}
     func openAbout() {}
     func openUpdate() {}
+    func openLibrary(on display: DisplayID?) {}
 }

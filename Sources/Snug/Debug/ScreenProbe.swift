@@ -18,6 +18,7 @@ final class ScreenProbe: NSObject, NSApplicationDelegate {
     private var shuttingDown = false
     /// 设主屏之前各屏的原点；没设过主屏是 nil
     private var savedOrigins: [DisplayID: CGPoint]?
+    private let arrangement = DisplayArrangementService()
 
     init(screens: [ProbeScreen]) { self.screens = screens }
 
@@ -60,11 +61,11 @@ final class ScreenProbe: NSObject, NSApplicationDelegate {
             if screen.pattern { showPattern(probe) }
         }
         if let main = probes.first(where: { $0.screen.main && $0.isOnline }) {
-            let before = DisplayArrangement.origins()
+            let before = arrangement.origins()
             savedOrigins = before
             let id = main.id
-            let err = await Self.offMain { DisplayArrangement.makeMain(id) }
-            say("#\(id) 设成主屏：\(err == .success ? "成功" : "失败（CGError=\(err.rawValue)）")，屏幕：\(Self.allDisplays())")
+            let ok = await arrangement.makeMain(id)
+            say("#\(id) 设成主屏：\(ok ? "成功" : "失败（见日志）")，屏幕：\(Self.allDisplays())")
         }
         try? await Task.sleep(for: .seconds(0.5))
         placeAllPatterns()
@@ -146,14 +147,14 @@ final class ScreenProbe: NSObject, NSApplicationDelegate {
             panels.values.forEach { $0.close() }
             panels = [:]
             if let saved = savedOrigins {
-                let err = await Self.offMain { DisplayArrangement.restore(saved) }
-                say("排布摆回设主屏之前：\(err == .success ? "成功" : "失败（CGError=\(err.rawValue)）")，屏幕：\(Self.allDisplays())")
+                let ok = await arrangement.restore(saved)
+                say("排布摆回设主屏之前：\(ok ? "成功" : "失败（见日志）")，屏幕：\(Self.allDisplays())")
                 try? await Task.sleep(for: .seconds(1))
             }
             for probe in probes {
                 // 建好不到 2.5 秒就释放会让 WindowServer 卡死（原作者实测）
                 let age = Self.now - probe.bornAt
-                if age < PhoneScreenSpec.minimumLifetime { try? await Task.sleep(for: .seconds(PhoneScreenSpec.minimumLifetime - age)) }
+                if age < ScreenSpec.minimumLifetime { try? await Task.sleep(for: .seconds(ScreenSpec.minimumLifetime - age)) }
                 probe.release()
             }
             let gone = await Self.poll(timeout: 10, every: 0.1) { self.probes.allSatisfy { !$0.isOnline } }
@@ -196,13 +197,6 @@ final class ScreenProbe: NSObject, NSApplicationDelegate {
             let origin = CGDisplayBounds(id).origin
             return "#\(id)「\(Screens.name(of: id))」\(CGDisplayIsMain(id) != 0 ? "主屏 " : "")\(DisplayMode.describe(id)) @(\(Int(origin.x)),\(Int(origin.y)))"
         }.joined(separator: " | ")
-    }
-
-    /// 屏幕配置事务不在主线程上做
-    private static func offMain(_ work: @escaping @Sendable () -> CGError) async -> CGError {
-        await withCheckedContinuation { continuation in
-            DispatchQueue.global(qos: .userInitiated).async { continuation.resume(returning: work()) }
-        }
     }
 
     private static func setMode(_ id: DisplayID, _ size: ProbeScreen.Size) async -> Int32? {

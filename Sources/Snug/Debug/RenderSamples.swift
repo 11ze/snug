@@ -8,6 +8,8 @@ struct RenderSample {
     var dark = false
     /// nil：按内容自适应
     var size: CGSize?
+    /// 挂进窗口再画（有 List 的界面要，见 Renderer.snapshot）
+    var inWindow = false
     let view: () -> AnyView
 }
 
@@ -21,62 +23,131 @@ enum RenderSamples {
         case .welcome: welcome
         case .about: about
         case .legacy: [RenderSample(name: "legacy") { AnyView(LegacyNoticeView(quitLegacy: {}, keepBoth: {})) }]
-        case .phone: phone
+        case .menu: menu
+        case .screens: screens
+        case .library: library
         case .update: update
         }
+    }
+
+    // MARK: 样例的屏幕列表
+
+    static let ipad = DeviceChoice(model: "Apple iPad（第 10 代）", screen: DeviceScreen(width: 1640, height: 2360, points: 820), kind: .tablet)
+    static let air = DeviceChoice(model: "Apple MacBook Air 13 英寸（M4）", screen: DeviceScreen(width: 956, height: 1470, notch: 33), kind: .computer)
+    static let tabletID = ScreenID("ipad")
+    static let computerID = ScreenID("air")
+    static let landscapeID = ScreenID("phone-landscape")
+    static let tabletPortraitID = ScreenID("ipad-portrait")
+
+    /// 每种屏各一块：原型上的手机竖屏（开）、iPad 横屏（开）、MacBook Air（关），再加横屏手机、竖屏 iPad 给屏上的面板用
+    private static let allScreens = [
+        ScreenConfig.legacyPhone(.standard, enabled: true),
+        ScreenConfig(id: tabletID, orientation: .landscape, device: ipad, name: "Snug iPad", serials: [1]),
+        ScreenConfig(id: computerID, orientation: .landscape, device: air, enabled: false, name: "Snug MacBook Air", serials: [2]),
+        ScreenConfig(id: landscapeID, orientation: .landscape, device: .standard, enabled: false, name: "Snug iPhone 17 Pro Max 横屏", serials: [3]),
+        ScreenConfig(id: tabletPortraitID, orientation: .portrait, device: ipad, enabled: false, name: "Snug iPad 竖屏", serials: [4]),
+    ]
+
+    /// 设置窗口用前三块（同原型）；trouble 那张用满 4 块，看「添加屏幕…」变灰
+    private static func sampleConfig(count: Int = 3) -> AppConfig {
+        var c = AppConfig()
+        c.screens = Array(allScreens.prefix(min(count, ScreenConfig.limit)))
+        return c
+    }
+
+    private static func sampleState() -> AppState {
+        let s = AppState()
+        s.accessibilityTrusted = true
+        s.launchAtLogin = true
+        s.devices = devices
+        s.config = sampleConfig()
+        return s
+    }
+
+    /// 远程中，开着的屏都建好了；手机在看手机屏
+    private static func connected(_ s: AppState) {
+        s.connection = .connected
+        s.controllers = ["iPhone 17 Pro Max"]
+        for (i, screen) in s.config.screens.enumerated() {
+            var desk = Desk.State()
+            desk.screen = .ready(DisplayID(20 + i))
+            s.desks.desks[screen.id] = desk
+        }
+        s.streamedDisplay = 20
     }
 
     // MARK: 设置
 
     private static var settings: [RenderSample] {
         [
-            setting("settings-idle") { _ in },
-            setting("settings-ready") { s in
+            page("settings-screens-idle") { _ in },
+            page("settings-screens-remote") { s in connected(s) },
+            page("settings-screens-remote-dark", dark: true) { s in
                 connected(s)
+                s.desks.desks[.phone]?.placed = Desk.Placed(window: windows[0], zoom: 2)
             },
-            setting("settings-in-use-dark", dark: true) { s in
-                connected(s)
-                s.streamedDisplay = 14
-                s.phone.placed = PhoneDesk.Placed(window: windows[0], zoom: 2)
-            },
-            setting("settings-custom-phone") { s in
-                connected(s)
-                s.config.phone = PhoneChoice(model: nil, screen: PhoneScreen(width: 1080, height: 2400))
-            },
-            setting("settings-screenshot") { s in
-                connected(s)
-                s.config.screenshot = true
-            },
-            setting("settings-screenshot-granted-dark", dark: true) { s in
-                s.config.screenshot = true
-                s.screenRecordingTrusted = true
-            },
-            setting("settings-update-available") { s in s.update.check = .available(sampleFeed) },
-            setting("settings-update-too-old") { s in s.update.problem = .tooOld },
-            setting("settings-trouble") { s in
+            page("settings-screens-main") { s in s.config.mainScreen = computerID },
+            page("settings-screens-legacy") { s in s.config = AppConfig() },
+            page("settings-screens-trouble") { s in
+                s.config = sampleConfig(count: ScreenConfig.limit)
                 s.accessibilityTrusted = false
                 s.legacyAppRunning = true
                 s.configSaveFailed = true
                 s.loginItemIssue = .needsApproval
+                s.config.screenshot = true
+            },
+            page("settings-touch", tab: .touch) { _ in },
+            page("settings-touch-dark", dark: true, tab: .touch) { s in s.config.screenshot = true },
+            page("settings-general", tab: .general) { s in s.update.check = .upToDate },
+            page("settings-general-dark", dark: true, tab: .general) { s in s.screenRecordingTrusted = true },
+            page("settings-general-update-available", tab: .general) { s in s.update.check = .available(sampleFeed) },
+            page("settings-general-too-old", tab: .general) { s in s.update.problem = .tooOld },
+            RenderSample(name: "settings-add-screen") {
+                AnyView(AddScreenSheet(state: sampleState(), intents: stub, close: {}))
+            },
+            RenderSample(name: "settings-add-screen-dark", dark: true) {
+                AnyView(AddScreenSheet(state: sampleState(), intents: stub, close: {}))
+            },
+            RenderSample(name: "settings-screen-detail") {
+                AnyView(ScreenDetailSheet(id: tabletID, state: sampleState(), intents: stub, close: {}))
+            },
+            RenderSample(name: "settings-screen-detail-dark", dark: true) {
+                AnyView(ScreenDetailSheet(id: .phone, state: sampleState(), intents: stub, close: {}))
             },
         ]
     }
 
-    private static func setting(_ name: String, dark: Bool = false, _ configure: @escaping @MainActor (AppState) -> Void) -> RenderSample {
+    private static func page(_ name: String, dark: Bool = false, tab: SettingsWindowController.Tab = .screens,
+                             _ configure: @escaping @MainActor (AppState) -> Void) -> RenderSample {
         RenderSample(name: name, dark: dark) {
-            let s = AppState()
-            s.accessibilityTrusted = true
-            s.launchAtLogin = true
-            s.phones = phones
+            let s = sampleState()
             configure(s)
-            return AnyView(SettingsView(state: s, intents: stub, navigation: stub))
+            return switch tab {
+            case .screens: AnyView(ScreensPage(state: s, intents: stub, navigation: stub))
+            case .touch: AnyView(TouchPage(state: s, intents: stub))
+            case .general: AnyView(GeneralPage(state: s, intents: stub, navigation: stub))
+            }
         }
     }
 
-    private static func connected(_ s: AppState) {
-        s.connection = .connected
-        s.controllers = ["iPhone 17 Pro Max"]
-        s.phone.screen = .ready(14)
+    // MARK: 菜单栏
+
+    private static var menu: [RenderSample] {
+        [
+            menuSample("menu-status-remote") { connected($0) },
+            menuSample("menu-status-remote-dark", dark: true) { connected($0) },
+            menuSample("menu-status-idle") { _ in },
+            menuSample("menu-status-reconnecting") { s in s.connection = .reconnecting },
+            menuSample("menu-status-trouble") { s in s.accessibilityTrusted = false },
+        ]
+    }
+
+    private static func menuSample(_ name: String, dark: Bool = false, configure: @escaping @MainActor (AppState) -> Void) -> RenderSample {
+        RenderSample(name: name, dark: dark) {
+            let s = sampleState()
+            configure(s)
+            return AnyView(MenuStatusView(text: StatusText(s), status: s.status).frame(width: MacTokens.Size.menuWidth).padding(.vertical, 6))
+        }
     }
 
     // MARK: 关于与更新
@@ -114,27 +185,24 @@ enum RenderSamples {
 
     private static var about: [RenderSample] {
         [
-            aboutSample("about") { $0.check = .upToDate },
-            aboutSample("about-dark", dark: true) { $0.check = .upToDate },
-            aboutSample("about-available") { $0.check = .available(sampleFeed) },
-            aboutSample("about-downloading-dark", dark: true) { u in
+            RenderSample(name: "about") { AnyView(AboutView()) },
+            RenderSample(name: "about-dark", dark: true) { AnyView(AboutView()) },
+        ] + [
+            ("about-update-downloading-dark", true, { (u: inout UpdateState) in
                 u.check = .available(sampleFeed)
                 u.phase = .downloading(0.42)
-            },
-            aboutSample("about-unreachable") { $0.problem = .unreachable(.tencent) },
-            aboutSample("about-cannot-replace") { u in
+            }),
+            ("about-update-unreachable", false, { (u: inout UpdateState) in u.problem = .unreachable(.tencent) }),
+            ("about-update-cannot-replace", false, { (u: inout UpdateState) in
                 u.check = .available(sampleFeed)
                 u.problem = .cannotReplace
-            },
-            aboutSample("about-too-old") { $0.problem = .tooOld },
-        ]
-    }
-
-    private static func aboutSample(_ name: String, dark: Bool = false, _ configure: @escaping (inout UpdateState) -> Void) -> RenderSample {
-        RenderSample(name: name, dark: dark) {
-            let s = AppState()
-            configure(&s.update)
-            return AnyView(AboutView(state: s, intents: stub, navigation: stub))
+            }),
+        ].map { name, dark, configure in
+            RenderSample(name: name, dark: dark) {
+                let s = sampleState()
+                configure(&s.update)
+                return AnyView(GeneralPage(state: s, intents: stub, navigation: stub))
+            }
         }
     }
 
@@ -172,7 +240,7 @@ enum RenderSamples {
         }
     }
 
-    // MARK: 手机屏
+    // MARK: 屏上的面板
 
     static let windows = [
         WindowInfo(key: WindowKey(pid: 1, id: 1), app: "Ghostty", bundleID: "com.mitchellh.ghostty", title: "~/projects/snug — zsh"),
@@ -203,10 +271,10 @@ enum RenderSamples {
         RunningApp(pid: 5, app: app("com.apple.Terminal", "终端"), windows: [windows[3]]),
     ]
 
-    /// 样例机型库：几个品牌各几台（真的机型库在 Assets/phone-models.json）
-    private static let phones: PhoneCatalog = {
+    /// 样例机型库：几个品牌各几台（真的机型库在 Assets/device-models.json）
+    private static let devices: DeviceCatalog = {
         let json = """
-        {"brands": [
+        {"phone": [
           {"name": "Apple", "models": [
             {"name": "iPhone 17 Pro Max", "year": 2025, "screen": [1320, 2868], "points": 440},
             {"name": "iPhone 17 Pro", "year": 2025, "screen": [1206, 2622], "points": 402},
@@ -221,65 +289,88 @@ enum RenderSamples {
             {"name": "17 Pro Max", "year": 2025, "screen": [1200, 2608]},
             {"name": "15 Ultra", "year": 2025, "screen": [1440, 3200]}
           ]}
+        ],
+        "tablet": [
+          {"name": "Apple", "models": [
+            {"name": "iPad（第 10 代）", "year": 2022, "screen": [1640, 2360], "points": 820},
+            {"name": "iPad Pro 11 英寸（M5）", "year": 2025, "screen": [1668, 2420], "points": 834}
+          ]},
+          {"name": "华为", "models": [{"name": "MatePad Pro 13.2 英寸", "year": 2025, "screen": [1920, 2880]}]}
+        ],
+        "computer": [
+          {"name": "Apple", "models": [{"name": "MacBook Air 13 英寸（M4）", "year": 2025, "screen": [956, 1470], "notch": 33}]},
+          {"name": "通用", "models": [{"name": "1920 × 1080", "year": 0, "screen": [1080, 1920]}]}
         ]}
         """
-        return (try? PhoneCatalog(json: Data(json.utf8))) ?? .empty
+        return (try? DeviceCatalog(json: Data(json.utf8))) ?? .empty
     }()
 
-    private static var phone: [RenderSample] {
-        let placed = PhoneDesk.Placed(window: windows[0], zoom: 2)
-        return [
-            phoneSample("phone-list") { _, _ in },
-            phoneSample("phone-placed") { s, _ in s.phone.placed = placed },
-            phoneSample("phone-placed-dark", dark: true) { s, _ in s.phone.placed = placed },
-            phoneSample("phone-opening") { s, _ in s.phone.work = .opening(running[2].app) },
-            phoneSample("phone-placing") { s, _ in s.phone.work = .placing(windows[1]) },
-            phoneSample("phone-quitting") { s, _ in s.phone.quitting = [2] },
-            phoneSample("phone-confirm-quit", confirming: .quit(2)) { _, _ in },
-            phoneSample("phone-confirm-close", confirming: .close(windows[4].key)) { s, _ in s.phone.placed = placed },
-            phoneSample("phone-confirm-dismiss", confirming: .dismissScreen) { s, _ in s.phone.placed = placed },
-            phoneSample("phone-dismissing-dark", dark: true) { s, _ in s.phone.work = .dismissing },
-            phoneSample("phone-closing-dark", dark: true) { s, _ in
-                s.phone.placed = placed
-                s.phone.closing = [windows[4].key]
+    /// 每种屏：竖屏手机全套状态，横屏手机、平板横竖挑几种
+    private static var screens: [RenderSample] {
+        let placed = Desk.Placed(window: windows[0], zoom: 2)
+        let portrait = [
+            panel("phone-list") { _, _ in },
+            panel("phone-placed") { s, _ in s.desks.desks[.phone]?.placed = placed },
+            panel("phone-placed-dark", dark: true) { s, _ in s.desks.desks[.phone]?.placed = placed },
+            panel("phone-opening") { s, _ in s.desks.desks[.phone]?.work = .opening(running[2].app) },
+            panel("phone-placing") { s, _ in s.desks.desks[.phone]?.work = .placing(windows[1]) },
+            panel("phone-quitting") { s, _ in s.desks.quitting = [2] },
+            panel("phone-confirm-quit", confirming: .quit(2)) { _, _ in },
+            panel("phone-confirm-close", confirming: .close(windows[4].key)) { s, _ in s.desks.desks[.phone]?.placed = placed },
+            panel("phone-confirm-dismiss", confirming: .dismissScreen) { s, _ in s.desks.desks[.phone]?.placed = placed },
+            panel("phone-dismissing-dark", dark: true) { s, _ in s.desks.desks[.phone]?.work = .dismissing },
+            panel("phone-closing-dark", dark: true) { s, _ in
+                s.desks.desks[.phone]?.placed = placed
+                s.desks.closing = [windows[4].key]
             },
-            phoneSample("phone-notice") { s, _ in
-                s.phone.placed = placed
-                s.phone.notice = .windowUnresponsive(app: windows[1].app)
+            panel("phone-notice") { s, _ in
+                s.desks.desks[.phone]?.placed = placed
+                s.desks.desks[.phone]?.notice = .windowUnresponsive(app: windows[1].app)
             },
-            phoneSample("phone-quit-stalled-dark", dark: true) { s, _ in s.phone.notice = .quitStalled(app: "文本编辑", pid: 9) },
-            phoneSample("phone-all", tab: .all) { _, _ in },
-            phoneSample("phone-all-dark", dark: true, tab: .all) { s, _ in s.phone.placed = placed },
-            phoneSample("phone-search") { _, pages in pages.open(.search) },
-            phoneSample("phone-search-results") { _, pages in
+            panel("phone-quit-stalled-dark", dark: true) { s, _ in s.desks.desks[.phone]?.notice = .quitStalled(app: "文本编辑", pid: 9) },
+            panel("phone-all", tab: .all) { _, _ in },
+            panel("phone-all-dark", dark: true, tab: .all) { s, _ in s.desks.desks[.phone]?.placed = placed },
+            panel("phone-search") { _, pages in pages.open(.search) },
+            panel("phone-search-results") { _, pages in
                 pages.open(.search)
                 pages.query = "s"
             },
-            phoneSample("phone-search-none-dark", dark: true) { _, pages in
+            panel("phone-search-none-dark", dark: true) { _, pages in
                 pages.open(.search)
                 pages.query = "xyz"
             },
-            phoneSample("phone-model") { _, pages in pages.open(.phoneModel) },
-            phoneSample("phone-model-custom-dark", dark: true) { s, pages in
-                s.config.phone = PhoneChoice(model: nil, screen: PhoneScreen(width: 1080, height: 2400))
+            panel("phone-model") { _, pages in pages.open(.phoneModel) },
+            panel("phone-model-custom-dark", dark: true) { s, pages in
+                s.config.screens[0].device = DeviceChoice(model: nil, screen: DeviceScreen(width: 1080, height: 2400))
                 pages.open(.phoneModel)
             },
-            phoneSample("phone-model-search") { _, pages in
+            panel("phone-model-search") { _, pages in
                 pages.open(.phoneModel)
                 pages.query = "17 pro"
             },
-            phoneSample("phone-model-none-dark", dark: true) { _, pages in
+            panel("phone-model-none-dark", dark: true) { _, pages in
                 pages.open(.phoneModel)
                 pages.query = "nokia"
             },
-            phoneSample("phone-reshaping") { s, _ in
-                s.config.phone = PhoneChoice(phones.models[4])
-                s.phone.work = .reshaping
+            panel("phone-reshaping") { s, _ in
+                s.config.screens[0].device = DeviceChoice(devices.models[4])
+                s.desks.desks[.phone]?.work = .reshaping
             },
-            phoneSample("phone-reshaped") { s, _ in s.phone.notice = .reshaped },
-            phoneSample("phone-empty", running: []) { _, _ in },
-            phoneSample("phone-loading", running: [], loaded: false) { _, _ in },
-        ] + screenshot
+            panel("phone-reshaped") { s, _ in s.desks.desks[.phone]?.notice = .reshaped },
+            panel("phone-empty", running: []) { _, _ in },
+            panel("phone-loading", running: [], loaded: false) { _, _ in },
+        ]
+        let others = [
+            panel("phone-landscape", on: landscapeID) { _, _ in },
+            panel("phone-landscape-placed-dark", on: landscapeID, dark: true) { s, _ in s.desks.desks[landscapeID]?.placed = placed },
+            panel("phone-landscape-all", on: landscapeID, tab: .all) { _, _ in },
+            panel("tablet-landscape", on: tabletID, tab: .all, selected: 3) { _, _ in },
+            panel("tablet-landscape-placed", on: tabletID) { s, _ in s.desks.desks[tabletID]?.placed = placed },
+            panel("tablet-landscape-dark", on: tabletID, dark: true) { _, _ in },
+            panel("tablet-landscape-model", on: tabletID) { _, pages in pages.open(.phoneModel) },
+            panel("tablet-portrait", on: tabletPortraitID) { s, _ in s.desks.desks[tabletPortraitID]?.placed = placed },
+        ]
+        return portrait + others + screenshot
     }
 
     // MARK: 截图
@@ -324,19 +415,45 @@ enum RenderSamples {
         return true
     }
 
-    private static func phoneSample(_ name: String, dark: Bool = false, tab: PhoneHomeView.Tab = .running,
-                                    confirming: PhoneHomeView.Confirm? = nil, running list: [RunningApp] = running, loaded: Bool = true,
-                                    _ configure: @escaping @MainActor (AppState, PhonePages) -> Void) -> RenderSample {
-        let size = ScreenFit.standard.size(width: ScreenFit.standard.baseWidth)
+    private static func panel(_ name: String, on id: ScreenID = .phone, dark: Bool = false, tab: PhoneHomeView.Tab = .running,
+                              confirming: PhoneHomeView.Confirm? = nil, selected: Int32? = nil, running list: [RunningApp] = running,
+                              loaded: Bool = true, _ configure: @escaping @MainActor (AppState, PhonePages) -> Void) -> RenderSample {
+        var config = allScreens.first { $0.id == id }!
+        config.enabled = true
+        let size = config.fit.size(width: config.fit.baseWidth)
         return RenderSample(name: name, dark: dark, size: size) {
-            let s = AppState()
-            s.phone.screen = .ready(14)
-            s.phones = phones
+            let s = sampleState()
+            // 只有这一块屏（建好、在看），型号页、换档跟着它走
+            s.config.screens = [config]
+            connected(s)
             let pages = PhonePages()
             configure(s, pages)
             let catalog = AppCatalog(sample: list, installed: installed, loaded: loaded)
-            return AnyView(PhoneHomeView(state: s, catalog: catalog, pages: pages, intents: stub, tab: tab, confirming: confirming)
+            return AnyView(PhoneHomeView(screen: id, state: s, catalog: catalog, pages: pages, intents: stub, tab: tab,
+                                         confirming: confirming, selected: selected)
                 .frame(width: size.width, height: size.height))
+        }
+    }
+
+    // MARK: 电脑屏的 App 资源库
+
+    private static var library: [RenderSample] {
+        [false, true].flatMap { dark in
+            [LibraryModel.Source.running, .all].map { source in
+                RenderSample(name: "library-\(source == .running ? "running" : "all")\(dark ? "-dark" : "")", dark: dark,
+                             size: CGSize(width: MacTokens.Size.LibraryWindow.width, height: MacTokens.Size.LibraryWindow.height), inWindow: true) {
+                    let s = sampleState()
+                    s.config.screens[2].enabled = true
+                    connected(s)
+                    // htop 已经在这块电脑屏上，其余在内建屏、已最小化
+                    let model = LibraryModel(locations: [windows[0].key: CGMainDisplayID(), windows[1].key: CGMainDisplayID(),
+                                                         windows[3].key: CGMainDisplayID(), windows[4].key: 22])
+                    model.target = computerID
+                    model.source = source
+                    let catalog = AppCatalog(sample: running, installed: installed)
+                    return AnyView(LibraryView(state: s, catalog: catalog, model: model, intents: stub, place: { _ in }, open: { _ in }))
+                }
+            }
         }
     }
 }

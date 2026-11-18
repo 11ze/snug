@@ -1,8 +1,9 @@
-// 手机屏 App 资源库的统一数据源：在跑的 App 和各自的窗口、本机装着的 App、App 图标，界面只从这里读，
-// 控制器决定「点一个 App 做什么」也看这里。系统读取在 SnugSystem（AppService、WindowService）。
-// 列表露着时每 1.5 秒刷新在跑的 App：每次露出来第一次按最近用过重排，之后只增删、不换位置（见 AppList.keepingOrder）；
-// 装着的 App 每次露出来读一次。收起就停；正在放窗口时暂停（列表被盖住，刷了也看不见，还和搬窗口排同一条队）；
-// 一次远程结束就清空，下次从头读。手机上退掉的 App、关掉的窗口，PhoneDesk 一确认就从这里去掉，不等下一轮
+// App 资源库的统一数据源：在跑的 App 和各自的窗口、本机装着的 App、App 图标，各块屏上的资源库和电脑屏的资源库窗口
+// 都只从这里读，控制器决定「点一个 App 做什么」也看这里。系统读取在 SnugSystem（AppService、WindowService）。
+// 谁露着资源库谁就要它（want），露着的有一个就每 1.5 秒刷新在跑的 App：每次从没人要到有人要，第一次按最近用过重排，
+// 之后只增删、不换位置（见 AppList.keepingOrder）；装着的 App 每次有人要时读一次。都收起就停；
+// 要它的都在放窗口时暂停（列表被盖住，刷了也看不见，还和搬窗口排同一条队）；
+// 一次远程结束就清空，下次从头读。退掉的 App、关掉的窗口，DeskSet 一确认就从这里去掉，不等下一轮
 import AppKit
 import Observation
 import SnugCore
@@ -23,7 +24,9 @@ final class AppCatalog {
     @ObservationIgnored private let windows: WindowService?
     @ObservationIgnored private var refreshing: Task<Void, Never>?
     @ObservationIgnored private var scanning: Task<Void, Never>?
-    @ObservationIgnored private var paused = false
+    /// 谁在要（屏号或资源库窗口）和它是不是在忙（忙着就不用为它刷）
+    @ObservationIgnored private var demand: [String: Bool] = [:]
+    private var paused: Bool { demand.values.allSatisfy { $0 } }
     @ObservationIgnored private var icons: [String: NSImage] = [:]
     /// forget 过几次：刷新读到一半时有东西没了，读出来的那份可能还带着它，丢掉重读
     @ObservationIgnored private var forgotten = 0
@@ -45,7 +48,19 @@ final class AppCatalog {
         self.loaded = loaded
     }
 
-    func startRefreshing() {
+    /// 露着资源库：busy 是这块屏正在放窗口、打开 App（列表被盖住）
+    func want(_ owner: String, busy: Bool = false) {
+        demand[owner] = busy
+        startRefreshing()
+    }
+
+    /// 收起了：都收起就停
+    func release(_ owner: String) {
+        guard demand.removeValue(forKey: owner) != nil, demand.isEmpty else { return }
+        stopRefreshing()
+    }
+
+    private func startRefreshing() {
         guard refreshing == nil, let apps, let windows else { return }
         scanning = Task { [weak self] in
             let list = AppList.sorted(await apps.installed())
@@ -71,25 +86,23 @@ final class AppCatalog {
         }
     }
 
-    func stopRefreshing() {
+    private func stopRefreshing() {
         refreshing?.cancel()
         refreshing = nil
         scanning?.cancel()
         scanning = nil
     }
 
-    /// 暂停、继续刷新：不重开，继续后也不重排
-    func setPaused(_ on: Bool) { paused = on }
-
     /// 一次远程结束：停下、清空，下次露出时显示「正在读取」，不拿上次的旧列表
     func reset() {
+        demand = [:]
         stopRefreshing()
         running = []
         loaded = false
     }
 
-    /// 退完了的 App、关上了的窗口：马上去掉，顺序不动（见 PhoneDesk.onGone）
-    func forget(_ gone: PhoneDesk.Gone) {
+    /// 退完了的 App、关上了的窗口：马上去掉，顺序不动（见 DeskSet.onGone）
+    func forget(_ gone: DeskSet.Gone) {
         forgotten += 1
         switch gone {
         case .app(let pid):

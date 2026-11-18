@@ -18,7 +18,7 @@ struct CropView: View {
 
     var body: some View {
         GeometryReader { geo in
-            let metrics = Metrics(width: geo.size.width)
+            let metrics = Metrics(size: geo.size)
             let shown = metrics.shown(pixelSize, in: geo.size)
             let current = CropGeometry.rect(selection, in: shown)
             ZStack(alignment: .topLeading) {
@@ -92,7 +92,7 @@ struct CropView: View {
 
     private func topBar(_ metrics: Metrics, done: @escaping () -> Void) -> some View {
         // 点按区域至少一个手指大（PressableStyle 按 label 的范围接点击）
-        let side = PhoneStyle.touchTarget * metrics.scale
+        let side = TouchStyle.touchTarget * metrics.scale
         return HStack {
             Button(action: onCancel) { Text("取消").frame(minWidth: side, minHeight: side) }
             Spacer()
@@ -111,7 +111,7 @@ struct CropView: View {
     private struct Metrics {
         let scale: CGFloat
 
-        init(width: CGFloat) { scale = ScreenFit.scale(screenWidth: width) }
+        init(size: CGSize) { scale = ScreenFit.scale(screen: size) }
 
         /// 顶部留给「取消 / 完成」
         var topBar: CGFloat { 64 * scale }

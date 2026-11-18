@@ -1,5 +1,5 @@
-// 菜单栏：只用来看状态、打开设置和关于、退出。Snug 的操作都在手机上，Mac 这边不用管。
-// 每次展开都按 AppState 现做，和设置窗口永远一致
+// 菜单栏：顶上一行说清此刻的状态（远程中 · 设备 · 正在看哪块屏）；「App 资源库」给电脑屏用，在哪块屏的菜单栏点就在哪块屏打开；
+// 设置、关于、退出。手机、平板屏上的操作都在屏上的面板里。每次展开都按 AppState 现做，和设置窗口永远一致
 import AppKit
 import Observation
 import SnugCore
@@ -25,14 +25,14 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         refreshButton()
     }
 
-    /// 菜单栏图标：SF Symbols 的 iphone.gen3（系统图标本身就是模板图，深色菜单栏自动反白）
-    private static let icon: NSImage? = NSImage(systemSymbolName: "iphone.gen3", accessibilityDescription: "Snug")?
-        .withSymbolConfiguration(.init(pointSize: 15, weight: .medium))
+    /// 菜单栏图标：SF Symbols，同原型（系统图标本身就是模板图，深色菜单栏自动反白）
+    private static let icon: NSImage? = NSImage(systemSymbolName: "iphone.radiowaves.left.and.right", accessibilityDescription: "Snug")?
+        .withSymbolConfiguration(.init(pointSize: 14, weight: .medium))
 
-    /// 关着手机屏时图标变灰；提示文字随状态变
+    /// 屏都关着、没有权限时图标变灰；提示文字随状态变
     private func refreshButton() {
         withObservationTracking {
-            item.button?.appearsDisabled = !state.config.phoneScreen || !state.accessibilityTrusted
+            item.button?.appearsDisabled = !state.config.screens.contains(where: \.enabled) || !state.accessibilityTrusted
             item.button?.toolTip = "Snug：\(StatusText(state).headline)"
         } onChange: { [weak self] in
             DispatchQueue.main.async { MainActor.assumeIsolated { self?.refreshButton() } }
@@ -44,18 +44,23 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         menu.addItem(status())
         if state.legacyAppRunning { menu.addItem(action("退出旧版 UU远程伴侣", #selector(quitLegacy), symbol: "xmark.circle")) }
         menu.addItem(.separator())
-        menu.addItem(action("设置…", #selector(openSettings), key: ",", symbol: "gearshape"))
-        let about = action("关于 Snug", #selector(openAbout), symbol: "info.circle")
-        // 有新版本：系统的菜单角标，更新在「关于」页里
-        if state.update.hasNewVersion { about.badge = NSMenuItemBadge(string: "新版本") }
-        menu.addItem(about)
+        let library = action("App 资源库", #selector(openLibrary), symbol: "square.grid.2x2")
+        // Snug 的屏都不在时没有地方放
+        library.isEnabled = state.desks.desks.values.contains { $0.display != nil }
+        menu.addItem(library)
+        menu.addItem(.separator())
+        let settings = action("设置…", #selector(openSettings), key: ",", symbol: "gearshape")
+        // 有新版本：系统的菜单角标，更新在设置的通用页里
+        if state.update.hasNewVersion { settings.badge = NSMenuItemBadge(string: "新版本") }
+        menu.addItem(settings)
+        menu.addItem(action("关于 Snug", #selector(openAbout), symbol: "info.circle"))
         menu.addItem(.separator())
         menu.addItem(action("退出 Snug", #selector(quit), key: "q", symbol: "power"))
     }
 
-    /// 最上面一行：状态圆点 + 此刻的状态和一行说明。只看不点，所以用自定义视图（不会高亮）
+    /// 最上面一行：状态图标块 + 此刻的状态和一行说明。只看不点，所以用自定义视图（不会高亮）
     private func status() -> NSMenuItem {
-        let view = NSHostingView(rootView: MenuStatusView(text: StatusText(state), color: state.statusColor))
+        let view = NSHostingView(rootView: MenuStatusView(text: StatusText(state), status: state.status))
         view.frame.size = view.fittingSize
         view.autoresizingMask = [.width]
         let it = NSMenuItem()
@@ -73,24 +78,33 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     @objc private func quitLegacy() { intents.quitLegacyApp() }
     @objc private func openSettings() { navigation.openSettings() }
     @objc private func openAbout() { navigation.openAbout() }
+    /// 在哪块屏的菜单栏点，就在哪块屏打开
+    @objc private func openLibrary() {
+        let screen = item.button?.window?.screen
+        navigation.openLibrary(on: screen.flatMap { $0.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber }?.uint32Value)
+    }
     @objc private func quit() { intents.quit() }
 }
 
-private struct MenuStatusView: View {
+struct MenuStatusView: View {
     let text: StatusText
-    let color: Color
+    let status: StatusToken
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Circle().fill(color).frame(width: 8, height: 8)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(text.headline).font(.system(size: 13, weight: .medium))
-                if let detail = text.detail { Text(detail).font(.system(size: 11)).foregroundStyle(.secondary) }
+        HStack(spacing: MacTokens.Space.s) {
+            Image(systemName: status.symbol)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: MacTokens.Size.iconTile, height: MacTokens.Size.iconTile)
+                .background(status.color.gradient, in: RoundedRectangle(cornerRadius: MacTokens.Radius.iconTile, style: .continuous))
+            VStack(alignment: .leading, spacing: MacTokens.Space.xxs) {
+                Text(text.headline).font(.system(size: MacTokens.Font.body.size, weight: .medium))
+                if let detail = text.detail { Text(detail).font(.system(size: MacTokens.Font.callout.size)).foregroundStyle(.secondary) }
             }
         }
         .fixedSize()
         .padding(.horizontal, 14)
-        .padding(.vertical, 4)
+        .padding(.vertical, MacTokens.Space.xs)
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
     }

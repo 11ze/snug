@@ -1,10 +1,14 @@
 // 各窗口的开关。窗口都读同一份 AppState，意图交给 AppController
 import AppKit
+import SnugCore
 
 @MainActor
 final class WindowRouter: Navigation {
     private let controller: AppController
     private lazy var settings = SettingsWindowController(state: controller.state, intents: controller, navigation: self)
+    private lazy var about = AboutWindowController()
+    private lazy var library = LibraryWindowController(state: controller.state, catalog: controller.catalog, desks: controller.desks,
+                                                       intents: controller)
     private lazy var welcome = WelcomeWindowController(state: controller.state)
     private lazy var update = UpdateWindowController(state: controller.state, intents: controller)
     private let legacy = LegacyNoticeWindowController()
@@ -14,15 +18,16 @@ final class WindowRouter: Navigation {
     func openSettings() { settings.show() }
 
     func openWelcome() { welcome.show() }
-    func openAbout() { settings.show(.about) }
+    func openAbout() { about.show() }
+    func openLibrary(on display: DisplayID?) { library.show(on: display) }
     func openUpdate() { showUpdate(activating: true) }
 
-    /// 查到新版本：能自动更新的弹更新窗口（讲落下了哪几版）；只能手动下载的没有更新日志可看，打开设置的「关于」页
+    /// 查到新版本：能自动更新的弹更新窗口（讲落下了哪几版）；只能手动下载的没有更新日志可看，打开设置的「通用」页（更新在那里）
     func showUpdate(activating: Bool) {
         if controller.state.update.available != nil {
             update.show(activating: activating)
         } else {
-            settings.show(.about, activating: activating)
+            settings.show(.general, activating: activating)
         }
     }
 

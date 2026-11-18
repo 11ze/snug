@@ -1,4 +1,4 @@
-// 正常启动：组装 AppController、菜单栏、手机屏上的面板、窗口与退出流程。
+// 正常启动：组装 AppController、菜单栏、各块屏上的面板、窗口与退出流程。
 // 第一次打开：自动设成开机启动，弹欢迎页（讲用法、请用户允许辅助功能）。之后就不用管了。
 // 用户亲手打开（双击、Dock、启动台、聚焦搜索），或者运行中再点一次：弹设置页，状态、开关、权限一眼看全。开机自启不弹。
 // 刚换了版本（应用内更新后重新打开、手动替换）：弹「关于 Snug」，新版本号一眼可见
@@ -11,14 +11,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let router: WindowRouter
     private let quitFlow: QuitFlow
     private var statusBar: StatusBarController?
-    private var phoneScreen: PhoneScreenWindows?
+    private var panels: ScreenPanels?
     private var legacyObservers: [any NSObjectProtocol] = []
     private var termSource: (any DispatchSourceSignal)?
     /// 这次是开机自启（登录项拉起的），不是用户亲手打开的
     private var launchedAtLogin = false
 
-    init(paths: SnugPaths, previewPhone: Bool) {
-        controller = AppController(paths: paths, previewPhone: previewPhone)
+    init(paths: SnugPaths, preview: Bool) {
+        controller = AppController(paths: paths, preview: preview)
         router = WindowRouter(controller: controller)
         quitFlow = QuitFlow(controller: controller)
         super.init()
@@ -30,7 +30,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Log.info("启动 Snug \(Updater.current?.description ?? "开发版")（\(launchedAtLogin ? "开机自启" : "手动打开")），"
             + "辅助功能权限：\(controller.state.accessibilityTrusted ? "已授权" : "未授权")")
         statusBar = StatusBarController(state: controller.state, intents: controller, navigation: router)
-        phoneScreen = PhoneScreenWindows(state: controller.state, catalog: controller.catalog, intents: controller)
+        let controller = controller
+        panels = ScreenPanels(state: controller.state, catalog: controller.catalog) { ScreenIntents(id: $0, app: controller) }
         handleSIGTERM()
         controller.updater.onNewVersion = { [weak self] userInitiated in self?.router.showUpdate(activating: userInitiated) }
         controller.updater.onInstalled = { [weak self] in self?.quitFlow.userQuit() }
