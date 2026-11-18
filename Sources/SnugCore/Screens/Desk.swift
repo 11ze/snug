@@ -1,6 +1,7 @@
 // 一块屏上的事，每块屏一个：放着哪个窗口、App 资源库露没露、正在做什么、有什么提示，都是这块屏自己的。
-// 窗口怎么放上来、放回去，字号怎么改，屏用哪一档（ScreenFit）：宽度跟着屏上显示的东西走，
-// 露着列表是基准宽度，放着窗口是那个窗口要的一档。不建屏、不撤屏；换档经 ScreenSet。
+// 窗口怎么放上来、放回去，字号怎么改，屏用哪一档（ScreenFit）：手机、平板屏上窗口铺满、宽度跟着屏上显示的东西走，
+// 露着列表是基准宽度，放着窗口是那个窗口要的一档；电脑屏上窗口只挪过来居中，不铺满、不调字号、不换档。
+// 不建屏、不撤屏；换档经 ScreenSet。
 // 隔离：只动放上来的那一个窗口。每一处改动先记账（这块屏自己的还原账）再动手，还原成功才销账；
 // 没销的账（Snug 崩溃、App 卡住没放成）在下次启动（DeskSet.recover）、或下次在这块屏上放窗口之前按账还原，
 // 不会被新的记录盖掉。窗口在 Snug 之外没了，账转成留下的账（LeftBehind），它带着屏上的大小回来时再还。
@@ -111,7 +112,6 @@ public final class Desk {
             if placement?.window.key != oldValue?.window.key { state.closeButton = nil }
         }
     }
-    private var verifying = false
     /// 发过几个号、排着没做的号、正在做的事（见 Ticket）
     private var issued = 0
     private var queued: [(ticket: Ticket, work: Work)] = []
@@ -520,29 +520,27 @@ public final class Desk {
 
     // MARK: 核对
 
-    /// 定期调用：屏上的窗口被关掉了，就回到 App 资源库。只认窗口服务器的结论：App 一时没响应不算关了。
+    /// 要不要核对：放着窗口、没在做别的
+    var needsVerify: Bool { placement != nil && state.work == nil }
+
+    /// 定期核对（DeskSet 排进队里调）：屏上的窗口被关掉了，就回到 App 资源库。只认窗口服务器的结论：App 一时没响应不算关了。
     /// 窗口还在却不在屏上（被最小化、App 被隐藏、关成了隐藏），屏上只剩空桌面：也回到列表，
     /// 但它照旧算放着、还原记录留着，可以返回它、还原或换一个
-    func verify() {
-        guard placement != nil, state.work == nil, !verifying else { return }
-        verifying = true
-        env.lane.run {
-            defer { self.verifying = false }
-            guard let p = self.placement else { return }
-            guard await self.windows.exists(p.window.key) else {
-                Log.info("屏上的 \(p.window.label) 在 Snug 之外关了，回到 App 资源库")
-                self.placement = nil
-                self.state.listVisible = true
-                self.replaced = (p.window.key.pid, p.known.union([p.window.key]), self.timeline.now + Self.replaceWait)
-                await self.leaveBehind(p.record)
-                await self.matchWidth()
-                return
-            }
-            if !self.state.listVisible, await !self.windows.isShown(p.window.key) {
-                Log.info("屏上的 \(p.window.label) 不在屏上了（最小化、隐藏或关成了隐藏），回到 App 资源库")
-                self.state.listVisible = true
-                await self.matchWidth()
-            }
+    func verify() async {
+        guard let p = placement else { return }
+        guard await windows.exists(p.window.key) else {
+            Log.info("屏上的 \(p.window.label) 在 Snug 之外关了，回到 App 资源库")
+            placement = nil
+            state.listVisible = true
+            replaced = (p.window.key.pid, p.known.union([p.window.key]), timeline.now + Self.replaceWait)
+            await leaveBehind(p.record)
+            await matchWidth()
+            return
+        }
+        if !state.listVisible, await !windows.isShown(p.window.key) {
+            Log.info("屏上的 \(p.window.label) 不在屏上了（最小化、隐藏或关成了隐藏），回到 App 资源库")
+            state.listVisible = true
+            await matchWidth()
         }
     }
 

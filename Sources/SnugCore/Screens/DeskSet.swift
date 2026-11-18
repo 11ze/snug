@@ -72,8 +72,6 @@ public final class DeskSet {
     private var desks: [ScreenID: Desk] = [:]
     private var recheckGeneration = 0
     private var pendingRecheck: Task<Void, Never>?
-    private var settling = false
-    private var checkingReturns = false
     /// 盯着的请求：请它退出的 App、请它关掉的窗口
     private enum Watched: Hashable {
         case quit(Int32)
@@ -87,7 +85,7 @@ public final class DeskSet {
     public init(displays: any VirtualDisplays, windows: any WindowControl, apps: any AppControl, arrangement: any DisplayArrangement,
                 timeline: any Timeline = SystemTimeline(), paths: SnugPaths, defaultZoom: Int = 2) {
         screens = ScreenSet(displays: displays, windows: windows, arrangement: arrangement, timeline: timeline, lane: lane)
-        env = DeskEnvironment(windows: windows, apps: apps, timeline: timeline, screens: screens, lane: lane,
+        env = DeskEnvironment(windows: windows, apps: apps, timeline: timeline, screens: screens,
                               paths: paths, defaultZoom: defaultZoom)
         // 弱引用：ScreenSet 的重试排在计时上，可能比 DeskSet 活得久
         screens.placedWindows = { [weak self] in Set(self?.desks.values.compactMap(\.placedWindow) ?? []) }
@@ -568,7 +566,10 @@ public final class DeskSet {
 
     /// 定期调用：各块屏上的窗口被关掉了，就回到 App 资源库（见 Desk.verify）
     public func verifyPlacement() {
-        for desk in orderedDesks { desk.verify() }
+        guard desks.values.contains(where: \.needsVerify) else { return }
+        lane.runCoalesced("verify") {
+            for desk in self.orderedDesks where desk.needsVerify { await desk.verify() }
+        }
     }
 
     /// 远程在不在进行（会话层的结论）。远程结束后，远程中撤屏留下的永久配置要重写（settleDisplays）
@@ -579,12 +580,8 @@ public final class DeskSet {
     /// 定期调用、屏幕配置一变也调用：撤屏后屏真下线了，就放回窗口、设回别的屏；远程中撤过屏的，
     /// 远程结束、屏都醒着时把别的屏此刻的模式写进永久配置。没事可做时什么都不做
     public func settleDisplays() {
-        guard screens.owesSettling, !settling else { return }
-        settling = true
-        lane.run {
-            defer { self.settling = false }
-            await self.screens.settleDisplays()
-        }
+        guard screens.owesSettling else { return }
+        lane.runCoalesced("settle") { await self.screens.settleDisplays() }
     }
 
     /// 有辅助功能权限后调用：上次 Snug 没来得及放回去的窗口，按各块屏的还原账放回去。账在队里轮到时才读，不会拿旧的放两遍。
@@ -629,10 +626,8 @@ public final class DeskSet {
     /// 留下的账的窗口回来没有（带着屏上的大小回来就还账）。没账可查时什么都不做
     public func checkReturns() {
         guard desks.values.contains(where: \.watchesReplacement) || !env.leftBehind.isEmpty,
-              desks.values.allSatisfy({ $0.state.work == nil }), !checkingReturns else { return }
-        checkingReturns = true
-        lane.run {
-            defer { self.checkingReturns = false }
+              desks.values.allSatisfy({ $0.state.work == nil }) else { return }
+        lane.runCoalesced("returns") {
             for desk in self.orderedDesks { await desk.followReplacement() }
             await self.takeBackReturned()
         }

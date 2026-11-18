@@ -1,4 +1,4 @@
-// 几块屏共用的：系统能力、时钟、屏幕模块、那一条队，和两本跨屏的账（字号簿、留下的账）。
+// 几块屏共用的：系统能力、时钟、屏幕模块，和两本跨屏的账（字号簿、留下的账）。
 // DeskSet 建一份，交给每块 Desk；Desk 只经它碰共用的东西，不认别的 Desk
 import CoreGraphics
 import Foundation
@@ -9,7 +9,6 @@ final class DeskEnvironment {
     let apps: any AppControl
     let timeline: any Timeline
     let screens: ScreenSet
-    let lane: SerialLane
     let paths: SnugPaths
     /// 设置里的默认字号级数
     var defaultZoom: Int
@@ -19,13 +18,12 @@ final class DeskEnvironment {
     let leftBehind: LeftBehindLedger
     private let zoomFile: JSONFile<ZoomBook>
 
-    init(windows: any WindowControl, apps: any AppControl, timeline: any Timeline, screens: ScreenSet, lane: SerialLane,
+    init(windows: any WindowControl, apps: any AppControl, timeline: any Timeline, screens: ScreenSet,
          paths: SnugPaths, defaultZoom: Int) {
         self.windows = windows
         self.apps = apps
         self.timeline = timeline
         self.screens = screens
-        self.lane = lane
         self.paths = paths
         self.defaultZoom = defaultZoom
         zoomFile = JSONFile(url: paths.zoomBook)
