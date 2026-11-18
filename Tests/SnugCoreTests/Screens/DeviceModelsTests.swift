@@ -118,14 +118,22 @@ struct DeviceModelsTests {
         #expect(c.search("ipad", in: [.tablet]).flatMap(\.models).count >= 20)
     }
 
-    @Test("随 App 发的机型库：每一条按方向建出来的屏都过 2 倍门槛、在像素上限里（手机竖横、平板竖横、电脑横）")
+    @Test("随 App 发的机型库：每一条、每个方向（手机平板竖横、电脑横）、每一档都过 2 倍门槛、在像素上限里；登记的第一档不比上限小太多")
     func bundledFits() throws {
         let c = try DeviceCatalog(contentsOf: Self.bundled)
         for model in c.models {
             for orientation in model.kind == .computer ? [Orientation.landscape] : Orientation.allCases {
                 let fit = ScreenFit(device: model.screen, kind: model.kind, orientation: orientation)
-                let size = fit.size(width: fit.baseWidth)
-                #expect(max(size.width, size.height) >= 800 && min(size.width, size.height) >= 525, "\(model.id) \(orientation)")
+                let cap = orientation == .portrait ? ScreenFit.portraitPixels : ScreenFit.landscapePixels
+                for width in fit.widths {
+                    let size = fit.size(width: width)
+                    let label = "\(model.id) \(orientation) \(width) 宽"
+                    #expect(max(size.width, size.height) >= 800 && min(size.width, size.height) >= 525, "\(label)")
+                    #expect(size.width * 2 <= cap.width && size.height * 2 <= cap.height, "\(label)")
+                }
+                // 第一档的 2 倍高至少是像素上限高的三分之一，不然屏不上线（实测 1120 / 3840 上线、1050 / 3840 不上线）
+                let first = try #require(fit.registrationOrder.first)
+                #expect(fit.size(width: first).height * 2 >= cap.height / 3, "\(model.id) \(orientation)")
             }
         }
     }
