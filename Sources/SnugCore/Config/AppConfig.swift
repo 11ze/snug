@@ -6,7 +6,7 @@ public struct AppConfig: Codable, Equatable, Sendable {
     public var screens = [ScreenConfig.legacyPhone(.standard, enabled: true)]
     /// 远程时设为主屏的那块；nil 表示不改主屏（默认）
     public var mainScreen: ScreenID?
-    /// 下一块新加的屏用哪一段序列号（只增不减：删掉的屏的号也不回收，免得系统把旧屏的记忆套到新屏上）
+    /// 下一块新加的屏至少用哪一段序列号（只增不减：删掉的屏的号也不回收，免得系统把旧屏的记忆套到新屏上）
     public var nextSerialBlock = 0
     /// 手机、平板屏上把 UU 发来的单指操作翻译成 iPhone 的手势
     public var gestures = true
@@ -24,13 +24,17 @@ public struct AppConfig: Codable, Equatable, Sendable {
     public static let zoomStepsRange = 0...4
     /// 新加的屏的序列号从这里起，每块一段（主号加两个备用）。和 2.5 以前手机屏的 200_000_108 起的那组、实验用的 999_000_xxx 都不重
     static let serialBase: UInt32 = 200_100_000
+    /// 段号的下限按分钟数（从这一刻起）往后走：降级到 2.5 跑过一次，2.5 写盘时丢掉它不认的屏幕列表和计数器，
+    /// 再升级回来计数器从 0 数，单靠它就会把以前那块屏的身份分给新屏
+    static let serialEpoch = Date(timeIntervalSince1970: 1_767_225_600)   // 2026-01-01 00:00 UTC
 
     public init() {}
 
     /// 加一块屏：分配一段没用过的序列号，名字按型号起
-    public mutating func addScreen(orientation: Orientation, device: DeviceChoice, name: String? = nil) -> ScreenConfig {
-        let base = Self.serialBase + UInt32(nextSerialBlock) * 10
-        nextSerialBlock += 1
+    public mutating func addScreen(orientation: Orientation, device: DeviceChoice, name: String? = nil, now: Date = Date()) -> ScreenConfig {
+        let block = max(nextSerialBlock, Int(max(0, now.timeIntervalSince(Self.serialEpoch)) / 60))
+        let base = Self.serialBase + UInt32(block) * 10
+        nextSerialBlock = block + 1
         let screen = ScreenConfig(id: .make(), orientation: orientation, device: device, enabled: true,
                                   name: name ?? ScreenConfig.suggestedName(for: device, orientation: orientation),
                                   serials: [base, base + 1, base + 2])

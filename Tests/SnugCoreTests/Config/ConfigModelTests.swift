@@ -72,18 +72,30 @@ struct ConfigModelTests {
     func addScreen() throws {
         var c = AppConfig()
         let ipad = DeviceChoice(model: "Apple iPad（A16）", screen: DeviceScreen(width: 1640, height: 2360, points: 820), kind: .tablet)
-        let a = c.addScreen(orientation: .landscape, device: ipad)
-        let b = c.addScreen(orientation: .landscape, device: .standard)
+        let a = c.addScreen(orientation: .landscape, device: ipad, now: AppConfig.serialEpoch)
+        let b = c.addScreen(orientation: .landscape, device: .standard, now: AppConfig.serialEpoch)
         #expect(a.serials == [200_100_000, 200_100_001, 200_100_002])
         #expect(b.serials == [200_100_010, 200_100_011, 200_100_012])
         #expect(a.name == "Snug iPad")
         #expect(b.name == "Snug iPhone 17 Pro Max 横屏")
         #expect(a.id != b.id)
         c.removeScreen(a.id)
-        let d = c.addScreen(orientation: .portrait, device: .standard, name: "我的手机")
+        let d = c.addScreen(orientation: .portrait, device: .standard, name: "我的手机", now: AppConfig.serialEpoch)
         #expect(d.serials.first == 200_100_020)
         #expect(d.name == "我的手机")
         #expect(c.screens.map(\.id) == [.phone, b.id, d.id])
+    }
+
+    @Test("降级到 2.5 跑过再升级回来（屏幕列表和计数器都被 2.5 写盘丢掉）：新屏的号按时间往后排，不复用以前分过的")
+    func serialsSurviveLostCounter() {
+        let earlier = AppConfig.serialEpoch.addingTimeInterval(100 * 60)
+        var before = AppConfig()
+        let old = before.addScreen(orientation: .landscape, device: .standard, now: earlier)
+        var lost = AppConfig()
+        let new = lost.addScreen(orientation: .landscape, device: .standard, now: earlier.addingTimeInterval(60))
+        #expect(old.serials.first == 200_101_000)
+        #expect(new.serials.first == 200_101_010)
+        #expect(Set(old.serials).isDisjoint(with: new.serials))
     }
 
     @Test("删掉设为主屏的那块：主屏回到「不改」")
