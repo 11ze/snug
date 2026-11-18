@@ -104,6 +104,23 @@ struct ScreenFitTests {
         #expect(f.widths.last == 1907)
     }
 
+    @Test("登记给系统时最宽的在前：第一档比像素上限小太多屏不上线（实测 6144×3840 上限下 2 倍高 1050 像素的不上线）")
+    func registrationOrder() throws {
+        let landscape = ScreenFit(device: DeviceChoice.standard.screen, kind: .phone, orientation: .landscape)
+        #expect(landscape.registrationOrder.first == landscape.widths.last)
+        #expect(landscape.registrationOrder == landscape.widths.reversed())
+        // 机型库里每一条、每个方向：第一档的 2 倍高至少是像素上限高的三分之一（实测 1120 / 3840 上线、1050 / 3840 不上线）
+        let catalog = try DeviceCatalog(contentsOf: DeviceModelsTests.bundled)
+        for model in catalog.models {
+            for orientation in model.kind == .computer ? [Orientation.landscape] : Orientation.allCases {
+                let fit = ScreenFit(device: model.screen, kind: model.kind, orientation: orientation)
+                let cap = orientation == .portrait ? ScreenFit.portraitPixels : ScreenFit.landscapePixels
+                let first = try #require(fit.registrationOrder.first)
+                #expect(fit.size(width: first).height * 2 >= cap.height / 3, "\(model.id) \(orientation)")
+            }
+        }
+    }
+
     @Test("平板不扣，横竖都铺满；基准是逻辑分辨率除以 1.24（V10：iPad 第 10 代竖 660×950、横 950×660 上下）")
     func tablet() {
         let ipad = DeviceScreen(width: 1640, height: 2360, points: 820)

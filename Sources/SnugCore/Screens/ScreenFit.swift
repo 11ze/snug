@@ -52,6 +52,11 @@ public struct ScreenFit: Equatable, Sendable, CustomStringConvertible {
     /// 登记的档位：基准宽度到最宽一档，每 10 点一档
     public let widths: [Int]
 
+    /// 登记给系统时的顺序：最宽的在前。系统按第一档判断这块屏能不能上线，第一档比像素上限小太多时屏建好了却一直不上线
+    /// （11-17 实测：上限 6144×3840 时，2 倍高 1050 像素的不上线、1120 的上线）。手机横屏的基准档 957×525 就是这样；
+    /// 最宽一档在前当场上线，窄的档照样列出、能切
+    public var registrationOrder: [Int] { widths.reversed() }
+
     /// 没选过型号时的比例（17 Pro Max 竖屏，540×950）
     public static let standard = ScreenFit(device: DeviceChoice.standard.screen, kind: .phone, orientation: .portrait)
 

@@ -173,11 +173,11 @@ public final class VirtualDisplayService: VirtualDisplays {
         return display
     }
 
-    /// fit 的每一档都登记成模式，打开 2 倍
+    /// fit 的每一档都登记成模式，打开 2 倍；按 registrationOrder 的顺序，不然手机横屏不上线
     private static func settings(_ fit: ScreenFit) -> CGVirtualDisplaySettings {
         let settings = CGVirtualDisplaySettings()
         settings.hiDPI = true
-        settings.modes = fit.widths.map { width in
+        settings.modes = fit.registrationOrder.map { width in
             let size = fit.size(width: width)
             return CGVirtualDisplayMode(width: UInt(size.width), height: UInt(size.height), refreshRate: 60)
         }
