@@ -2,7 +2,7 @@
 // 电脑屏没有小横条；已经开在别的屏上的窗口不会自己过来，点程序坞只是把它在原来的屏上提到前面（V9），
 // 远端的人看不见别的屏、拖不了窗口，靠这里一键拉过来。
 // 左栏「运行中 / 全部 App」；每个窗口标出现在在哪块屏，「放到这块屏」交给 DeskSet（电脑屏只挪过来居中，不铺满、不调字号）。
-// 数据和屏上的资源库共用 AppCatalog；窗口在哪块屏问窗口服务器（不经过 App），露着时每次刷新列表跟着读
+// 数据和屏上的资源库共用 AppCatalog，窗口在哪块屏（WindowSpot）也从那里读
 import AppKit
 import SnugCore
 import SnugSystem
@@ -15,61 +15,10 @@ final class LibraryModel {
         case running, all
     }
 
-    /// 一个窗口在哪块屏、露不露着
-    struct Location: Equatable {
-        var display: DisplayID
-        /// 露在屏上：在那块屏此刻的桌面里
-        var shown = true
-        /// 没露着、铺满整块屏：在那块屏的全屏空间里。Snug 的屏一加，macOS 会把原主屏上的全屏空间挪过来（实测），
-        /// 从菜单栏打开资源库时屏切回资源库所在的桌面，全屏的窗口就被盖住了
-        var fullScreen = false
-    }
-
     /// 往哪块屏放
     var target: ScreenID?
     var source = Source.running
     var query = ""
-    /// 每个窗口此刻在哪块屏上
-    private(set) var locations: [WindowKey: Location]
-
-    @ObservationIgnored private var locating: Task<Void, Never>?
-
-    /// locations：渲染样例给定的位置，平常由 startLocating 读
-    init(locations: [WindowKey: Location] = [:]) {
-        self.locations = locations
-    }
-
-    /// 露着时跟着刷新读窗口在哪块屏
-    func startLocating(_ catalog: AppCatalog) {
-        guard locating == nil else { return }
-        locating = Task { [weak self] in
-            let windows = WindowService()
-            while !Task.isCancelled {
-                var found: [WindowKey: Location] = [:]
-                for pid in Set(catalog.running.map(\.pid)) {
-                    for (key, spot) in await windows.framesInAllSpaces(of: pid) {
-                        guard let display = Self.display(at: CGPoint(x: spot.frame.midX, y: spot.frame.midY)) else { continue }
-                        found[key] = Location(display: display, shown: spot.shown, fullScreen: !spot.shown && spot.frame == CGDisplayBounds(display))
-                    }
-                }
-                guard let self, !Task.isCancelled else { return }
-                if found != locations { locations = found }
-                try? await Task.sleep(for: .seconds(AppCatalog.refreshInterval))
-            }
-        }
-    }
-
-    func stopLocating() {
-        locating?.cancel()
-        locating = nil
-    }
-
-    private static func display(at point: CGPoint) -> DisplayID? {
-        var id: CGDirectDisplayID = 0
-        var count: UInt32 = 0
-        guard CGGetDisplaysWithPoint(point, 1, &id, &count) == .success, count > 0 else { return nil }
-        return id
-    }
 }
 
 struct LibraryView: View {
@@ -168,16 +117,15 @@ struct LibraryView: View {
     }
 
     private func windowRow(_ window: WindowInfo) -> some View {
-        let location = model.locations[window.key]
-        let onTarget = targetDisplay != nil && location?.display == targetDisplay
-        let here = onTarget && location?.shown == true
+        let spot = catalog.spots[window.key] ?? .hidden
+        let here = targetDisplay.map { spot == .shown($0) } == true
         // 在这块屏的全屏空间里：「放到这块屏」会退出全屏、挪到眼前，按钮照实说
-        let hiddenFullScreen = onTarget && location?.fullScreen == true && !window.minimized
+        let hiddenFullScreen = targetDisplay.map { spot == .fullScreen($0) } == true && !window.minimized
         return HStack(spacing: MacTokens.Space.s) {
             Image(systemName: "macwindow").foregroundStyle(.secondary)
             Text(window.displayTitle).lineLimit(1)
             Spacer(minLength: MacTokens.Space.m)
-            Text(where_(window, location, here: here, hiddenFullScreen: hiddenFullScreen)).font(.callout).foregroundStyle(.secondary)
+            Text(locationText(window, spot, here: here, hiddenFullScreen: hiddenFullScreen)).font(.callout).foregroundStyle(.secondary)
             if !here {
                 Button(hiddenFullScreen ? "退出全屏" : "放到这块屏") { place(window) }
                     .disabled(targetDisplay == nil || state.desks.closing.contains(window.key))
@@ -188,15 +136,12 @@ struct LibraryView: View {
 
     /// 窗口在哪：这块屏（露着、或在它的全屏空间里）、别的 Snug 屏（写名字）、别的屏（写屏名）、已最小化；
     /// 别的屏上没露着的（别的桌面、全屏空间）远端看不见，写「不在当前桌面」
-    private func where_(_ window: WindowInfo, _ location: LibraryModel.Location?, here: Bool, hiddenFullScreen: Bool) -> String {
+    private func locationText(_ window: WindowInfo, _ spot: WindowSpot, here: Bool, hiddenFullScreen: Bool) -> String {
         if here { return "在这块屏" }
         if window.minimized { return "已最小化" }
         if hiddenFullScreen { return "在这块屏 · 全屏" }
-        guard let location, location.shown else { return "不在当前桌面" }
-        let display = location.display
-        if let id = state.desks.desks.first(where: { $0.value.display == display })?.key, let name = state.screen(id)?.name {
-            return "在「\(name)」"
-        }
+        guard case .shown(let display) = spot else { return "不在当前桌面" }
+        if let name = state.screenID(on: display).flatMap({ state.screen($0)?.name }) { return "在「\(name)」" }
         return CGDisplayIsBuiltin(display) != 0 ? "在内建屏" : "在「\(Screens.name(of: display))」"
     }
 
@@ -301,8 +246,7 @@ final class LibraryWindowController: NSObject, NSWindowDelegate {
         } else {
             window?.center()
         }
-        catalog.want(Self.owner)
-        model.startLocating(catalog)
+        catalog.want(Self.owner, spots: true)
         window?.present(activating: true)
         if !following { followTarget() }
     }
@@ -322,6 +266,5 @@ final class LibraryWindowController: NSObject, NSWindowDelegate {
 
     func windowWillClose(_ notification: Notification) {
         catalog.release(Self.owner)
-        model.stopLocating()
     }
 }

@@ -457,11 +457,13 @@ enum RenderSamples {
                     s.config.screens[2].enabled = true
                     connected(s)
                     // htop 已经在这块电脑屏上，其余在内建屏、已最小化
-                    let model = LibraryModel(locations: [windows[0].key: .init(display: CGMainDisplayID()), windows[1].key: .init(display: CGMainDisplayID()),
-                                                         windows[3].key: .init(display: CGMainDisplayID()), windows[4].key: .init(display: 22)])
+                    let main = CGMainDisplayID()
+                    let spots: [WindowKey: WindowSpot] = [windows[0].key: .shown(main), windows[1].key: .shown(main),
+                                                          windows[3].key: .shown(main), windows[4].key: .shown(22)]
+                    let model = LibraryModel()
                     model.target = computerID
                     model.source = source
-                    let catalog = AppCatalog(sample: running, installed: installed)
+                    let catalog = AppCatalog(sample: running, installed: installed, spots: spots)
                     return AnyView(LibraryView(state: s, catalog: catalog, model: model, intents: stub, place: { _ in }, open: { _ in }))
                 }
             }
