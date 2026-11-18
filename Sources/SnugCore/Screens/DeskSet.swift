@@ -119,7 +119,7 @@ public final class DeskSet {
     /// 没接显示器的 Mac 上，Snug 的屏一出现系统就撤掉自己的默认屏，UU远程 里没有别的屏可切，靠它回到原来的画面（issue #8）。
     /// 远程刚结束、屏还没撤完时点的不算：不然会挡掉下一次远程的屏
     public func dismissScreen(_ id: ScreenID) {
-        guard let desk = desks[id], desk.wanted, wishes.contains(where: { $0.id == id }) else { return }
+        guard let desk = desks[id], desk.wanted else { return }
         state.dismissed.insert(id)
         wishes.removeAll { $0.id == id }
         desk.wanted = false

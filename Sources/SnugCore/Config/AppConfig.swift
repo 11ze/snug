@@ -52,7 +52,7 @@ public struct AppConfig: Codable, Equatable, Sendable {
     }
 
     /// 2.5.x 还在读的两项：取第一块竖屏手机屏的值，降级回去照样能用（过两个大版本再停写，见 docs/multi-screen.md 5.5）
-    var legacyPhone: ScreenConfig? { screens.first { $0.orientation == .portrait && $0.device.kind == .phone } }
+    var phoneForLegacyFields: ScreenConfig? { screens.first { $0.orientation == .portrait && $0.device.kind == .phone } }
 
     private enum CodingKeys: String, CodingKey {
         case screens, mainScreen, nextSerialBlock, phoneScreen, gestures, screenshot, zoomSteps, phone, welcomed, updateSource, lastVersion
@@ -113,8 +113,8 @@ extension AppConfig {
         try c.encodeIfPresent(mainScreen, forKey: .mainScreen)
         try c.encode(nextSerialBlock, forKey: .nextSerialBlock)
         // 旧版读的两项：没有竖屏手机屏时写成关着的默认手机。多出的 kind 旧版不认、照样解得开
-        try c.encode(legacyPhone?.enabled ?? false, forKey: .phoneScreen)
-        try c.encode(legacyPhone?.device ?? .standard, forKey: .phone)
+        try c.encode(phoneForLegacyFields?.enabled ?? false, forKey: .phoneScreen)
+        try c.encode(phoneForLegacyFields?.device ?? .standard, forKey: .phone)
         try c.encode(gestures, forKey: .gestures)
         try c.encode(screenshot, forKey: .screenshot)
         try c.encode(zoomSteps, forKey: .zoomSteps)
