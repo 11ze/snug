@@ -86,6 +86,7 @@ struct LibraryView: View {
                 case .all: all
                 }
             }
+            .safeAreaInset(edge: .top, spacing: 0) { banner }
             .navigationTitle("App 资源库")
             .navigationSubtitle(targetName.map { "放到「\($0)」" } ?? "Snug 的屏都不在")
         }
@@ -94,6 +95,27 @@ struct LibraryView: View {
     }
 
     private var query: String { model.query.trimmingCharacters(in: .whitespaces) }
+
+    /// 电脑屏没有面板：这块屏正在做的事、出的问题（放不过来、屏没好）写在列表上面，下一个动作开始时清掉
+    @ViewBuilder private var banner: some View {
+        let desk = model.target.flatMap { state.desks.desks[$0] }
+        if let work = desk?.work {
+            HStack(spacing: MacTokens.Space.s) {
+                ProgressView().controlSize(.small)
+                Text(work.libraryText).foregroundStyle(.secondary)
+                Spacer()
+            }
+            .bannerStyle()
+        } else if let notice = desk?.notice {
+            HStack(alignment: .firstTextBaseline, spacing: MacTokens.Space.s) {
+                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(MacTokens.Color.warning)
+                Text(notice.text.headline)
+                if let detail = notice.text.detail { Text(detail).foregroundStyle(.secondary) }
+                Spacer()
+            }
+            .bannerStyle()
+        }
+    }
 
     /// 有窗口的才列：电脑屏上要的是把窗口拉过来，没窗口的 App 在「全部 App」里点开
     private var withWindows: [RunningApp] { catalog.running.filter { !$0.windows.isEmpty } }
@@ -183,6 +205,26 @@ struct LibraryView: View {
                 }
                 .padding(MacTokens.Space.xl)
             }
+        }
+    }
+}
+
+private extension View {
+    func bannerStyle() -> some View {
+        font(.callout)
+            .padding(.horizontal, MacTokens.Space.l)
+            .padding(.vertical, MacTokens.Space.s)
+            .background(.bar)
+    }
+}
+
+private extension Desk.Work {
+    /// 资源库窗口上的进度：电脑屏只有打开 App、挪窗口两件事
+    var libraryText: String {
+        switch self {
+        case .opening(let app): "正在打开 \(app.name)…"
+        case .placing(let window): "正在把 \(window.app) 挪过来…"
+        default: "请稍候…"
         }
     }
 }

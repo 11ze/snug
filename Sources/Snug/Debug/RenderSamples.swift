@@ -438,7 +438,18 @@ enum RenderSamples {
     // MARK: 电脑屏的 App 资源库
 
     private static var library: [RenderSample] {
-        [false, true].flatMap { dark in
+        let notice = RenderSample(name: "library-notice", size: CGSize(width: MacTokens.Size.LibraryWindow.width,
+                                                                       height: MacTokens.Size.LibraryWindow.height), inWindow: true) {
+            let s = sampleState()
+            s.config.screens[2].enabled = true
+            connected(s)
+            s.desks.desks[computerID]?.notice = .windowUnresponsive(app: "Safari")
+            let model = LibraryModel()
+            model.target = computerID
+            return AnyView(LibraryView(state: s, catalog: AppCatalog(sample: running, installed: installed), model: model,
+                                       intents: stub, place: { _ in }, open: { _ in }))
+        }
+        return [notice] + [false, true].flatMap { dark in
             [LibraryModel.Source.running, .all].map { source in
                 RenderSample(name: "library-\(source == .running ? "running" : "all")\(dark ? "-dark" : "")", dark: dark,
                              size: CGSize(width: MacTokens.Size.LibraryWindow.width, height: MacTokens.Size.LibraryWindow.height), inWindow: true) {
