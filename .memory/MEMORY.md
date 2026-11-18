@@ -14,7 +14,7 @@
 - [UI 重组（已确认）](project-ui-redesign.md) — 设置分三页、菜单栏、电脑屏资源库、横屏两栏；令牌 design/design-tokens.json、原型 design/prototype，界面以原型为准
 - [产品思维](feedback-product-thinking.md) — 用户无感、可选不强制、隔离干净；验证用的步骤不进产品
 - [界面规范](feedback-ui-style.md) — 图标只用 SF Symbols；文字短词、书面、克制；每个状态讲清楚
-- [对外文案](feedback-doc-writing.md) — 书面语、提炼不照抄；分点、图文对应；打码只糊必要的一小块
+- [对外文案](feedback-doc-writing.md) — 书面语、简短干练、短语式不写整句；提炼不照抄；分点、图文对应；打码只糊必要的一小块
 - [回复 issue](feedback-issue-replies.md) — bug 留给报告人关、做完发版的需求就关；婉拒讲清定位、语气平和；做不到的要把实测和论证讲闭环；主人说发就不再审
 - [直接修不建 issue](feedback-direct-fix-no-issues.md) — bug 直接修、重构直接做，追溯靠 commit 信息
 - [Workflow 使用](feedback-workflow-scale.md) — 起之前先跟主人确认；小 bug 修复不审；大改动审一轮，维度含正确性、架构、工程审美、去冗余；5 个左右、一个核实者
