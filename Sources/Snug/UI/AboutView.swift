@@ -69,14 +69,9 @@ final class AboutWindowController {
     /// display：从哪块屏的菜单栏打开的（见 NSWindow.bring）
     func show(on display: DisplayID? = nil, activating: Bool = true) {
         if window == nil {
-            let hosting = NSHostingController(rootView: AboutView())
-            hosting.sizingOptions = [.preferredContentSize]
-            let w = NSWindow(contentViewController: hosting)
-            w.styleMask = [.titled, .closable]
-            w.title = "关于 Snug"
+            // 先定尺寸再居中（NSWindow(hosting:)），否则按 0×0 居中，窗口偏到右下
+            let w = NSWindow(hosting: AboutView(), title: "关于 Snug")
             w.titlebarAppearsTransparent = true
-            w.isReleasedWhenClosed = false
-            w.center()
             window = w
         }
         window?.bring(to: display)
