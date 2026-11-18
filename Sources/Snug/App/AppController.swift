@@ -153,8 +153,7 @@ final class AppController: Sendable {
 
     /// 按此刻的配置和会话算出要哪些屏，交给 DeskSet（结论没变就什么都不做）
     func applyPlan() {
-        let remote = RemoteFacts(active: session.inEpisode, streamed: state.streamedDisplay)
-        desks.setWishes(ScreenPlan.wishes(config: store.config, remote: remote, trusted: state.accessibilityTrusted, preview: preview))
+        desks.setWishes(ScreenPlan.wishes(config: store.config, remote: session.inEpisode, trusted: state.accessibilityTrusted, preview: preview))
     }
 
     /// 权限是用户在系统设置里给的，随时会变：刚给上时把上次没放回去的窗口放回去

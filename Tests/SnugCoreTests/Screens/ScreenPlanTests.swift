@@ -5,7 +5,7 @@ import Testing
 struct ScreenPlanTests {
     private let ipad = DeviceChoice(model: "Apple iPad（A16）", screen: DeviceScreen(width: 1640, height: 2360, points: 820), kind: .tablet)
     private let air = DeviceChoice(model: "Apple MacBook Air 13 英寸（M4）", screen: DeviceScreen(width: 956, height: 1470, notch: 33), kind: .computer)
-    private let remote = RemoteFacts(active: true)
+    private let remote = true
 
     /// 手机竖屏 + iPad 横屏 + 关着的 Air
     private func config() -> AppConfig {
@@ -29,18 +29,10 @@ struct ScreenPlanTests {
     @Test("不在远程、没有辅助功能权限：一块都不要；预览模式不等远程")
     func gates() {
         let c = config()
-        #expect(ScreenPlan.wishes(config: c, remote: RemoteFacts(active: false), trusted: true).isEmpty)
+        #expect(ScreenPlan.wishes(config: c, remote: false, trusted: true).isEmpty)
         #expect(ScreenPlan.wishes(config: c, remote: remote, trusted: false).isEmpty)
-        #expect(ScreenPlan.wishes(config: c, remote: RemoteFacts(active: false), trusted: true, preview: true).count == 2)
-        #expect(ScreenPlan.wishes(config: c, remote: RemoteFacts(active: false), trusted: false, preview: true).isEmpty)
-    }
-
-    @Test("同样的设置每次结果都一样，和在推哪块屏无关（不识别控制端）")
-    func deterministic() {
-        let c = config()
-        let a = ScreenPlan.wishes(config: c, remote: RemoteFacts(active: true, streamed: 1), trusted: true)
-        let b = ScreenPlan.wishes(config: c, remote: RemoteFacts(active: true, streamed: 79), trusted: true)
-        #expect(a == b)
+        #expect(ScreenPlan.wishes(config: c, remote: false, trusted: true, preview: true).count == 2)
+        #expect(ScreenPlan.wishes(config: c, remote: false, trusted: false, preview: true).isEmpty)
     }
 
     @Test("类别 → 行为：手机、平板是触屏，电脑不是；手势总开关不改行为（翻不翻译由界面层按开关定）")

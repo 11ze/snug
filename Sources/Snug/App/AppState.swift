@@ -51,8 +51,7 @@ final class AppState {
 
     /// 这块屏上的面板看到的状态
     func panel(_ id: ScreenID) -> PanelState {
-        PanelState(desk: desks.desks[id] ?? Desk.State(), quitting: desks.quitting, closing: desks.closing,
-                   dismissed: desks.dismissed.contains(id))
+        PanelState(desk: desks.desks[id] ?? Desk.State(), quitting: desks.quitting, closing: desks.closing)
     }
 
     /// 这块显示器是哪块 Snug 屏；不是 Snug 的屏（内建屏、外接显示器）返回 nil
@@ -89,15 +88,8 @@ struct PanelState: Equatable {
     var desk: Desk.State
     var quitting: Set<Int32> = []
     var closing: Set<WindowKey> = []
-    /// 在手机上退出了这块屏，这次远程不再加
-    var dismissed = false
 
-    subscript<T>(dynamicMember keyPath: WritableKeyPath<Desk.State, T>) -> T {
-        get { desk[keyPath: keyPath] }
-        set { desk[keyPath: keyPath] = newValue }
-    }
-
-    var display: DisplayID? { desk.display }
+    subscript<T>(dynamicMember keyPath: KeyPath<Desk.State, T>) -> T { desk[keyPath: keyPath] }
 }
 
 /// 设置窗口、菜单栏能发起的意图。AppController 是唯一实现（渲染 PNG 时用一个什么都不做的替身）。

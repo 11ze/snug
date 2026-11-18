@@ -60,8 +60,6 @@ public final class DeskSet {
         get { screens.onTopologyChange }
         set { screens.onTopologyChange = newValue }
     }
-    /// 设置里的默认字号级数
-    public var defaultZoom: Int { env.defaultZoom }
 
     private let screens: ScreenSet
     private let env: DeskEnvironment
@@ -95,9 +93,6 @@ public final class DeskSet {
             for (id, desk) in desks { desk.screenChanged(screens.states[id] ?? .off) }
         }
     }
-
-    /// 就绪的屏
-    public func display(_ id: ScreenID) -> DisplayID? { screens.display(id) }
 
     // MARK: 要哪些屏
 
@@ -331,11 +326,11 @@ public final class DeskSet {
         state.quitting.insert(app.pid)
         lane.run {
             for desk in self.desks.values where desk.placedWindow?.pid == app.pid {
-                let label = desk.state.placed?.window
+                let window = desk.state.placed?.window
                 guard await desk.returnToOriginal() else {
-                    Log.warn("\(label?.label ?? app.app.name) 放不回去，先不退出 \(app.app.name)")
+                    Log.warn("\(window?.label ?? app.app.name) 放不回去，先不退出 \(app.app.name)")
                     self.state.quitting.remove(app.pid)
-                    self.desks[id]?.setNotice(.windowUnresponsive(app: label?.app ?? app.app.name))
+                    self.desks[id]?.setNotice(.windowUnresponsive(app: window?.app ?? app.app.name))
                     return
                 }
                 await desk.matchWidth()
@@ -406,10 +401,11 @@ public final class DeskSet {
     private func openWindow(of app: AppInfo, newWindowIn running: Int32?, on desk: Desk) async {
         let started = timeline.now
         guard desk.readyDisplay(for: "打开 \(app.name)") != nil else { return desk.setNotice(.screenNotReady) }
-        let known = if let running { running } else { await apps.pid(of: app) }
-        if let known, state.quitting.contains(known) { return Log.info("\(app.name) 正在退出，不打开") }
+        // 点之前就在跑的那个进程（没在跑是 nil）：等的是它此刻之后才露出来的窗口
+        let runningPid = if let running { running } else { await apps.pid(of: app) }
+        if let runningPid, state.quitting.contains(runningPid) { return Log.info("\(app.name) 正在退出，不打开") }
         var before: Set<WindowKey> = []
-        if let known { before = Set(await windows.shownWindows(of: known).map(\.key)) }
+        if let runningPid { before = Set(await windows.shownWindows(of: runningPid).map(\.key)) }
         let pid: Int32
         if let running {
             guard await apps.newWindow(pid: running) else {
@@ -424,10 +420,10 @@ public final class DeskSet {
             }
             pid = opened
         }
-        let wait = known == nil ? Self.launchWait : Self.windowWait
+        let wait = runningPid == nil ? Self.launchWait : Self.windowWait
         switch await awaitWindow(of: pid, excluding: before, within: wait, for: desk) {
         case .appeared(let window):
-            let how = running != nil ? "新建窗口" : known == nil ? "启动" : "唤回"
+            let how = running != nil ? "新建窗口" : runningPid == nil ? "启动" : "唤回"
             Log.info("\(app.name) \(how)后 \(String(format: "%.1f", timeline.now - started))s 出现 \(window.label)，放上屏（\(desk.id)）")
             desk.setWork(.placing(window))
             await place(window, on: desk)

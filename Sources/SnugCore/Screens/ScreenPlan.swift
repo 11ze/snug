@@ -5,24 +5,11 @@
 // - 类别到行为的映射只在这里：手机、平板是触屏（屏上有面板、翻译手势、放大字号），电脑不是
 import Foundation
 
-/// 会话给出的事实
-public struct RemoteFacts: Equatable, Sendable {
-    /// 在不在远程（含断开后等重连的那段）
-    public var active: Bool
-    /// UU 画面那一路在推哪块屏；不知道是 nil
-    public var streamed: DisplayID?
-
-    public init(active: Bool, streamed: DisplayID? = nil) {
-        self.active = active
-        self.streamed = streamed
-    }
-}
-
 public enum ScreenPlan {
-    /// 此刻要的屏，按屏幕列表的顺序。trusted：没有辅助功能权限放不了窗口、翻译不了手势，一块都不建；
-    /// preview：不等远程，建出所有开着的屏（--preview-screens）
-    public static func wishes(config: AppConfig, remote: RemoteFacts, trusted: Bool, preview: Bool = false) -> [ScreenWish] {
-        guard trusted, remote.active || preview else { return [] }
+    /// 此刻要的屏，按屏幕列表的顺序。remote：在不在远程（含断开后等重连的那段）；
+    /// trusted：没有辅助功能权限放不了窗口、翻译不了手势，一块都不建；preview：不等远程，建出所有开着的屏（--preview-screens）
+    public static func wishes(config: AppConfig, remote: Bool, trusted: Bool, preview: Bool = false) -> [ScreenWish] {
+        guard trusted, remote || preview else { return [] }
         return config.screens.filter(\.enabled).prefix(ScreenConfig.limit).map { screen in
             ScreenWish(id: screen.id, spec: screen.spec, fit: screen.fit, behavior: behavior(screen.device.kind),
                        main: config.mainScreen == screen.id)

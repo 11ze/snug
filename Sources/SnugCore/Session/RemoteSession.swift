@@ -19,8 +19,6 @@ public enum SessionTransition: Equatable, Sendable {
 public struct RemoteSession: Sendable {
     public private(set) var tracker = ConnectionTracker()
     public private(set) var episode = SessionEpisode()
-    /// 这次远程从什么时候开始；不在远程里是 nil
-    public private(set) var episodeBeganAt: Date?
 
     public init() {}
 
@@ -31,14 +29,10 @@ public struct RemoteSession: Sendable {
 
     public mutating func update(_ signals: UUSignals, now: Date) -> [SessionTransition] {
         var out: [SessionTransition] = []
-        if episode.advance(to: now) == .ended {
-            out.append(.ended)
-            episodeBeganAt = nil
-        }
+        if episode.advance(to: now) == .ended { out.append(.ended) }
         switch tracker.update(signals, now: now) {
         case .connected(let names)?:
             if episode.connected(at: now) == .began {
-                episodeBeganAt = now
                 out.append(.began(controllers: names))
             } else {
                 out.append(.resumed(controllers: names))

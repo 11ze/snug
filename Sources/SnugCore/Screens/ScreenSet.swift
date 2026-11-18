@@ -79,13 +79,11 @@ public final class ScreenSet {
     // MARK: 差量
 
     /// 对照现状做差量（在队里调用）：新的建出来，没了的撤掉，比例变了的在线换（同一身份），其余不碰。
-    /// 交回这次换了比例的屏和换成了没有
-    @discardableResult
+    /// 交回这次换了比例的屏和换成了没有。设回主屏由调用方在清场前做（releaseMain）
     func apply(_ wishes: [ScreenWish]) async -> [ScreenID: Bool] {
         let wanted = Set(wishes.map(\.id))
         for id in pendingRetries.keys where !wanted.contains(id) { cancelRetry(id) }
         self.wishes = wishes
-        await releaseMain(keeping: wishes)
         await reconcile()
         var reshaped: [ScreenID: Bool] = [:]
         for wish in wishes {
@@ -352,9 +350,6 @@ public final class ScreenSet {
         guard let wish = wishes.first(where: { $0.id == id }) else { return nil }
         return display(id).flatMap(displays.fit) ?? wish.fit
     }
-
-    /// 要的比例（配置里的型号对应的）
-    func targetFit(_ id: ScreenID) -> ScreenFit? { wishes.first { $0.id == id }?.fit }
 
     /// 此刻是哪一档；不是 2 倍、或屏不在返回 nil
     func width(_ id: ScreenID) -> Int? { display(id).flatMap(displays.width) }

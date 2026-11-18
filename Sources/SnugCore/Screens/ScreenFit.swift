@@ -30,8 +30,6 @@ public struct ScreenFit: Equatable, Sendable, CustomStringConvertible {
     /// 横屏框得住 6K 的 3008×1692 的 2 倍（V5：新身份当场上线）
     public static let portraitPixels = CGSize(width: 2160, height: 4320)
     public static let landscapePixels = CGSize(width: 6144, height: 3840)
-    /// 竖屏手机的像素上限（2.5 以前一直是它）
-    public static var maxPixels: CGSize { portraitPixels }
     /// 手机竖屏画面上下各让出的高度（点）。UU 底部工具栏 17 Pro Max 实测约 268 像素（89 点）；取 91 让 17 Pro Max 正好是
     /// 真机上调好的 540×950（取 89 是 540×955），多出的 2 点当余量
     static let uuInset: Double = 91

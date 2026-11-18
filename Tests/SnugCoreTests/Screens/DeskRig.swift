@@ -68,9 +68,8 @@ final class Rig {
     }
 }
 
-/// 2.5 以前那块手机屏的身份
-let phoneSpec = ScreenSpec(name: "Snug 手机屏", productID: 0x00F0, serials: [200_000_108, 200_000_118, 200_000_128],
-                           maxPixels: ScreenFit.maxPixels)
+/// 从 2.5 迁来的那块手机屏的身份：跟着迁移代码走，迁移身份改了测试装置也跟着变
+let phoneSpec = ScreenConfig.legacyPhone(.standard, enabled: true).spec
 
 /// 把 DeskSet 当成只有一块手机屏来用：意图都发给这一块，状态把这块屏的和全局的合在一起
 @MainActor
@@ -158,6 +157,5 @@ final class OneScreen {
         wanted = false
         await desks.shutdown()
     }
-    var defaultZoom: Int { desks.defaultZoom }
     func idle() async { await desks.idle() }
 }

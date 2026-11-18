@@ -23,11 +23,11 @@ struct ScreenFitTests {
         }
     }
 
-    @Test("像素上限框住所有比例：最宽一档 × 最长比例的 2 倍")
+    @Test("竖屏的像素上限框住所有比例：最宽一档 × 最长比例的 2 倍")
     func maxPixels() {
-        #expect(ScreenFit.maxPixels == CGSize(width: 2160, height: 4320))
+        #expect(ScreenFit.portraitPixels == CGSize(width: 2160, height: 4320))
         let longest = ScreenFit(ratio: 2)
-        #expect(longest.size(width: 1080).height * 2 == ScreenFit.maxPixels.height)
+        #expect(longest.size(width: 1080).height * 2 == ScreenFit.portraitPixels.height)
     }
 
     @Test("比例 = 手机屏幕的高宽比扣掉上下各 91 点（UU 工具栏）；不知道逻辑宽度按 400 点估")

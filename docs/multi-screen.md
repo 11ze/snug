@@ -275,7 +275,7 @@ public enum ScreenPlan {
 同一时刻只有一台控制端，推流的规律已经测清（第 7 节）：每次连接两路，画面一路、主屏常驻一路；切屏只换画面那一路；断开时两路一起停；接管时前一台的两路停掉，0.6～0.7 秒后新的一台起两路。
 
 - 现有的判断照旧：有没有活着的推流、编码会话中途续推、3 秒宽限、15 秒重连等待期。换手落在重连等待期之内。
-- 对外给出 `RemoteFacts`：在不在远程（含重连等待期）、画面那一路在推哪块屏。
+- 对外给出在不在远程（含重连等待期）；画面那一路在推哪块屏由推流日志另给界面层（ScreenPlan 不用它，审查后删掉了 `RemoteFacts`，见第 9 节）。
 - 删掉只为几台同时连着写的处理（见 5.2）。
 
 #### TouchTap（改）
@@ -358,7 +358,7 @@ public var mainScreen: ScreenID?         // 设为主屏的那块；nil 表示�
 UU 留下的痕迹（推流日志、覆盖窗口、控制端表格）
     │ 每拍采样
     ▼
-RemoteSession ── RemoteFacts（在不在远程、被推的屏）──┐
+RemoteSession ── 在不在远程 ──────────────────────────┐
                                                       ▼
 config.screens ────────────────────────────▶ ScreenPlan.wishes
                                                       │ [ScreenWish]
@@ -407,7 +407,7 @@ MARK 小工具                               跟着用它的代码走
 | 删什么 | 位置 | 原因 |
 | :--- | :--- | :--- |
 | `ControllerKind` 整个文件，以及它的测试 | `Sources/SnugCore/PhoneScreen/ControllerKind.swift`；`PhoneScreenModelTests.swift` 里的 `ControllerKindTests` | 不再按名字猜设备类型 |
-| `RemoteSession.wantsPhoneScreen`，以及只为它服务的 `departed`、`episodeControllers` | `ControllerKind.swift` 末尾、`RemoteSession.swift` | 同上；在不在远程由 RemoteFacts 给 |
+| `RemoteSession.wantsPhoneScreen`，以及只为它服务的 `departed`、`episodeControllers` | `ControllerKind.swift` 末尾、`RemoteSession.swift` | 同上；在不在远程由 `RemoteSession.inEpisode` 给 |
 | `AppController.wantsPhoneScreen` | `Sources/Snug/App/AppController.swift:149` | 由 ScreenPlan 代替 |
 | 「控制端多于一台就不报在推哪块屏」 | `Sources/Snug/App/AppController.swift:145` | 一次只有一台控制端（V12） |
 | 状态文字「电脑控制端，不提供手机屏」 | `Sources/Snug/UI/StatusText.swift:47` | 同上 |
@@ -423,7 +423,7 @@ MARK 小工具                               跟着用它的代码走
 | :--- | :--- |
 | `PhoneDisplays` 协议 / `PhoneDisplayService` | 改名为 `VirtualDisplays` / `VirtualDisplayService`；`create` 改收 ScreenSpec（身份、名字、像素上限）和 ScreenFit |
 | `ScreenFit` | 见 4.4 |
-| `CaptureSessionState`、`RemoteSession` | 对外给 `RemoteFacts`，推流判断照旧（见 4.2） |
+| `CaptureSessionState`、`RemoteSession` | 对外给在不在远程，推流判断照旧（见 4.2） |
 | `WindowControl` / `WindowService` | 加「列出某块屏上的所有窗口」，撤屏清场用（3.3） |
 | `TouchTap` | `setRegions`（见 4.2） |
 | `AppState` | `phone` 改成 `desks: [ScreenID: Desk.State]`；`phoneInUse` 改成按屏判断；`streamedDisplay` 不变（只有一路画面） |
@@ -439,7 +439,7 @@ MARK 小工具                               跟着用它的代码走
 
 | 加什么 | 位置 |
 | :--- | :--- |
-| `ScreenPlan`、`ScreenWish`、`ScreenBehavior`、`RemoteFacts` | `Sources/SnugCore/Screens/` |
+| `ScreenPlan`、`ScreenWish`、`ScreenBehavior` | `Sources/SnugCore/Screens/` |
 | `ScreenSet`、`ScreenState`、`ScreenSpec`、`ScreenID`、`DeskSet` | 同上（`Desk` 由 PhoneDesk 改来） |
 | `ScreenConfig`、`Orientation`、`DeviceKind` | `Sources/SnugCore/Config/`；机型相关的放 `Screens/` |
 | 设置页的屏幕列表：增删、开关、改型号、设为主屏（界面以 UI 原型为准） | `Sources/Snug/UI/` |
