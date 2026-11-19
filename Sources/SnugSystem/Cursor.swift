@@ -1,11 +1,12 @@
-// 撤屏前的指针收拾（issue #29）：UU 把指针留在虚拟屏的坐标上，屏一撤，那个坐标不再属于任何屏，指针就“不见了”。
+// 指针收拾（issue #29）：UU 把指针留在虚拟屏的坐标上，屏一撤，那个坐标不再属于任何屏，指针就“不见了”；
+// 断开后的重连等待期里屏还在、本机却看不见，同样找不回来。
 // 落点怎么算见 SnugCore.CursorHome
 import AppKit
 import SnugCore
 
 @MainActor
 public enum Cursor {
-    /// 撤这块屏之前把指针带走：它还停在这块屏上时，落到一块留下的屏中央
+    /// 把指针从这块屏上带走（撤屏前、断开后的重连等待期）：它还停在这块屏上时，落到另一块屏中央
     public static func leave(_ gone: DisplayID) {
         let area = CGDisplayBounds(gone)
         guard !area.isEmpty, let point = CGEvent(source: nil)?.location, area.contains(point) else { return }
