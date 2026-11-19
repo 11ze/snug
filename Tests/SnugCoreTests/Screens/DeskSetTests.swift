@@ -671,7 +671,7 @@ struct DeskSetTests {
 
     // MARK: 设为主屏常驻（issue #28）
 
-    @Test("设为主屏的那块常驻：远程结束时不撤、仍是主屏；屏上的窗口放回原处、账销掉；没设主屏的那块照旧撤")
+    @Test("设为主屏的那块常驻：远程结束时不撤、仍是主屏，屏上的窗口原样留着（账也留着，下次连上接着用）；没设主屏的那块照旧撤")
     func persistentMainSurvivesSessionEnd() async throws {
         let rig = try Rig()
         let home = CGRect(x: -1800, y: 100, width: 800, height: 600)
@@ -689,6 +689,7 @@ struct DeskSetTests {
         rig.set.pull(xcode, on: second)
         await rig.set.idle()
         #expect(rig.placed(on: second) == xcode)
+        let filled = try #require(rig.windows.window(xcode.key)?.frame)
         rig.timeline.advance(10)
         rig.journal.clear()
         // 远程结束：AppController 先说一块屏都不要，再按「不在远程」重算（只剩常驻的主屏），再告诉 DeskSet
@@ -700,9 +701,16 @@ struct DeskSetTests {
         #expect(!rig.journal.all.contains("retire 102"))
         #expect(!rig.journal.all.contains { $0.hasPrefix("arrange") })
         #expect(rig.arrangement.main == 102)
-        #expect(rig.placed(on: second) == nil)
+        #expect(rig.placed(on: second) == xcode)
+        #expect(rig.record(of: second)?.window == xcode.key)
+        #expect(rig.windows.window(xcode.key)?.frame == filled)
+        #expect(!rig.journal.all.contains { $0.hasPrefix("move 50") })
+        // 取消设为主屏、没人远程：这块屏撤掉，窗口这时才放回原处
+        rig.timeline.advance(10)
+        rig.set.setWishes([])
+        await rig.set.idle()
         #expect(rig.record(of: second) == nil)
-        #expect(rig.windows.window(xcode.key)?.frame == shifted)
+        #expect(rig.windows.window(xcode.key)?.frame == home)
     }
 
     @Test("常驻的主屏：这次远程留在屏上的提示，远程结束时收掉，不带到下一次")

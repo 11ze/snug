@@ -138,7 +138,7 @@ Optional, off by default; at the bottom of the Screens page in Settings. The cho
 - **Why it stays**: UU Remote picks the main display at the moment a connection is made and does not follow later changes. Snug uses no UU Remote interface and can detect a connection only from the windows and stream logs UU Remote leaves on the Mac, by which time the picture is already streaming. The chosen screen must therefore exist and be the main display before the connection, the only approach available under these conditions
 - **Trade-offs**: the Dock, new windows, system alerts, and the lock-screen login prompt all appear on this screen, invisible at the Mac itself; when the Mac locks during a session, it can be unlocked from the controlling device. Intended for Macs without a display or used mainly remotely; confirmation required before enabling
 - **Turning it off**: set it back to "不改" (No change) in Settings; "取消设为主屏" (Cancel Main Display) in the menu bar; or "取消主屏" (Cancel Main) at the top right of the App Library on phone and tablet screens. Turn it off before working at the Mac again; if the Mac is already locked, connect remotely and turn it off on this screen
-- **When a session ends**: the screen stays, and windows on it return to their places with text sizes restored; the main display and arrangement are restored when the setting is turned off or Snug quits
+- **When a session ends**: the screen and the windows on it stay as they are, ready for the next connection; turning the setting off or quitting Snug returns the windows and restores the main display and arrangement
 
 ## 🗂 App Library
 
@@ -253,7 +253,7 @@ rm ~/Library/LaunchAgents/com.corndog.uudisplay.watchdog-agent.plist
 2. **Switch screens**: once connected, choose the matching screen in UU Remote's screen list
 3. **Pick an app or window**: on phone and tablet screens, tap an app or window in the App Library to fill the screen; on computer screens, open the App Library from the menu bar
 4. **Switch windows**: tap the bottom indicator bar to return to the App Library; choosing another window returns the previous one to its place
-5. **End the session**: windows returned, text sizes restored, Snug's screens removed, except the one set as main display
+5. **End the session**: windows returned, text sizes restored, Snug's screens removed, except the one set as main display, which keeps its windows
 
 > 💡 Set UU Remote's picture quality to the highest: lower settings blur the picture, especially on tablets.
 
