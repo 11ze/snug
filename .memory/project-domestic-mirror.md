@@ -14,7 +14,9 @@ metadata:
 - **摆法**：前缀 `https://dl.zephyrxiang.com/snug/`，和 SpeakMore 发布包同一个桶（桶名、地域、凭据名在不进 git 的 `.machine.env`，这份记忆会公开，别写进来）。`v<版本>/` 发过不改，2.1.0 起多 `Snug-<版本>.pack` 和 `update.json`；`latest/Snug.dmg` 和 `latest/update.json`（App 检查更新的地址）缓存 5 分钟、只往新版本换；`media/<名>.<指纹>.<后缀>` 放 README 媒体
 - **命令**：`ship` 发版时自动传；`mirror <版本>` 补传 GitHub 上已公开的版本；`media <文件…>` 传媒体并打出地址。对象都带 sha256 元数据，重跑一样就跳过、不一样就拒绝
 - **CDN**：防盗链关着（GitHub 图片代理才取得到）；每小时 4 GB 的流量上限和费用跟 SpeakMore 共用
-- **看下载量**（主人问了才查）：GitHub 用 releases API 的 download_count，含少量发版核对、扣不干净；国内源没有现成命令，先在 SpeakMore 仓库跑一次它的 stats 刷新 `.stats/logs` 里同域名的访问日志缓存（只读），再筛 `/snug/`，按「字节 ÷ 包大小」折算、同 IP 同天最多算 1 次、本机出口算自测。curl 拉包的不能当自测：2026-11-14 宣传片后十几个不同来源用 curl 下载，还去找 `latest/` 下的校验文件，多半是用户让 AI 助手装的
+- **看下载量**（主人问了才查）：`scripts/snug stats`（只读，口径写在 `scripts/download_stats.py` 开头）。国内源的日志读 SpeakMore 的缓存：先在 SpeakMore 仓库跑一次它的 stats 刷新 `.stats/logs`，报告里打出日志截至何时、超过 6 小时会提醒；`.machine.env` 的 `SPEAKMORE_STATS` 指向那个 `.stats` 目录。11-19 踩过的两个坑：
+  - GitHub 的 download_count 按文件计：update.json（App 查更新）、.sha256、.pack 全在里面，只有 .dmg 是安装。11-19 全部文件 2564 次，安装包只有 1738；照全部文件报过一次 2.5K+，多报了约三成
+  - curl 拉 `media/` 的不能当自测（各版本 Linux curl、AI 工具读 README 都会拉，按它认会多认出几十个「自测」IP）；只认 curl 拉某个版本目录下的 update.json / .pack，那只有 ship / mirror 核对时才拉。curl 拉安装包的也不能当自测：2026-11-14 宣传片后十几个不同来源用 curl 下载，还去找 `latest/` 下的校验文件，多半是用户让 AI 助手装的
 - **证书**：`dl.zephyrxiang.com` 的免费证书 2027-01-12 到期，续期记在 SpeakMore 的记忆里；不换，两个项目的下载会一起断
 - 上传用的是主账号密钥，以后可换成只能写 `snug/` 前缀的子账号密钥（未做）
 
