@@ -143,6 +143,7 @@ public final class DeskSet {
     private func reconcile() async {
         let target = wishes
         let ids = Set(target.map(\.id))
+        let mainBefore = screens.mainScreen
         // 设了主屏的那块要撤（或不再当主屏）：先设回原主屏，跟过去的窗口回去了，剩下的才清场
         await screens.releaseMain(keeping: target)
         let leaving = desks.values.filter { !ids.contains($0.id) && screens.display($0.id) != nil }
@@ -174,12 +175,12 @@ public final class DeskSet {
             state.desks[id] = nil
         }
         for (id, ok) in reshaped { await desks[id]?.reshaped(ok) }
+        // 换了主屏（设、取消、换一块）：系统互换窗口时把留着的屏上的窗口换走了，挪回来
+        if screens.mainScreen != mainBefore {
+            for desk in orderedDesks where desk.wanted { await desk.reclaimSwapped() }
+        }
         for desk in busy { desk.end() }
-        guard desks.isEmpty else { return }
-        // 这次远程的提示、没盯完的退出和关窗不带到下一次（App 照样在退，只是不再盯）
-        watcher.unwatchAll()
-        state.quitting = []
-        state.closing = []
+        if desks.isEmpty { forgetSession() }
     }
 
     /// 撤屏前清场（docs/how-it-works.md「Snug 的屏」）：Snug 放上去的已经按账放回，屏上剩下的（用户在这块屏上直接开的、
@@ -547,7 +548,24 @@ public final class DeskSet {
 
     /// 远程在不在进行（会话层的结论）。远程结束后，远程中撤屏留下的永久配置要重写（settleDisplays）
     public func setRemote(_ on: Bool) {
-        if screens.setRemote(on), !on { settleDisplays() }
+        guard screens.setRemote(on), !on else { return }
+        // 远程结束：设为主屏的那块常驻不撤（ScreenPlan），这次远程的事不带到下一次
+        lane.run { self.endSession() }
+        settleDisplays()
+    }
+
+    /// 远程结束后还留着的屏（常驻的主屏）：屏上的窗口原样留着，下次连上接着用（主人定：设了主屏，
+    /// 屏上的东西就不该变；取消设为主屏、撤这块屏时才放回）。只收掉这次远程的提示
+    private func endSession() {
+        for desk in desks.values { desk.setNotice(nil) }
+        forgetSession()
+    }
+
+    /// 这次远程的提示、没盯完的退出和关窗不带到下一次（App 照样在退，只是不再盯）
+    private func forgetSession() {
+        watcher.unwatchAll()
+        state.quitting = []
+        state.closing = []
     }
 
     /// 定期调用、屏幕配置一变也调用：撤屏后屏真下线了，就放回窗口、设回别的屏；远程中撤过屏的，
@@ -591,7 +609,8 @@ public final class DeskSet {
         let skip = Set(desks.values.compactMap(\.placedWindow) + owed)
         guard let back = await env.leftBehind.nextReturn(skip: skip) else { return }
         let center = CGPoint(x: back.frame.midX, y: back.frame.midY)
-        if let id = screens.screen(at: center), let desk = desks[id], desk.awaitsReturn, desk.behavior.touch {
+        // 屏在不等于还在远程：常驻的主屏远程结束后还在，这时回来的窗口放回原位
+        if screens.isRemote, let id = screens.screen(at: center), let desk = desks[id], desk.awaitsReturn, desk.behavior.touch {
             // 还在远程、回到了一块空着的 Snug 屏上：接着放（Desk.place 认得出这笔账，原位、字号接着用）
             await desk.placeOnItsOwn(back.window)
             return

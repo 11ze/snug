@@ -180,4 +180,32 @@ struct ConfigModelTests {
         c.addScreen(orientation: .landscape, device: DeviceChoice(model: nil, screen: DeviceScreen(width: 1600, height: 2560, notch: 30), kind: .computer))
         #expect(try JSONDecoder().decode(AppConfig.self, from: JSONEncoder().encode(c)) == c)
     }
+
+    @Test("2.6.2 及以前的「设为主屏」只在远程时生效：升到常驻的版本时撤掉，要在设置里看过确认框重新选；同版本、开发版、新装、没设过的不动")
+    func dropsRemoteOnlyMain() {
+        let v262 = Version(major: 2, minor: 6, patch: 2)
+        let v270 = Version(major: 2, minor: 7, patch: 0)
+        var c = AppConfig()
+        c.mainScreen = .phone
+        c.lastVersion = v262
+        var upgraded = c
+        #expect(upgraded.dropRemoteOnlyMain(running: v270) == .phone)
+        #expect(upgraded.mainScreen == nil)
+        // 开发中的版本号还没升（照旧 2.6.2）：不撤，不然本机自测每次启动都被清掉
+        var dev = c
+        #expect(dev.dropRemoteOnlyMain(running: v262) == nil)
+        #expect(dev.mainScreen == .phone)
+        // 已经在常驻的版本上设的
+        var current = c
+        current.lastVersion = v270
+        #expect(current.dropRemoteOnlyMain(running: Version(major: 2, minor: 7, patch: 1)) == nil)
+        #expect(current.mainScreen == .phone)
+        // 新装（没记过版本）、没设过主屏
+        var fresh = c
+        fresh.lastVersion = nil
+        #expect(fresh.dropRemoteOnlyMain(running: v270) == nil)
+        var none = AppConfig()
+        none.lastVersion = v262
+        #expect(none.dropRemoteOnlyMain(running: v270) == nil)
+    }
 }

@@ -2,9 +2,9 @@
 import Foundation
 
 public struct AppConfig: Codable, Equatable, Sendable {
-    /// 屏幕列表：远程时建出开着的那几块（见 ScreenPlan）。新装只有一块竖屏手机屏
+    /// 屏幕列表：远程时建出开着的那几块，设为主屏的那块常驻（见 ScreenPlan）。新装只有一块竖屏手机屏
     public var screens = [ScreenConfig.legacyPhone(.standard, enabled: true)]
-    /// 远程时设为主屏的那块；nil 表示不改主屏（默认）
+    /// 设为主屏的那块，常驻、不随远程建撤；nil 表示不改主屏（默认）
     public var mainScreen: ScreenID?
     /// 下一块新加的屏至少用哪一段序列号（只增不减：删掉的屏的号也不回收，免得系统把旧屏的记忆套到新屏上）
     public var nextSerialBlock = 0
@@ -49,6 +49,16 @@ public struct AppConfig: Codable, Equatable, Sendable {
     public mutating func removeScreen(_ id: ScreenID) {
         screens.removeAll { $0.id == id }
         if mainScreen == id { mainScreen = nil }
+    }
+
+    /// 2.6.2 及以前「设为主屏」只在远程时生效，之后改为常驻、一启动就接管 Mac 主屏（#28）。从这些版本升上来的，
+    /// 设过的主屏先撤掉：常驻的代价要在设置里看过确认框、重新选定才算数。running 还是 2.6.2 的（开发中没升版本号）不撤。
+    /// 返回撤掉的那块
+    public mutating func dropRemoteOnlyMain(running: Version) -> ScreenID? {
+        let lastRemoteOnly = Version(major: 2, minor: 6, patch: 2)
+        guard let main = mainScreen, let last = lastVersion, last <= lastRemoteOnly, running > lastRemoteOnly else { return nil }
+        mainScreen = nil
+        return main
     }
 
     /// 2.5.x 还在读的两项：取第一块竖屏手机屏的值，降级回去照样能用（过两个大版本再停写，见 docs/development.md「数据与日志」）

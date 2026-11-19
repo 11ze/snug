@@ -18,6 +18,8 @@ final class AppState {
     /// 机型库（启动时读一次）：设置和屏上选型号用
     var devices = DeviceCatalog.empty
     var connection = ConnectionPhase.idle
+    /// --preview-screens：不等远程就建屏的自测模式
+    var previewing = false
     /// 此刻同时连着的控制端
     var controllers: [String] = []
     /// UU 此刻在推的屏
@@ -54,6 +56,9 @@ final class AppState {
         PanelState(desk: desks.desks[id] ?? Desk.State(), quitting: desks.quitting, closing: desks.closing)
     }
 
+    /// Snug 的屏有没有人在用：远程中（含等重连），或预览自测。常驻的主屏没人远程时也在，这时面板不为它干活
+    var screensInUse: Bool { connection != .idle || previewing }
+
     /// 这块显示器是哪块 Snug 屏；不是 Snug 的屏（内建屏、外接显示器）返回 nil
     func screenID(on display: DisplayID) -> ScreenID? {
         desks.desks.first { $0.value.display == display }?.key
@@ -61,6 +66,10 @@ final class AppState {
 
     /// UU 此刻在推的那块 Snug 屏，也就是用户此刻正在这块屏上
     var watchedScreen: ScreenID? { streamedDisplay.flatMap { screenID(on: $0) } }
+
+    /// 手机（控制端）此刻在看这块屏，资源库才为它刷。不知道 UU 在推哪块屏（推流日志没读到）时当作在看；
+    /// 没人远程时谁都没在看（常驻的主屏）
+    func watching(_ id: ScreenID) -> Bool { screensInUse && (streamedDisplay == nil || watchedScreen == id) }
 
     /// 菜单栏「App 资源库」能往哪些屏放：就绪的电脑屏，按屏幕列表的顺序。手机、平板屏有自己的面板，
     /// Mac 样式的窗口开在它们上面也放不下
@@ -103,7 +112,7 @@ protocol AppIntents: AnyObject, Sendable {
     /// 换型号：屏在就马上换成它的比例
     func setScreenDevice(_ id: ScreenID, _ device: DeviceChoice)
     func renameScreen(_ id: ScreenID, _ name: String)
-    /// 远程时设为主屏的那块；nil 不改主屏
+    /// 设为主屏的那块（常驻）；nil 不改主屏
     func setMainScreen(_ id: ScreenID?)
     func setGestures(_ on: Bool)
     func setZoomSteps(_ steps: Int)
@@ -143,6 +152,8 @@ protocol TouchIntents: AnyObject, Sendable {
     func setDevice(_ device: DeviceChoice)
     /// 退出这块屏：这次远程不再显示（见 DeskSet.dismissScreen）
     func dismissScreen()
+    /// 取消设为主屏（设为主屏的那块屏上点的）：主屏改回 Mac，这块屏不再常驻
+    func cancelMain()
     /// 截铺满这块屏的窗口到剪贴板（见 Screenshots）
     func takeScreenshot()
     func openCrop()

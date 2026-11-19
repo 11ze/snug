@@ -668,4 +668,162 @@ struct DeskSetTests {
         #expect(rig.arrangement.main == 1)
         #expect(rig.arrangement.origins()[1] == .zero)
     }
+
+    // MARK: 设为主屏常驻（issue #28）
+
+    @Test("设为主屏的那块常驻：远程结束时不撤、仍是主屏，屏上的窗口原样留着（账也留着，下次连上接着用）；没设主屏的那块照旧撤")
+    func persistentMainSurvivesSessionEnd() async throws {
+        let rig = try Rig()
+        let home = CGRect(x: -1800, y: 100, width: 800, height: 600)
+        let xcode = WindowInfo(key: WindowKey(pid: 30, id: 50), app: "Xcode", bundleID: "com.apple.dt.Xcode", title: "snug")
+        rig.windows.add(xcode.key, frame: home, info: xcode)
+        var main = rig.secondWish()
+        main.main = true
+        rig.desk.setRemote(true)
+        rig.set.setWishes([rig.desk.wish, main])
+        await rig.set.idle()
+        // 设主屏时别的屏连同上面的窗口一起平移
+        let shift = try #require(rig.displays.bounds(102)).origin
+        let shifted = home.offsetBy(dx: -shift.x, dy: -shift.y)
+        _ = await rig.windows.move(xcode.key, to: shifted)
+        rig.set.pull(xcode, on: second)
+        await rig.set.idle()
+        #expect(rig.placed(on: second) == xcode)
+        let filled = try #require(rig.windows.window(xcode.key)?.frame)
+        rig.timeline.advance(10)
+        rig.journal.clear()
+        // 远程结束：AppController 先说一块屏都不要，再按「不在远程」重算（只剩常驻的主屏），再告诉 DeskSet
+        rig.set.setWishes([])
+        rig.set.setWishes([main])
+        rig.desk.setRemote(false)
+        await rig.set.idle()
+        #expect(rig.journal.all.contains("retire 101"))
+        #expect(!rig.journal.all.contains("retire 102"))
+        #expect(!rig.journal.all.contains { $0.hasPrefix("arrange") })
+        #expect(rig.arrangement.main == 102)
+        #expect(rig.placed(on: second) == xcode)
+        #expect(rig.record(of: second)?.window == xcode.key)
+        #expect(rig.windows.window(xcode.key)?.frame == filled)
+        #expect(!rig.journal.all.contains { $0.hasPrefix("move 50") })
+        // 取消设为主屏、没人远程：这块屏撤掉，窗口这时才放回原处
+        rig.timeline.advance(10)
+        rig.set.setWishes([])
+        await rig.set.idle()
+        #expect(rig.record(of: second) == nil)
+        #expect(rig.windows.window(xcode.key)?.frame == home)
+    }
+
+    @Test("远程中取消主屏、屏留着：系统还原排布时把屏上放着的窗口换去了原主屏（资源库开着，不会自己铺回来）：挪回来，仍算放在屏上")
+    func releaseMainReclaimsPlaced() async throws {
+        let rig = try Rig()
+        var main = rig.secondWish()
+        main.main = true
+        rig.desk.setRemote(true)
+        rig.set.setWishes([rig.desk.wish, main])
+        await rig.set.idle()
+        rig.set.pull(ghostty, on: second)
+        await rig.set.idle()
+        rig.set.showList(on: second)
+        await rig.set.idle()
+        // 11-18 真机：还原排布时新主屏上的窗口整体换到原主屏
+        rig.arrangement.onChange = { [unowned windows = rig.windows] in
+            windows.setFrame(ghostty.key, CGRect(x: 300, y: 200, width: 540, height: 900))
+        }
+        rig.set.setWishes([rig.desk.wish, rig.secondWish()])
+        await rig.set.idle()
+        #expect(rig.placed(on: second) == ghostty)
+        #expect(rig.windows.window(ghostty.key)?.frame == rig.displays.windowArea(102, withHomeBar: true))
+        #expect(rig.record(of: second)?.window == ghostty.key)
+    }
+
+    @Test("远程中设主屏：系统把这块屏上放着的窗口换去了原主屏：挪回来")
+    func claimMainReclaimsPlaced() async throws {
+        let rig = try Rig()
+        rig.desk.setRemote(true)
+        rig.set.setWishes([rig.desk.wish, rig.secondWish()])
+        await rig.set.idle()
+        rig.set.pull(ghostty, on: second)
+        await rig.set.idle()
+        rig.arrangement.onChange = { [unowned windows = rig.windows] in
+            windows.setFrame(ghostty.key, CGRect(x: 300, y: 200, width: 540, height: 900))
+        }
+        var main = rig.secondWish()
+        main.main = true
+        rig.set.setWishes([rig.desk.wish, main])
+        await rig.set.idle()
+        #expect(rig.arrangement.main == 102)
+        #expect(rig.placed(on: second) == ghostty)
+        #expect(rig.windows.window(ghostty.key)?.frame == rig.displays.windowArea(102, withHomeBar: true))
+    }
+
+    @Test("远程中取消主屏、电脑屏留着：挪过来的窗口被系统换走，挪回电脑屏，账照旧；之后定期核对不当成用户自己挪走")
+    func releaseMainReclaimsBrought() async throws {
+        let rig = try Rig()
+        var wish = rig.secondWish(computer)
+        wish.main = true
+        rig.desk.setRemote(true)
+        rig.set.setWishes([rig.desk.wish, wish])
+        await rig.set.idle()
+        rig.set.pull(finder, on: second)
+        await rig.set.idle()
+        #expect(rig.broughtKeys(on: second) == [finder.key])
+        rig.arrangement.onChange = { [unowned windows = rig.windows] in windows.setFrame(finder.key, finderHome) }
+        wish.main = false
+        rig.set.setWishes([rig.desk.wish, wish])
+        await rig.set.idle()
+        rig.desk.verifyPlacement()
+        await rig.set.idle()
+        #expect(rig.broughtKeys(on: second) == [finder.key])
+        let area = try #require(rig.displays.windowArea(102, withHomeBar: false))
+        #expect(rig.windows.window(finder.key)?.frame == area.centered(finderHome.size))
+    }
+
+    @Test("常驻的主屏：这次远程留在屏上的提示，远程结束时收掉，不带到下一次")
+    func persistentMainForgetsSession() async throws {
+        let rig = try Rig()
+        let codex = AppInfo(bundleID: "com.openai.codex", name: "ChatGPT", path: "/Applications/ChatGPT.app")
+        var main = rig.desk.wish
+        main.main = true
+        rig.desk.setRemote(true)
+        rig.set.setWishes([main])
+        await rig.set.idle()
+        let app = rig.apps.run(codex, pid: 600)
+        rig.apps.onQuit(codex, .stalls)
+        rig.desk.quit(app)
+        await rig.set.idle()
+        #expect(rig.desk.state.notice == .quitStalled(app: "ChatGPT", pid: 600))
+        rig.set.setWishes([])
+        rig.set.setWishes([main])
+        rig.desk.setRemote(false)
+        await rig.set.idle()
+        #expect(rig.desk.state.notice == nil)
+        #expect(rig.set.state.desks[.phone]?.screen == .ready(101))
+    }
+
+    @Test("常驻的主屏、不在远程：带着屏上大小回来的窗口不当成「还在远程」接着放，放回原位")
+    func persistentMainIdleReturnGoesHome() async throws {
+        let rig = try Rig()
+        var main = rig.desk.wish
+        main.main = true
+        rig.desk.setRemote(true)
+        rig.set.setWishes([main])
+        await rig.set.idle()
+        await rig.pull(ghostty)
+        let filled = try #require(rig.windows.window(ghostty.key)?.frame)
+        rig.windows.vanish(ghostty.key)
+        rig.desk.verifyPlacement()
+        await rig.set.idle()
+        rig.timeline.advance(10)
+        rig.set.setWishes([])
+        rig.set.setWishes([main])
+        rig.desk.setRemote(false)
+        await rig.set.idle()
+        // 窗口在 Snug 之外关掉后又开出来，还是屏上铺成的样子、落在常驻屏上
+        let back = WindowInfo(key: WindowKey(pid: 10, id: 70), app: ghostty.app, bundleID: ghostty.bundleID, title: ghostty.title)
+        rig.windows.add(back.key, frame: filled, info: back)
+        rig.desk.checkReturns()
+        await rig.set.idle()
+        #expect(rig.placed(on: .phone) == nil)
+        #expect(rig.windows.window(back.key)?.frame == ghosttyHome)
+    }
 }

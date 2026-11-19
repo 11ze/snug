@@ -49,6 +49,7 @@ final class AppController: Sendable {
                         arrangement: DisplayArrangementService(), paths: paths, defaultZoom: store.config.zoomSteps)
         catalog = AppCatalog(apps: apps, windows: windows)
         state.config = store.config
+        state.previewing = preview
         state.devices = devices
         state.accessibilityTrusted = AX.isTrusted
         updater = Updater(state: state)
@@ -59,6 +60,12 @@ final class AppController: Sendable {
             guard resolved != screen.device else { continue }
             changeConfig("「\(screen.name)」的型号 \(resolved.title) 按机型库更新") { config in
                 if let i = config.screens.firstIndex(where: { $0.id == screen.id }) { config.screens[i].device = resolved }
+            }
+        }
+        // 2.6.x 设的主屏只在远程时生效；改为常驻后，代价要在设置里看过确认框才算数。升上来先撤掉，同样在建屏前定下来
+        if let current = Updater.current, let last = store.config.lastVersion {
+            changeConfig("从 \(last) 升级：原先只在远程时生效的设为主屏改回「不改」（现为常驻，需在设置中重新选定）") {
+                _ = $0.dropRemoteOnlyMain(running: current)
             }
         }
     }
@@ -133,8 +140,8 @@ final class AppController: Sendable {
         let sample = sensor.sample(now: Date())
         let transitions = session.update(sample.signals, now: now)
         for t in transitions { Log.info("会话：\(Self.describe(t))") }
-        // 远程结束就是一块屏都不要了。下一次在同一拍里开始时，前后要的屏一样，不先说一声「不要」，
-        // 上一次在手机上退出的屏会带进这一次。同一拍里先「不要」再「要」不会撤屏重建（DeskSet 排队时读的是最新结论）
+        // 远程结束先说一声一块屏都不要，再按「不在远程」重算（只剩常驻的主屏）。不先说「不要」的话，下一次在同一拍里
+        // 开始时前后要的屏一样，上一次在手机上退出的屏会带进这一次。同一拍里先「不要」再「要」不会撤屏重建（DeskSet 排队时读的是最新结论）
         if transitions.contains(.ended) { desks.setWishes([]) }
         applyPlan()
         desks.setRemote(session.inEpisode)

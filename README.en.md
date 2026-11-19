@@ -93,7 +93,7 @@ Snug's computer screen is created at the controlling computer's resolution, matc
 - **Native resolution**: default resolutions for the entire Mac lineup and common computer resolutions built in, Windows PCs included; custom sizes supported, see [Custom Screens](#custom-screens)
 - **Pixel for pixel**: the notch area on MacBooks left clear, no scaling
 - **Computer controls preserved**: no gesture remapping or text enlargement; mouse and trackpad unchanged
-- **Set as main display** (optional, off by default; at the bottom of the Screens page in Settings): UU Remote starts every connection on the main display. As the main display, this screen receives every connection, along with the menu bar, the Dock, and the windows from the original main display, for seamless continuity; main display and arrangement restored when the session ends or if Snug quits unexpectedly
+- **Set as main display** (optional, off by default): every connection lands directly on this screen, along with the menu bar, the Dock, and the windows from the original main display, for seamless continuity; see [Set as Main Display](#set-as-main-display)
 - **App Library**: opened from the menu bar; moves windows from other screens to this one, with one-click restore; see [App Library](#-app-library)
 
 ## 🧩 One Mac, Every Device
@@ -128,11 +128,20 @@ All screens managed on the Screens page of Settings; the screen in use selected 
 <p align="center"><img src="https://dl.zephyrxiang.com/snug/media/settings-screens-remote.4475b8da.png" width="43%" alt="The Screens page of Snug's settings during a session: the screen list and Set as main display"> <img src="https://dl.zephyrxiang.com/snug/media/uu-screen-list.a161e201.png" width="46%" alt="UU Remote's screen menu listing four Snug screens"><br><sub>Left: the screen list in Snug's settings · Right: the screen list in UU Remote during a session</sub></p>
 
 - **On demand**: unused screens can be switched off and are not created during sessions
-- **Set as main display** (optional, off by default): available for any Snug screen, so every connection lands on it; see [Computer](#computer-full-screen--no-black-bars)
+- **Set as main display** (optional, off by default): available for any Snug screen, which then stays in place and receives every connection; see [Set as Main Display](#set-as-main-display)
 - **Mac mini and Mac Studio without a display**: Snug's screen replaces the system's default screen, providing a full desktop at the controlling device's resolution
 - **Model library**: 785 phones and 46 tablets across 19 brands (every iPhone from iPhone 8 onward; mainstream Android models from Huawei, Xiaomi, OPPO, vivo, Samsung, and others; inner and outer screens of foldables listed separately), plus 13 Macs and 9 common computer resolutions
 
 <p align="center"><img src="https://dl.zephyrxiang.com/snug/media/phone-models.391e818d.png" width="36%" alt="Model page: the current model, a custom resolution, and models by brand"><br><sub>Models: listed by brand, with custom resolutions</sub></p>
+
+### Set as Main Display
+
+Optional, off by default; at the bottom of the Screens page in Settings. The chosen screen stays in place as the Mac's main display, and UU Remote lands on it with every connection, along with the menu bar, the Dock, and the windows from the original main display.
+
+- **Why it stays**: UU Remote picks the main display at the moment a connection is made and does not follow later changes. Snug uses no UU Remote interface and can detect a connection only from the windows and stream logs UU Remote leaves on the Mac, by which time the picture is already streaming. The chosen screen must therefore exist and be the main display before the connection, the only approach available under these conditions
+- **Trade-offs**: the Dock, new windows, system alerts, and the lock-screen login prompt all appear on this screen, invisible at the Mac itself; when the Mac locks during a session, it can be unlocked from the controlling device. Intended for Macs without a display or used mainly remotely; confirmation required before enabling
+- **Turning it off**: set it back to "不改" (No change) in Settings; "取消设为主屏" (Cancel Main Display) in the menu bar; or "取消主屏" (Cancel Main) at the top right of the App Library on phone and tablet screens. Turn it off before working at the Mac again; if the Mac is already locked, connect remotely and turn it off on this screen
+- **When a session ends**: the screen and the windows on it stay as they are, ready for the next connection; turning the setting off or quitting Snug returns the windows and restores the main display and arrangement
 
 ## 🗂 App Library
 
@@ -160,6 +169,7 @@ The home page of phone and tablet screens (「App 资源库」), for managing th
 | Quit an app | Tap "Quit" on the app's card, then tap again to confirm; force quit available after 10 seconds |
 | Save unsaved changes | The save prompt on closing or quitting appears on the current screen, answerable from the mobile device |
 | Exit this screen | Tap "Exit This Screen" at the top right and confirm: windows returned, screen removed for the rest of the session, restored next session (reconnecting within 15 seconds counts as the same session) |
+| Cancel main display | On the screen set as main, tap "Cancel Main" at the top right and confirm: the main display returns to the Mac, and this screen is removed when the session ends |
 
 ### Works Like an iPhone
 
@@ -246,13 +256,13 @@ rm ~/Library/LaunchAgents/com.corndog.uudisplay.watchdog-agent.plist
 2. **Switch screens**: once connected, choose the matching screen in UU Remote's screen list
 3. **Pick an app or window**: on phone and tablet screens, tap an app or window in the App Library to fill the screen; on computer screens, open the App Library from the menu bar
 4. **Switch windows**: tap the bottom indicator bar to return to the App Library; choosing another window returns the previous one to its place
-5. **End the session**: windows returned, text sizes restored, Snug's screens removed; main display and arrangement restored if set
+5. **End the session**: windows returned, text sizes restored, Snug's screens removed, except the one set as main display, which keeps its windows
 
 > 💡 Set UU Remote's picture quality to the highest: lower settings blur the picture, especially on tablets.
 
 ## 🔒 Isolation and Restoration
 
-- **Only Snug's screens affected**: no display turned off, no other window touched; outside Snug's screens, UU Remote behaves exactly as before. The main display changes only with "Set as main display" on, and is restored when the session ends
+- **Only Snug's screens affected**: no display turned off, no other window touched; outside Snug's screens, UU Remote behaves exactly as before. The main display changes only with "Set as main display" on, which keeps the chosen screen as main until the setting is turned off or Snug quits
 - **Cleared before removal**: windows opened directly on a Snug screen moved to the main display before the screen is removed, never pushed into a corner
 - **Record first, then change**: original window positions and text sizes recorded in advance, restorable even if Snug quits unexpectedly
 - **Restored even after a direct close**: a window closed directly on the mobile device returns to its place, with its text size restored, the next time the app opens it at the Snug screen's size
@@ -265,7 +275,7 @@ rm ~/Library/LaunchAgents/com.corndog.uudisplay.watchdog-agent.plist
 | :--- | :--- |
 | Relies on undocumented macOS APIs | May break after a major macOS update |
 | UU Remote allows only one controlling device at a time | Screens used in turn; simultaneous sessions from several devices not supported |
-| UU Remote starts every connection on the main display | One manual selection in the screen list; with "Set as main display", every connection lands on that screen |
+| UU Remote starts every connection on the main display | One manual selection in the screen list; with "Set as main display", every connection lands on that screen; see [Set as Main Display](#set-as-main-display) |
 | UU Remote on a Mac lists at most 5 screens | The Mac's own displays included; when controlling from a Mac, switch off unused Snug screens first |
 | No automatic portrait–landscape rotation | One screen per orientation, switched in UU Remote when rotating |
 | Not an official NetEase product | Unaffiliated with UU Remote or its developer; UU Remote updates may affect some features |

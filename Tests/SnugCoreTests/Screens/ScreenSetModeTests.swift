@@ -99,6 +99,36 @@ struct ScreenSetModeTests {
         #expect(rig.journal.all.count == 2)
     }
 
+    @Test("设为主屏的那块常驻：远程中撤过别的屏，远程结束后常驻屏还在，照样把别的屏此刻的模式写进永久配置")
+    func persistsWithResidentMain() async throws {
+        let rig = try Rig()
+        rig.displays.others = [1: redmi30, 3: hp]
+        var main = rig.desk.wish
+        main.main = true
+        let spec = ScreenSpec(name: "Snug 第二块", productID: ScreenSpec.portraitProductID,
+                              serials: [200_100_000, 200_100_001, 200_100_002], maxPixels: ScreenFit.portraitPixels)
+        let other = ScreenWish(id: ScreenID("second"), spec: spec, fit: .standard, behavior: .touchScreen)
+        rig.desk.setRemote(true)
+        rig.set.setWishes([main, other])
+        await rig.set.idle()
+        rig.timeline.advance(10)
+        rig.displays.onRetire = { [unowned displays = rig.displays] in displays.others[1] = redmi60 }
+        rig.set.dismissScreen(other.id)
+        await rig.set.idle()
+        rig.journal.clear()
+        // 远程结束，UU 把主屏还原成 60Hz；常驻的主屏还在
+        rig.displays.others[1] = redmi60
+        rig.set.setWishes([])
+        rig.set.setWishes([main])
+        rig.desk.setRemote(false)
+        await rig.set.idle()
+        rig.desk.settleDisplays()
+        await rig.set.idle()
+        #expect(rig.journal.all.contains("mode 1 \(redmi60) 永久"))
+        #expect(rig.journal.all.contains("mode 3 \(hp) 永久"))
+        #expect(rig.set.state.desks[.phone]?.screen == .ready(101))
+    }
+
     @Test("加屏时也一样：别的屏被拨回这组屏幕上次记的模式，加好后设回加屏前的样子；远程中可能是临时模式，只对本次登录设回")
     func createKeepsOtherModes() async throws {
         let rig = try Rig()

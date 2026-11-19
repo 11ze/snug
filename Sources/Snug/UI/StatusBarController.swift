@@ -43,6 +43,8 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         menu.removeAllItems()
         menu.addItem(status())
         if state.legacyAppRunning { menu.addItem(action("退出旧版 UU远程伴侣", #selector(quitLegacy), symbol: "xmark.circle")) }
+        // 主屏常驻、本机看不到时，菜单栏是回到 Mac 前最好找的出口
+        if state.config.mainScreen != nil { menu.addItem(action("取消设为主屏", #selector(cancelMain), symbol: "menubar.rectangle")) }
         menu.addItem(.separator())
         let library = action("App 资源库", #selector(openLibrary), symbol: "square.grid.2x2")
         // 电脑屏都不在时没有地方放
@@ -76,6 +78,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     }
 
     @objc private func quitLegacy() { intents.quitLegacyApp() }
+    @objc private func cancelMain() { intents.setMainScreen(nil) }
     @objc private func openSettings() { navigation.openSettings(on: clickedScreen?.displayID) }
     @objc private func openAbout() { navigation.openAbout(on: clickedScreen?.displayID) }
     /// 在哪块屏的菜单栏点，就在哪块屏打开

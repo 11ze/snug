@@ -607,6 +607,24 @@ public final class Desk {
         }
     }
 
+    /// 设主屏、取消主屏时系统在原主屏和新主屏之间整体互换窗口（V11）：这块屏留着，Snug 放上来、挪过来的窗口却被换去了别的屏，
+    /// 挪回来。不挪的话界面还当它在屏上（资源库开着时不会自己铺回来），电脑屏上的会被定期核对当成用户自己挪走、销掉账
+    func reclaimSwapped() async {
+        guard let bounds = screens.bounds(id) else { return }
+        func away(_ look: WindowLook) -> Bool { !look.minimized && !bounds.contains(CGPoint(x: look.frame.midX, y: look.frame.midY)) }
+        if var p = placement, let look = await windows.look(p.window.key), away(look) {
+            Log.info("换主屏时系统把 \(p.window.label) 换到了别的屏（\(look.frame.short)），挪回屏上")
+            await fill(&p)
+            placement = p
+        }
+        guard !brought.isEmpty, let area = screens.windowArea(id, withHomeBar: false) else { return }
+        for key in brought.keys.sorted(by: Self.order) {
+            guard let record = brought[key], let look = await windows.look(key), away(look) else { continue }
+            Log.info("换主屏时系统把 \(record.label) 换到了别的屏（\(look.frame.short)），挪回电脑屏")
+            if await windows.move(key, to: area.centered(look.frame.size)) == nil { Log.warn("\(record.label) 挪不回电脑屏") }
+        }
+    }
+
     /// 电脑屏：挪过来的窗口在 Snug 之外关了、或被挪去了别的屏，销掉它的账。关了没有要还的（大小没改、字号没调），
     /// 挪走了是用户自己安排好了，不再拽回来。最小化的照旧算在这块屏上；读不到位置（App 一时没响应）的先不动
     private func verifyBrought() async {
