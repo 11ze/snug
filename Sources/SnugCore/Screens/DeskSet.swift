@@ -143,6 +143,7 @@ public final class DeskSet {
     private func reconcile() async {
         let target = wishes
         let ids = Set(target.map(\.id))
+        let mainBefore = screens.mainScreen
         // 设了主屏的那块要撤（或不再当主屏）：先设回原主屏，跟过去的窗口回去了，剩下的才清场
         await screens.releaseMain(keeping: target)
         let leaving = desks.values.filter { !ids.contains($0.id) && screens.display($0.id) != nil }
@@ -174,6 +175,10 @@ public final class DeskSet {
             state.desks[id] = nil
         }
         for (id, ok) in reshaped { await desks[id]?.reshaped(ok) }
+        // 换了主屏（设、取消、换一块）：系统互换窗口时把留着的屏上的窗口换走了，挪回来
+        if screens.mainScreen != mainBefore {
+            for desk in orderedDesks where desk.wanted { await desk.reclaimSwapped() }
+        }
         for desk in busy { desk.end() }
         if desks.isEmpty { forgetSession() }
     }
