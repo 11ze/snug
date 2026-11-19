@@ -703,7 +703,7 @@ struct DeskTests {
         #expect(rig.windows.window(finder.key)?.frame == wide)
     }
 
-    @Test("App 不认挪动（窗口没挪到手机屏上）：不按它原来的大小换档")
+    @Test("App 不认挪动（窗口没挪到手机屏上）：不当成放上了，按账放回、提示没响应；不按它原来的大小换档")
     func unmovableWindowKeepsWidth() async throws {
         let rig = try Rig()
         rig.windows.ignoreMoves()
@@ -711,6 +711,24 @@ struct DeskTests {
         await rig.pull(finder)
         #expect(!rig.journal.all.contains { $0.hasPrefix("width") })
         #expect(rig.displays.widths[101] == 540)
+        #expect(rig.desk.state.placed == nil)
+        #expect(rig.desk.state.notice == .windowUnresponsive(app: finder.app))
+        #expect(rig.windows.window(finder.key)?.frame == finderHome)
+    }
+
+    @Test("窗口从远处的屏直达手机屏被 App 留在原处：先挪到主屏中间，再挪上屏（社区 PR #26）")
+    func pullThroughMainScreen() async throws {
+        let rig = try Rig()
+        let far = WindowInfo(key: WindowKey(pid: 20, id: 20), app: "WorkBuddy", bundleID: "com.example.workbuddy", title: "WorkBuddy")
+        rig.windows.add(far.key, frame: CGRect(x: 2053, y: 1110, width: 1226, height: 816), info: far)
+        rig.windows.requireStop(far.key, in: FakeDisplays.main)
+        await rig.ready()
+        await rig.pull(far)
+        let area = try #require(rig.displays.windowArea(101, withHomeBar: true))
+        let moves = rig.journal.all.filter { $0.hasPrefix("move 20 ") }
+        #expect(moves.count == 3)
+        #expect(rig.windows.window(far.key)?.frame == area)
+        #expect(rig.desk.state.placed?.window == far)
     }
 
     @Test("在列表里调字号：列表露着时不换档、不补铺；返回窗口时再换过去")

@@ -582,6 +582,26 @@ struct DeskSetTests {
         #expect(rig.windows.window(notes.key)?.frame == home.offsetBy(dx: main.x, dy: main.y))
     }
 
+    @Test("设着主屏时窗口从远处的屏挪上屏被留在原处：中转用原来那块主屏，不用此刻当主屏的 Snug 屏")
+    func pullThroughHomeMainWhileClaimed() async throws {
+        let rig = try Rig()
+        rig.displays.others[1] = ScreenMode(ioModeID: 1, width: 1512, height: 982, pixelWidth: 3024, pixelHeight: 1964, refreshRate: 120)
+        var wish = rig.secondWish()
+        wish.main = true
+        rig.set.setWishes([rig.desk.wish, wish])
+        await rig.set.idle()
+        let main = try #require(rig.displays.bounds(102)).origin
+        let home = CGRect(x: -main.x, y: -main.y, width: 1512, height: 982)
+        rig.displays.otherBounds[1] = home
+        let far = WindowInfo(key: WindowKey(pid: 20, id: 20), app: "WorkBuddy", bundleID: "com.example.workbuddy", title: "WorkBuddy")
+        rig.windows.add(far.key, frame: CGRect(x: 2053, y: 1110, width: 1226, height: 816), info: far)
+        rig.windows.requireStop(far.key, in: home)
+        rig.set.pull(far, on: second)
+        await rig.set.idle()
+        #expect(rig.placed(on: second) == far)
+        #expect(rig.windows.window(far.key)?.frame == rig.displays.windowArea(102, withHomeBar: true))
+    }
+
     @Test("屏留着、只是不再当主屏：设回原主屏，屏不撤")
     func unsetMainKeepsScreen() async throws {
         let rig = try Rig()

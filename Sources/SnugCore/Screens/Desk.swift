@@ -403,7 +403,7 @@ public final class Desk {
     @discardableResult
     private func fill(_ p: inout Placement) async -> CGRect? {
         await screens.setWidth(id, p.width)
-        guard let area = screens.windowArea(id, withHomeBar: true), let got = await windows.move(p.window.key, to: area) else { return nil }
+        guard let area = screens.windowArea(id, withHomeBar: true), let got = await moveOnto(p.window, area) else { return nil }
         p.settled = got
         // App 关窗时存下的就是这个大小：窗口在 Snug 之外没了，凭它认出回来的是不是它
         p.record.filled = got
@@ -413,14 +413,36 @@ public final class Desk {
         } else {
             state.closeButton = await windows.closeButton(p.window.key).map { CloseButton(frame: $0, window: p.window.key.id, windowFrame: got) }
         }
-        // 窗口落到了区域原点、只是尺寸被夹住，才是 App 限定了最小尺寸；没挪过去（App 不认挪动）就不按它的大小换档
-        let placed = abs(got.minX - area.minX) < 2 && abs(got.minY - area.minY) < 2
-        guard placed, let current = screens.width(id) else { return got }
+        // 原点已落在区域上（moveOnto），尺寸大于区域就是被 App 的最小尺寸夹住了
+        guard let current = screens.width(id) else { return got }
         let width = screenFit.width(toFit: got.size, in: area.size, at: current)
         guard width > current, width != p.width else { return got }
         Log.info("\(p.window.label) 在 \(current) 宽的屏上铺不满（App 限定了最小尺寸，实际 \(got.short)），换到 \(width) 宽")
         p.width = width
         return await fill(&p)
+    }
+
+    /// 挪上这块屏，原点落不到区域上就交回 nil，不把留在别处的窗口当成放上了。有些 App 的窗口从远处的屏（如主屏右下方的屏）
+    /// 直达会留在原处：先挪到原来那块主屏中间，App 认了当前所在的屏再挪一次（社区 PR #26，作者 yupeng316888-create）。
+    /// 设着主屏时此刻的主屏可能就是这块屏，所以中转用原来那块
+    private func moveOnto(_ window: WindowInfo, _ area: CGRect) async -> CGRect? {
+        guard let first = await windows.move(window.key, to: area) else { return nil }
+        if Self.landed(first, on: area) { return first }
+        guard let home = screens.homeMainArea(), let staged = await windows.move(window.key, to: home.centered(first.size)),
+              home.contains(CGPoint(x: staged.midX, y: staged.midY)) else {
+            Log.warn("\(window.label) 没挪到屏上（实际 \(first.short)），挪到原主屏中转也不成")
+            return nil
+        }
+        guard let got = await windows.move(window.key, to: area), Self.landed(got, on: area) else {
+            Log.warn("\(window.label) 没挪到屏上（实际 \(first.short)），经原主屏中转仍挪不上")
+            return nil
+        }
+        Log.info("\(window.label) 直达没挪到屏上（实际 \(first.short)），经原主屏中转挪上了")
+        return got
+    }
+
+    private static func landed(_ frame: CGRect, on area: CGRect) -> Bool {
+        abs(frame.minX - area.minX) < 2 && abs(frame.minY - area.minY) < 2
     }
 
     /// 收起列表、露出屏上的窗口：先换到它那一档、重新铺满，再收列表、激活它。
