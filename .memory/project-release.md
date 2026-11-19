@@ -10,6 +10,7 @@ metadata:
 
 - **一个入口**：构建、测试、打包、公证、发版都走 `scripts/snug`（check / app / install / dist / ship / mirror / media）。新步骤加成子命令或内部函数，不另起脚本。主人 11-13：「通过一行命令行就能去出包、去 release，千万别散在各处」。参照 SpeakMore（`~/coding/personal/reverse-anything`）的 ship：把关 → 检查 → 打包公证 → 上传 → 从下载地址核对 → 公开；断了只补没做完的那一步
 - **签名公证**：个人 Developer ID Application（Team ID 29898YBGWD，本机唯一一张）。notarytool 档案与 SpeakMore 共用，名字在不进 git 的 `.machine.env`；档案在数据保护钥匙串里，`security find-generic-password` 搜不到，别据此说没有。苹果回 403「A required agreement is missing」是开发者协议待签，要账号持有人去 developer.apple.com 签
+- **main 不加分支保护**（11-19 主人定）：只有主人有写权限，加了影响效率；GitHub 提示「main branch isn't protected」不用理，等有协作者再议
 - **GitHub 账号**：本机 gh 登了多个账号，本项目用 `GH_CONFIG_DIR=~/.config/gh-zephyr4123` 绑定 zephyr4123。推送和 gh 命令前 `gh api user --jq .login` 必须是 zephyr4123，不是就先停下。gh 命令一律写明 `-R zephyr4123/snug`：不写时会挑 upstream（只有 scripts/snug 里导出了 `GH_REPO`），2.0.0 发版时差点发到原作者的仓库
 - **版本号口径**（主人定）：x.y.0 发主打功能，x.y.z 修 issue 报的问题，即使带一个小入口也算热修复（2.0.1、2.2.1、2.4.1 都是）
 - **更新日志口径**：讲用户得到什么（「全面适配所有 App」），不点名具体 App、不讲换分辨率之类的实现。主人通常只审更新日志，其余放手
