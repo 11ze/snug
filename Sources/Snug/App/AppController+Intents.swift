@@ -211,6 +211,7 @@ final class ScreenIntents: TouchIntents {
     func zoom(by delta: Int) { desks.zoom(by: delta, on: id) }
     func setDevice(_ device: DeviceChoice) { app.setScreenDevice(id, device) }
     func dismissScreen() { desks.dismissScreen(id) }
+    func cancelMain() { app.setMainScreen(nil) }
 
     func takeScreenshot() {
         guard let window = app.state.desks.desks[id]?.placed?.window else { return }

@@ -18,6 +18,8 @@ struct ScreensPage: View {
     /// 打开着的表单：添加屏幕、某块屏的详情（渲染样例用初值）
     @State var sheet: ScreenSheet?
     @State private var explaining = false
+    /// 选了要设为主屏、等确认的那块（渲染样例用初值）
+    @State var confirmingMain: ScreenID?
 
     var body: some View {
         Form {
@@ -55,7 +57,10 @@ struct ScreensPage: View {
             }
             Section {
                 LabeledContent {
-                    Picker("设为主屏", selection: Binding(get: { state.config.mainScreen }, set: { intents.setMainScreen($0) })) {
+                    // 设主屏立即生效、影响本机，先讲清代价再设；改回「不改」不用问
+                    Picker("设为主屏", selection: Binding(get: { state.config.mainScreen }, set: { id in
+                        if let id, id != state.config.mainScreen { confirmingMain = id } else { intents.setMainScreen(id) }
+                    })) {
                         Text("不改").tag(ScreenID?.none)
                         Divider()
                         ForEach(state.config.screens) { Text($0.name).tag(ScreenID?.some($0.id)) }
@@ -63,7 +68,7 @@ struct ScreensPage: View {
                     .labelsHidden()
                     .fixedSize()
                 } label: {
-                    SettingLabel("设为主屏", detail: "远程时用这块屏当主屏，结束后还原", tile: MacTokens.IconTile.mainScreen)
+                    SettingLabel("设为主屏", detail: "常驻并作为主屏，每次连接直接进入", tile: MacTokens.IconTile.mainScreen)
                 }
             }
         }
@@ -76,7 +81,27 @@ struct ScreensPage: View {
             case .detail(let id): ScreenDetailSheet(id: id, state: state, intents: intents) { self.sheet = nil }
             }
         }
+        .confirmationDialog(confirmingMain.flatMap { state.screen($0) }.map { "将「\($0.name)」设为主屏？" } ?? "",
+                            isPresented: Binding(get: { confirmingMain != nil }, set: { if !$0 { confirmingMain = nil } })) {
+            Button("设为主屏") {
+                if let id = confirmingMain { intents.setMainScreen(id) }
+                confirmingMain = nil
+            }
+        } message: {
+            Text(MainScreenNotice.detail)
+        }
     }
+}
+
+/// 设为主屏的代价：设置里确认时讲清楚（README「设为主屏」同一套说法）
+enum MainScreenNotice {
+    static let detail = """
+        此屏将常驻并作为 Mac 的主屏，立即生效；UU远程 每次连接即进入此屏。
+
+        影响：程序坞、新窗口、系统提示与锁屏登录框均显示于此屏，本机不可见。适用于未接显示器或仅远程使用的 Mac。
+
+        原因：UU远程 在连接时选定主屏，Snug 仅能在连接后察觉，须预先设定。可随时在 App 资源库或菜单栏取消。
+        """
 }
 
 /// 设置窗口上弹出的表单

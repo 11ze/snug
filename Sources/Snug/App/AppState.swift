@@ -148,6 +148,8 @@ protocol TouchIntents: AnyObject, Sendable {
     func setDevice(_ device: DeviceChoice)
     /// 退出这块屏：这次远程不再显示（见 DeskSet.dismissScreen）
     func dismissScreen()
+    /// 取消设为主屏（设为主屏的那块屏上点的）：主屏改回 Mac，这块屏不再常驻
+    func cancelMain()
     /// 截铺满这块屏的窗口到剪贴板（见 Screenshots）
     func takeScreenshot()
     func openCrop()

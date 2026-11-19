@@ -8,6 +8,7 @@
 // 平板屏右上角约 45 点压着 UU 的圆形菜单按钮（V6），右上角的按钮往左让开（读环境值 topTrailingClear，搜索页、型号页同样）。
 // - 搜索：见 TouchSearchPage；型号：见 TouchModelPage
 // - 退出这块屏：页眉里再问一次，讲明窗口会还原、下次远程恢复
+// - 取消主屏：只在设为主屏的那块屏上有（主屏常驻，手机上要能一键改回），同样在页眉里再问一次
 // - 正在打开、正在放、正在调整比例、正在退出：整屏讲明是哪个 App、哪个窗口、哪台设备；出了问题：顶部写明出了什么事、怎么办
 // 每次回到列表、每次出了问题都从最上面看起。文字只用短词，图标全用 SF Symbols
 import AppKit
@@ -79,10 +80,13 @@ struct TouchHomeView: View {
         case quit(Int32)
         case close(WindowKey)
         case dismissScreen
+        case cancelMain
     }
 
     /// 退出这块屏的图标：右上角的按钮、确认卡和「正在退出」共用
     static let dismissSymbol = "rectangle.portrait.and.arrow.forward"
+    /// 取消主屏的图标：和设置里「设为主屏」同一个
+    static let mainSymbol = "menubar.rectangle"
     private static let top = "top"
     private var panel: PanelState { state.panel(screen) }
     private var config: ScreenConfig? { state.screen(screen) }
@@ -151,6 +155,12 @@ struct TouchHomeView: View {
             Spacer(minLength: TouchTokens.Space.m)
             HStack(spacing: 0) {
                 // 确认卡在页眉里：每次点都滚回去，翻到下面时再点也看得见
+                if state.config.mainScreen == screen {
+                    navButton(Self.mainSymbol, label: "取消主屏") {
+                        confirming = .cancelMain
+                        withAnimation { proxy?.scrollTo(Self.top, anchor: .top) }
+                    }
+                }
                 navButton(Self.dismissSymbol, label: "退出这块屏") {
                     confirming = .dismissScreen
                     withAnimation { proxy?.scrollTo(Self.top, anchor: .top) }
@@ -193,9 +203,13 @@ struct TouchHomeView: View {
         .padding(.top, TouchTokens.Space.xs)
     }
 
-    /// 退出这块屏的确认、出了问题的提示
+    /// 退出这块屏、取消主屏的确认，出了问题的提示
     @ViewBuilder private var banners: some View {
-        if confirming == .dismissScreen {
+        if confirming == .cancelMain {
+            Banner(symbol: Self.mainSymbol, tint: .indigo, headline: "取消主屏？", detail: "主屏改回 Mac，远程结束后撤掉此屏") {
+                ConfirmButtons(title: "确定", confirming: $confirming, spacing: TouchTokens.Space.m) { intents.cancelMain() }
+            }
+        } else if confirming == .dismissScreen {
             Banner(symbol: Self.dismissSymbol, tint: .red, headline: "退出这块屏？", detail: "窗口还原，下次远程时恢复") {
                 // 间距和提示卡里的「稍后 / 强制退出」一样
                 ConfirmButtons(title: "退出", confirming: $confirming, spacing: TouchTokens.Space.m) { intents.dismissScreen() }

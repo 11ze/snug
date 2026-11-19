@@ -94,6 +94,7 @@ final class RenderStub: AppIntents, TouchIntents, Navigation {
     func zoom(by delta: Int) {}
     func setDevice(_ device: DeviceChoice) {}
     func dismissScreen() {}
+    func cancelMain() {}
     func takeScreenshot() {}
     func openCrop() {}
     func cancelCrop() {}

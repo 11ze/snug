@@ -318,6 +318,8 @@ enum RenderSamples {
             panel("phone-confirm-quit", confirming: .quit(2)) { _, _ in },
             panel("phone-confirm-close", confirming: .close(windows[4].key)) { s, _ in s.desks.desks[.phone]?.placed = placed },
             panel("phone-confirm-dismiss", confirming: .dismissScreen) { s, _ in s.desks.desks[.phone]?.placed = placed },
+            panel("phone-main") { s, _ in s.config.mainScreen = .phone },
+            panel("phone-confirm-cancel-main", confirming: .cancelMain) { s, _ in s.config.mainScreen = .phone },
             panel("phone-dismissing-dark", dark: true) { s, _ in s.desks.desks[.phone]?.work = .dismissing },
             panel("phone-closing-dark", dark: true) { s, _ in
                 s.desks.desks[.phone]?.placed = placed
