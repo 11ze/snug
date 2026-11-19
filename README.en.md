@@ -21,6 +21,9 @@ Built for UU Remote · Display and touch enhancements for remote Macs<br>A dedic
 
 </div>
 
+> [!NOTE]
+> **UU Remote premium services**: from December 1, 2026, UU Remote introduces premium services. Basic remote control stays free; features such as multi-display control and virtual displays move to VIP, with 50% off an annual plan for accounts registered before that date ([UU Remote website](https://uuyc.163.com/)). Snug's screens are entered by switching displays in UU Remote and rely on its multi-display capability, so VIP is recommended. Free-tier support will be tested after December 1 and updated here.
+
 > Continued from [aoyamashou/UUyc-companion](https://github.com/aoyamashou/UUyc-companion) (UU Remote Companion by AoyamaShou, MIT License), with the original copyright notices and commit history fully preserved. Redesigned around the phone screen in 2.0; extended to tablets and computers in 2.6.
 
 ## 📥 Download

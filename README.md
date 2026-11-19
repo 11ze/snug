@@ -21,6 +21,9 @@
 
 </div>
 
+> [!NOTE]
+> **UU远程 增值服务**：UU远程 自 2026 年 12 月 1 日起推出增值服务，基础远控持续免费；多屏控多屏、虚拟屏等功能纳入 VIP，此前注册可享年卡五折（[UU远程 官网](https://uuyc.163.com/)）。Snug 的屏需在 UU远程 中切换进入，依赖其多屏能力，建议开通 VIP 使用。免费版的可用范围待 12 月 1 日后实测，届时更新。
+
 > 承接自 [aoyamashou/UUyc-companion](https://github.com/aoyamashou/UUyc-companion)（UU远程伴侣，作者 AoyamaShou，MIT 许可），完整保留原作者的版权声明与提交历史。2.0 起以手机屏为核心重新设计，2.6 起扩展至平板与电脑。
 
 ## 📥 下载
