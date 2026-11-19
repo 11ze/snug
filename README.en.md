@@ -317,7 +317,7 @@ Community ports are developed, released, and maintained independently by their a
 First and foremost, we extend our sincere respect to **[UU Remote](https://uuyc.163.com/)**.
 
 - **Exceptional quality**: stable connections, responsive control, and freely adjustable image quality and frame rate. Remote control spans encoding, transport, and connectivity across networks, among many other engineering challenges; reaching a standard that everyday work can depend on is a formidable technical achievement in its own right.
-- **Entirely free**: a product with so high a technical barrier remains free for everyone. That goes well beyond generosity; it is a genuine gift to the entire remote-access ecosystem. This openness is what allows the community to keep building on it, from companion apps and one-finger scrolling to virtual displays, and Snug grew from it as well.
+- **Free for years**: a product with so high a technical barrier stayed free for everyone for three years, and basic remote control remains free. It is a genuine gift to the entire remote-access ecosystem. This openness is what allows the community to keep building on it, from companion apps and one-finger scrolling to virtual displays, and Snug grew from it as well.
 
 With heartfelt thanks.
 
@@ -327,7 +327,7 @@ We are equally grateful to the following projects and contributors:
 - [Better Remote](https://github.com/pincc-debug/better-remote) (MIT): by pincc-debug, the approach to one-finger scrolling in UU Remote
 - [PermissionFlow](https://github.com/jaywcjlove/PermissionFlow) (MIT): by jaywcjlove (小弟调调), the permission onboarding and drag-to-authorize panel
 - [FreeDisplay](https://github.com/huberdf/FreeDisplay) (MIT): by huberdf, the `CGVirtualDisplay` interface declarations
-- Community PR authors: bubble, gencheng liu, and Rongzheng Liu (#10, reading UU Remote windows in full-screen Spaces)
+- Community PR authors: bubble, gencheng liu, and Rongzheng Liu (#10, reading UU Remote windows in full-screen Spaces); yupeng (#26, routing cross-display windows through the main display); 李小双 (#30, ending a session immediately after disconnecting and moving the pointer off a screen before removal); LI Long (#31, investigating multi-display window restoration and menu bar placement)
 - The virtual display implementation draws on [DeskPad](https://github.com/Stengo/DeskPad), [Side Screen](https://github.com/tranvuongquocdat/SideScreen), and Chromium
 
 ## ⭐ Star History

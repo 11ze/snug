@@ -317,7 +317,7 @@ scripts/snug install   # 构建、安装并打开
 首先，谨向 **[UU远程](https://uuyc.163.com/)** 致以诚挚的敬意。
 
 - **品质卓越**：连接稳定，响应灵敏，画质与帧率均可按需调节。远程控制涉及编码、传输与跨网络连接等诸多工程环节，能够达到日常工作可长期依赖的水准，其技术门槛不言而喻。
-- **完全免费**：技术壁垒如此之高的产品，始终向所有用户免费开放，其意义远非「难得」二字所能概括，堪称对整个远程生态的慷慨馈赠。正是这份开放，使社区得以在其基础上持续探索，远程伴侣、单指滚动、虚拟屏幕等方案相继涌现，Snug 亦由此而生。
+- **长期免费**：技术壁垒如此之高的产品，上线三年始终向所有用户免费开放，基础远控今后亦持续免费，堪称对整个远程生态的慷慨馈赠。正是这份开放，使社区得以在其基础上持续探索，远程伴侣、单指滚动、虚拟屏幕等方案相继涌现，Snug 亦由此而生。
 
 谨此致谢。
 
@@ -327,7 +327,7 @@ scripts/snug install   # 构建、安装并打开
 - [Better Remote](https://github.com/pincc-debug/better-remote)（MIT）：pincc-debug，为 UU远程 实现单指滚动的思路
 - [PermissionFlow](https://github.com/jaywcjlove/PermissionFlow)（MIT）：小弟调调，授权引导与拖拽授权面板
 - [FreeDisplay](https://github.com/huberdf/FreeDisplay)（MIT）：huberdf，`CGVirtualDisplay` 接口声明
-- 社区 PR 作者：bubble、gencheng liu、Rongzheng Liu（#10，全屏桌面空间下读取 UU远程 窗口）
+- 社区 PR 作者：bubble、gencheng liu、Rongzheng Liu（#10，全屏桌面空间下读取 UU远程 窗口）；yupeng（#26，跨屏窗口经主屏中转）；李小双（#30，断线后立即结束远程、撤屏前移开指针）；LI Long（#31，多屏窗口归位与菜单栏定位的排查）
 - 虚拟屏的实现参考了 [DeskPad](https://github.com/Stengo/DeskPad)、[Side Screen](https://github.com/tranvuongquocdat/SideScreen) 与 Chromium 的相关代码
 
 ## ⭐ Star 趋势
