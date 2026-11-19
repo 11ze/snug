@@ -21,8 +21,10 @@ Built for UU Remote · Display and touch enhancements for remote Macs<br>A dedic
 
 </div>
 
-> [!NOTE]
-> **UU Remote VIP**: from December 1, 2026, UU Remote moves multi-display and virtual display features to VIP. Snug is built on virtual displays and is intended for users who already have UU Remote VIP. Support for other remote desktop apps, both open-source and established, is under evaluation.
+> [!IMPORTANT]
+> **For UU Remote VIP members**: from December 1, 2026, UU Remote moves multi-display and virtual display features to VIP. Snug is built on virtual displays; if you happen to be a UU Remote VIP member, give it a try.
+>
+> **Our position**: Snug is an independent community project with no commercial ties to UU Remote. Whether to subscribe is a decision about UU Remote itself; there is no need to subscribe just for Snug. Support for other remote desktop apps, both open-source and established, is under evaluation.
 
 > Continued from [aoyamashou/UUyc-companion](https://github.com/aoyamashou/UUyc-companion) (UU Remote Companion by AoyamaShou, MIT License), with the original copyright notices and commit history fully preserved. Redesigned around the phone screen in 2.0; extended to tablets and computers in 2.6.
 
@@ -317,7 +319,8 @@ Community ports are developed, released, and maintained independently by their a
 First and foremost, we extend our sincere respect to **[UU Remote](https://uuyc.163.com/)**.
 
 - **Exceptional quality**: stable connections, responsive control, and freely adjustable image quality and frame rate. Remote control spans encoding, transport, and connectivity across networks, among many other engineering challenges; reaching a standard that everyday work can depend on is a formidable technical achievement in its own right.
-- **Free for years**: a product with so high a technical barrier stayed free for everyone for three years, and basic remote control remains free. It is a genuine gift to the entire remote-access ecosystem. This openness is what allows the community to keep building on it, from companion apps and one-finger scrolling to virtual displays, and Snug grew from it as well.
+- **Three years free**: a product with so high a technical barrier stayed free for everyone for three years, a genuine gift to the entire remote-access ecosystem. This openness is what allows the community to keep building on it, from companion apps and one-finger scrolling to virtual displays, and Snug grew from it as well.
+- **Supporting commercialization**: a great product deserves to be rewarded. We fully support UU Remote's premium services, and the author subscribed to VIP right away.
 
 With heartfelt thanks.
 
