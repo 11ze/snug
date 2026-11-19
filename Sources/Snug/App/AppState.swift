@@ -67,6 +67,10 @@ final class AppState {
     /// UU 此刻在推的那块 Snug 屏，也就是用户此刻正在这块屏上
     var watchedScreen: ScreenID? { streamedDisplay.flatMap { screenID(on: $0) } }
 
+    /// 手机（控制端）此刻在看这块屏，资源库才为它刷。不知道 UU 在推哪块屏（推流日志没读到）时当作在看；
+    /// 没人远程时谁都没在看（常驻的主屏）
+    func watching(_ id: ScreenID) -> Bool { screensInUse && (streamedDisplay == nil || watchedScreen == id) }
+
     /// 菜单栏「App 资源库」能往哪些屏放：就绪的电脑屏，按屏幕列表的顺序。手机、平板屏有自己的面板，
     /// Mac 样式的窗口开在它们上面也放不下
     var libraryScreens: [ScreenID] {
