@@ -302,13 +302,13 @@ public final class ScreenSet {
 
     // MARK: 主屏
 
-    /// 设主屏的那块要撤、或不再要它当主屏：先设回原来的主屏（在 DeskSet 清场之前调，跟过去的窗口随之回到原主屏，
-    /// 剩下的才要清场）
     /// 常驻、不随远程建撤的屏：设为主屏的那块（ScreenPlan）
     private func isResident(_ id: ScreenID) -> Bool {
         wishes.contains { $0.id == id && $0.main }
     }
 
+    /// 设主屏的那块要撤、或不再要它当主屏：先设回原来的主屏（在 DeskSet 清场之前调，跟过去的窗口随之回到原主屏，
+    /// 剩下的才要清场）
     func releaseMain(keeping wishes: [ScreenWish]) async {
         guard let id = mainScreen, !wishes.contains(where: { $0.id == id && $0.main }) else { return }
         mainScreen = nil
