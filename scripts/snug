@@ -43,6 +43,7 @@ usage() {
             公开 → 传国内源 → 两边都从下载地址核对
   mirror    把 GitHub 上已经公开的版本补传到国内源：scripts/snug mirror 2.0.0
   media     把 README 用的图片、视频传到国内源，打出地址：scripts/snug media <文件…>
+  stats     安装包下载量（只读）：GitHub Release 加国内源，扣除自测；国内源的日志读 SpeakMore 的缓存
   help      显示这段说明
 
 发版：改好 VERSION 并提交，打带说明的同名标签推上去，再 ship（Release 的说明取自标签说明）：
@@ -403,6 +404,8 @@ cmd_check() {
   swift build
   step "swift test"
   swift test
+  step "scripts 的 Python 单测"
+  python3 -B -m unittest discover -s scripts -p 'test_*.py'
   print -- "✅ check 通过"
 }
 
@@ -605,6 +608,24 @@ cmd_media() {
   print -l -- "${urls[@]}"
 }
 
+# 安装包下载量（只读）。口径和怎么认自测写在 scripts/download_stats.py 开头。
+# 国内源和 SpeakMore 共用 CDN 域名，访问日志由 SpeakMore 的 stats 拉取并缓存，这里只读那份缓存，不碰密钥
+cmd_stats() {
+  local cache=${SPEAKMORE_STATS:-}
+  [[ -n $cache ]] || die "没配 SpeakMore 的统计缓存：照 .machine.env.example 在 .machine.env 里填 SPEAKMORE_STATS"
+  [[ -d $cache/logs ]] \
+    || die "$cache/logs 不存在：先在 SpeakMore 仓库跑一次 scripts/release/with-cos-key.sh npm run stats"
+  local releases; releases="$(mktemp)"
+  {
+    gh api --paginate "repos/$GH_REPO/releases?per_page=100" --jq '.[]' > "$releases" \
+      || die "从 GitHub 取不到 Release 列表"
+    python3 -B -I scripts/download_stats.py \
+      --releases "$releases" --logs "$cache/logs" --self-ips "$cache/self-ips.json"
+  } always {
+    rm -f "$releases"
+  }
+}
+
 # MARK: 入口
 
 load_machine_env
@@ -616,6 +637,7 @@ case "${1:-help}" in
   ship) cmd_ship ;;
   mirror) cmd_mirror "${2:-}" ;;
   media) shift; cmd_media "$@" ;;
+  stats) cmd_stats ;;
   help|-h|--help) usage ;;
   *) usage >&2; die "不认识的命令：$1" ;;
 esac

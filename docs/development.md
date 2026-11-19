@@ -6,13 +6,14 @@
 
 | 命令 | 作用 |
 | :--- | :--- |
-| `scripts/snug check` | 构建全部产物并运行全部测试（Swift Testing），任一步骤失败即以非零状态退出 |
+| `scripts/snug check` | 构建全部产物并运行全部测试（Swift Testing，以及 `scripts/` 中的 Python 单测），任一步骤失败即以非零状态退出 |
 | `scripts/snug app` | 生成 `build/Snug.app`（通用二进制）并签名 |
 | `scripts/snug install` | 生成 App、安装至「应用程序」并打开；正在运行的 Snug 会先正常退出，窗口先行归位 |
 | `scripts/snug dist` | 生成可分发的 `dist/<版本>/Snug-<版本>.dmg`：Developer ID 签名，App 与 dmg 分别公证并装订票据；再将公证后的 App 打成应用内更新用的 `Snug-<版本>.pack` |
 | `scripts/snug ship` | 发布：前置检查 → check → dist → 生成 `update.json` → 创建 GitHub Release 草稿并上传 → 公开 → 上传国内源 → 两处均从下载地址核对 |
 | `scripts/snug mirror <版本>` | 将 GitHub 上已公开的版本补传至国内源：安装包从 GitHub 下载，校验一致后上传；有应用内更新文件的版本一并补传 |
 | `scripts/snug media <文件…>` | 将 README 使用的图片与视频上传至国内源并输出地址；视频仅重新封装（不重新编码），并去除录制时间、地点等元数据 |
+| `scripts/snug stats` | 统计安装包下载量（只读）：GitHub Release 与国内源分别计算后相加，扣除自测；口径见下文「国内源」中的「下载量」 |
 
 **环境要求**：Xcode 与 Swift 6。
 
@@ -36,6 +37,7 @@
 | `GH_CONFIG_DIR` / `GITHUB_ACCOUNT` | 发布所用的 GitHub 账号 |
 | `COS_BUCKET` / `COS_REGION` | 国内源所在的 COS 桶与地域 |
 | `COS_CREDENTIAL` / `COS_SECRETS_LOADER` | 腾讯云密钥的凭据名与按需加载器（提供 `withkey`）；环境中已有 `TENCENTCLOUD_SECRET_ID` / `TENCENTCLOUD_SECRET_KEY` 时可留空 |
+| `SPEAKMORE_STATS` | SpeakMore 仓库中的 `.stats` 目录（含 `logs/` 与 `self-ips.json`），`stats` 从中读取国内源的访问日志 |
 
 ## 国内源
 
@@ -52,6 +54,13 @@
 - 每个对象记录 sha256：重复上传时内容一致即跳过，不一致即拒绝
 - 上传使用的 Python 环境位于仓库内的 `.venv`（不纳入版本控制），依赖版本锁定在 `scripts/cos-requirements.txt`，缺失时自动安装
 - GitHub 的 README 不播放外链视频：README 中的动态演示使用动图，完整视频以链接形式提供
+
+**下载量**（`scripts/snug stats`，计算位于 `scripts/download_stats.py`，单测随 `check` 运行）
+
+- GitHub Release：只计 `.dmg`。`update.json`（App 检查更新）、`.sha256` 与 `.pack` 的下载数单独列出，不计入；每个版本扣除一次 `ship` 从下载地址的核对
+- 国内源：读取 CDN 访问日志，按「传输字节 ÷ 安装包大小」折算为完整下载次数，同一 IP 同一天最多计一次；`latest/Snug.dmg` 按当时最新的版本折算
+- 国内源与 SpeakMore 共用 CDN 域名，访问日志由 SpeakMore 的 `stats` 拉取并缓存，本命令只读该缓存、不使用密钥；日志超过 6 小时未更新时会提示先刷新
+- 自测来源：SpeakMore 记录的本机出口，以及用 curl 拉取版本目录下 `update.json` 或 `.pack` 的来源（仅 `ship` / `mirror` 核对时如此）。用 curl 拉取 `media/` 或安装包的来源不视为自测：Linux 上的 curl、读取 README 的 AI 工具、替用户安装的 AI 助手都会这样请求
 
 ## 应用内更新
 
