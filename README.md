@@ -309,8 +309,8 @@ scripts/snug install   # 构建、安装并打开
 
 | 平台 | 项目 | 维护者 | 说明 |
 | :--- | :--- | :--- | :--- |
+| Windows x64 | [Snug for Windows](https://github.com/rizetngan/snug-for-windows) | [rizetngan](https://github.com/rizetngan) | 基于 Snug 2.5.0 移植，C# / .NET 10 / WPF；已发布正式版 |
 | Windows 10 / 11 | [snug-win](https://github.com/nicocart/snug-win) | [nicocart](https://github.com/nicocart) | 基于 Snug 2.5.0 移植，C# / .NET 8 / WPF |
-| Windows x64 | [Snug for Windows](https://github.com/rizetngan/snug-for-windows) | [rizetngan](https://github.com/rizetngan) | 基于 Snug 2.5.0 移植，C# / .NET 10 / WPF；社区预览版，尚未发布正式版本 |
 
 社区移植由各自作者独立开发、发布与维护。本仓库仅开发与测试 macOS 版，未测试上述移植版本；使用问题请至对应仓库反馈。
 
