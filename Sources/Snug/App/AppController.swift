@@ -62,6 +62,12 @@ final class AppController: Sendable {
                 if let i = config.screens.firstIndex(where: { $0.id == screen.id }) { config.screens[i].device = resolved }
             }
         }
+        // 2.6.x 设的主屏只在远程时生效；改为常驻后，代价要在设置里看过确认框才算数。升上来先撤掉，同样在建屏前定下来
+        if let current = Updater.current, let last = store.config.lastVersion {
+            changeConfig("从 \(last) 升级：原先只在远程时生效的设为主屏改回「不改」（现为常驻，需在设置中重新选定）") {
+                _ = $0.dropRemoteOnlyMain(running: current)
+            }
+        }
     }
 
     var now: Date { anchor.date.addingTimeInterval(ProcessInfo.processInfo.systemUptime - anchor.uptime) }
