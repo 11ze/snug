@@ -49,6 +49,7 @@ final class AppController: Sendable {
                         arrangement: DisplayArrangementService(), paths: paths, defaultZoom: store.config.zoomSteps)
         catalog = AppCatalog(apps: apps, windows: windows)
         state.config = store.config
+        state.previewing = preview
         state.devices = devices
         state.accessibilityTrusted = AX.isTrusted
         updater = Updater(state: state)
@@ -133,8 +134,8 @@ final class AppController: Sendable {
         let sample = sensor.sample(now: Date())
         let transitions = session.update(sample.signals, now: now)
         for t in transitions { Log.info("会话：\(Self.describe(t))") }
-        // 远程结束就是一块屏都不要了。下一次在同一拍里开始时，前后要的屏一样，不先说一声「不要」，
-        // 上一次在手机上退出的屏会带进这一次。同一拍里先「不要」再「要」不会撤屏重建（DeskSet 排队时读的是最新结论）
+        // 远程结束先说一声一块屏都不要，再按「不在远程」重算（只剩常驻的主屏）。不先说「不要」的话，下一次在同一拍里
+        // 开始时前后要的屏一样，上一次在手机上退出的屏会带进这一次。同一拍里先「不要」再「要」不会撤屏重建（DeskSet 排队时读的是最新结论）
         if transitions.contains(.ended) { desks.setWishes([]) }
         applyPlan()
         desks.setRemote(session.inEpisode)

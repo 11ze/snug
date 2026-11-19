@@ -2,9 +2,9 @@
 import Foundation
 
 public struct AppConfig: Codable, Equatable, Sendable {
-    /// 屏幕列表：远程时建出开着的那几块（见 ScreenPlan）。新装只有一块竖屏手机屏
+    /// 屏幕列表：远程时建出开着的那几块，设为主屏的那块常驻（见 ScreenPlan）。新装只有一块竖屏手机屏
     public var screens = [ScreenConfig.legacyPhone(.standard, enabled: true)]
-    /// 远程时设为主屏的那块；nil 表示不改主屏（默认）
+    /// 设为主屏的那块，常驻、不随远程建撤；nil 表示不改主屏（默认）
     public var mainScreen: ScreenID?
     /// 下一块新加的屏至少用哪一段序列号（只增不减：删掉的屏的号也不回收，免得系统把旧屏的记忆套到新屏上）
     public var nextSerialBlock = 0

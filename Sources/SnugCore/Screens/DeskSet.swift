@@ -175,11 +175,7 @@ public final class DeskSet {
         }
         for (id, ok) in reshaped { await desks[id]?.reshaped(ok) }
         for desk in busy { desk.end() }
-        guard desks.isEmpty else { return }
-        // 这次远程的提示、没盯完的退出和关窗不带到下一次（App 照样在退，只是不再盯）
-        watcher.unwatchAll()
-        state.quitting = []
-        state.closing = []
+        if desks.isEmpty { forgetSession() }
     }
 
     /// 撤屏前清场（docs/how-it-works.md「Snug 的屏」）：Snug 放上去的已经按账放回，屏上剩下的（用户在这块屏上直接开的、
@@ -547,7 +543,23 @@ public final class DeskSet {
 
     /// 远程在不在进行（会话层的结论）。远程结束后，远程中撤屏留下的永久配置要重写（settleDisplays）
     public func setRemote(_ on: Bool) {
-        if screens.setRemote(on), !on { settleDisplays() }
+        guard screens.setRemote(on), !on else { return }
+        // 远程结束：设为主屏的那块常驻不撤（ScreenPlan），屏上的窗口照样放回原位，这次远程的事不带到下一次
+        lane.run { await self.endSession() }
+        settleDisplays()
+    }
+
+    /// 远程结束后还留着的屏（常驻的主屏）：放回窗口、收掉提示，和撤屏前一样；屏和主屏不动
+    private func endSession() async {
+        for desk in orderedDesks where screens.display(desk.id) != nil { await desk.vacate() }
+        forgetSession()
+    }
+
+    /// 这次远程的提示、没盯完的退出和关窗不带到下一次（App 照样在退，只是不再盯）
+    private func forgetSession() {
+        watcher.unwatchAll()
+        state.quitting = []
+        state.closing = []
     }
 
     /// 定期调用、屏幕配置一变也调用：撤屏后屏真下线了，就放回窗口、设回别的屏；远程中撤过屏的，
@@ -591,7 +603,8 @@ public final class DeskSet {
         let skip = Set(desks.values.compactMap(\.placedWindow) + owed)
         guard let back = await env.leftBehind.nextReturn(skip: skip) else { return }
         let center = CGPoint(x: back.frame.midX, y: back.frame.midY)
-        if let id = screens.screen(at: center), let desk = desks[id], desk.awaitsReturn, desk.behavior.touch {
+        // 屏在不等于还在远程：常驻的主屏远程结束后还在，这时回来的窗口放回原位
+        if screens.isRemote, let id = screens.screen(at: center), let desk = desks[id], desk.awaitsReturn, desk.behavior.touch {
             // 还在远程、回到了一块空着的 Snug 屏上：接着放（Desk.place 认得出这笔账，原位、字号接着用）
             await desk.placeOnItsOwn(back.window)
             return

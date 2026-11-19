@@ -122,8 +122,8 @@ final class ScreenWindows {
         homeBarView?.showsCamera = state.config.screenshot
 
         let showList = panel.listVisible || panel.placed == nil
-        // 手机在看这块屏。不知道 UU 在推哪块屏（推流日志没读到）时当作在看
-        let watching = state.streamedDisplay == nil || state.watchedScreen == id
+        // 手机在看这块屏。不知道 UU 在推哪块屏（推流日志没读到）时当作在看；没人远程时谁都没在看（常驻的主屏）
+        let watching = state.screensInUse && (state.streamedDisplay == nil || state.watchedScreen == id)
         if showList { list.orderFrontRegardless() } else { list.orderOut(nil) }
         // 手机离开了就关掉搜索、型号页，交还键盘：不然在主屏上打的字会进到看不见的输入框
         if !showList || !watching { pages.close() }

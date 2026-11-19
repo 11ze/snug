@@ -18,6 +18,8 @@ final class AppState {
     /// 机型库（启动时读一次）：设置和屏上选型号用
     var devices = DeviceCatalog.empty
     var connection = ConnectionPhase.idle
+    /// --preview-screens：不等远程就建屏的自测模式
+    var previewing = false
     /// 此刻同时连着的控制端
     var controllers: [String] = []
     /// UU 此刻在推的屏
@@ -53,6 +55,9 @@ final class AppState {
     func panel(_ id: ScreenID) -> PanelState {
         PanelState(desk: desks.desks[id] ?? Desk.State(), quitting: desks.quitting, closing: desks.closing)
     }
+
+    /// Snug 的屏有没有人在用：远程中（含等重连），或预览自测。常驻的主屏没人远程时也在，这时面板不为它干活
+    var screensInUse: Bool { connection != .idle || previewing }
 
     /// 这块显示器是哪块 Snug 屏；不是 Snug 的屏（内建屏、外接显示器）返回 nil
     func screenID(on display: DisplayID) -> ScreenID? {
@@ -103,7 +108,7 @@ protocol AppIntents: AnyObject, Sendable {
     /// 换型号：屏在就马上换成它的比例
     func setScreenDevice(_ id: ScreenID, _ device: DeviceChoice)
     func renameScreen(_ id: ScreenID, _ name: String)
-    /// 远程时设为主屏的那块；nil 不改主屏
+    /// 设为主屏的那块（常驻）；nil 不改主屏
     func setMainScreen(_ id: ScreenID?)
     func setGestures(_ on: Bool)
     func setZoomSteps(_ steps: Int)

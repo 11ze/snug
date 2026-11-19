@@ -64,7 +64,8 @@ public final class ScreenSet {
     /// 远程在不在进行（会话层的结论，含断开后等重连的那段）：这期间别的屏可能处在远程用的临时模式
     private var remote = false
     /// 远程中撤过屏：那时别的屏可能正处在远程用的临时模式，系统套用时连永久配置一起写了。
-    /// 远程结束（UU 已经还原）、Snug 的屏都不在、屏都醒着时，把别的屏此刻的模式写进永久配置
+    /// 远程结束（UU 已经还原）、只剩常驻的屏（设为主屏的那块）、屏都醒着时，把别的屏此刻的模式写进永久配置：
+    /// 系统按「这组屏幕」记模式，被写坏的正是留下的这一组
     private var persistOwed = false
 
     init(displays: any VirtualDisplays, windows: any WindowControl, arrangement: any DisplayArrangement, timeline: any Timeline,
@@ -278,6 +279,8 @@ public final class ScreenSet {
         return true
     }
 
+    var isRemote: Bool { remote }
+
     /// 有没有善后要做：撤掉的屏还没下线，或远程中撤过屏、永久配置要重写
     var owesSettling: Bool { retiring != nil || persistOwed }
 
@@ -289,7 +292,7 @@ public final class ScreenSet {
             Log.info("撤掉的屏 \(r.displays.map { "#\($0)" }.joined(separator: "、")) 下线了")
             await settle(r.before, after: "撤屏", permanently: r.permanently)
         }
-        guard persistOwed, !remote, live.isEmpty else { return }
+        guard persistOwed, !remote, live.keys.allSatisfy(isResident) else { return }
         let others = displays.otherDisplays()
         guard !others.contains(where: \.asleep) else { return }
         persistOwed = false
@@ -301,6 +304,11 @@ public final class ScreenSet {
 
     /// 设主屏的那块要撤、或不再要它当主屏：先设回原来的主屏（在 DeskSet 清场之前调，跟过去的窗口随之回到原主屏，
     /// 剩下的才要清场）
+    /// 常驻、不随远程建撤的屏：设为主屏的那块（ScreenPlan）
+    private func isResident(_ id: ScreenID) -> Bool {
+        wishes.contains { $0.id == id && $0.main }
+    }
+
     func releaseMain(keeping wishes: [ScreenWish]) async {
         guard let id = mainScreen, !wishes.contains(where: { $0.id == id && $0.main }) else { return }
         mainScreen = nil
