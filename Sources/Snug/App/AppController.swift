@@ -167,10 +167,11 @@ final class AppController: Sendable {
 
     /// 断开后 UU 不再动指针，而 Snug 的屏要等重连窗口才撤。这十几秒里指针若停在 Snug 的屏上，
     /// 那块屏在本机看不见，就成了「鼠标找不回来」。等待期每拍看一眼：用户一动又可能滑回去；
-    /// 只在断开与重连之间生效，连上马上停（issue #29）
+    /// 只在断开与重连之间生效，连上马上停（issue #29）。设为主屏的那块除外：它常驻、远程结束也不撤，
+    /// 指针留在上面正是设主屏的本意（重连后接着用），和撤屏时指针落到主屏一致
     private func keepPointerOffSnugScreens() {
         guard session.inEpisode, !session.isConnected else { return }
-        for desk in state.desks.desks.values {
+        for (id, desk) in state.desks.desks where id != store.config.mainScreen {
             guard let display = desk.display else { continue }
             Cursor.leave(display)
         }
