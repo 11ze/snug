@@ -22,7 +22,7 @@
 </div>
 
 > [!NOTE]
-> **UU远程 VIP**：UU远程 自 2026 年 12 月 1 日起将多屏、虚拟屏等功能纳入 VIP。Snug 基于虚拟屏架构，需配合 UU远程 VIP 使用。另正评估支持其他远控软件，开源项目与成熟产品均在考虑之列。
+> **UU远程 VIP**：UU远程 自 2026 年 12 月 1 日起将多屏、虚拟屏等功能纳入 VIP。Snug 基于虚拟屏架构，面向已开通 UU远程 VIP 的用户。另正评估支持其他远控软件，开源项目与成熟产品均在考虑之列。
 
 > 承接自 [aoyamashou/UUyc-companion](https://github.com/aoyamashou/UUyc-companion)（UU远程伴侣，作者 AoyamaShou，MIT 许可），完整保留原作者的版权声明与提交历史。2.0 起以手机屏为核心重新设计，2.6 起扩展至平板与电脑。
 

@@ -22,7 +22,7 @@ Built for UU Remote · Display and touch enhancements for remote Macs<br>A dedic
 </div>
 
 > [!NOTE]
-> **UU Remote VIP**: from December 1, 2026, UU Remote moves multi-display and virtual display features to VIP. Snug is built on virtual displays and therefore works with UU Remote VIP. Support for other remote desktop apps, both open-source and established, is under evaluation.
+> **UU Remote VIP**: from December 1, 2026, UU Remote moves multi-display and virtual display features to VIP. Snug is built on virtual displays and is intended for users who already have UU Remote VIP. Support for other remote desktop apps, both open-source and established, is under evaluation.
 
 > Continued from [aoyamashou/UUyc-companion](https://github.com/aoyamashou/UUyc-companion) (UU Remote Companion by AoyamaShou, MIT License), with the original copyright notices and commit history fully preserved. Redesigned around the phone screen in 2.0; extended to tablets and computers in 2.6.
 
